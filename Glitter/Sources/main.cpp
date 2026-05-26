@@ -20,6 +20,8 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <vector>
+
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture);
 void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2);
@@ -38,9 +40,9 @@ void create_texture(unsigned int &texture, const char texture_filepath[], std::s
 
 namespace shapes {
     float r_tri[] = {
-       -0.5f, 0.25f, 0.0f,  // top-left
-       -0.5f, -0.5f, 0.0f,  // bottom-left
-       0.5f, -0.5f, 0.0f,  // bottom-right
+        0.0f, 0.5f, 0.0f, // Top
+        0.5f, 0.0f, 0.0f, // Right
+        0.0f, 0.0f, 0.0f, // Left
     };
     
     unsigned int r_tri_ind[] = {
@@ -49,10 +51,10 @@ namespace shapes {
     
     float rect[] = {
         // position       
-        -0.5,  0.5f, 0.0f,//top-left
-         0.5,  0.5f, 0.0f, //top-right
-         0.5, -0.5f, 0.0f, //bottom-right
-        -0.5, -0.5f, 0.0f, //bottom-left
+        -1.0,  1.0f, 0.0f,//top-left
+         1.0,  1.0f, 0.0f, //top-right
+         1.0, -1.0f, 0.0f, //bottom-right
+        -1.0, -1.0f, 0.0f, //bottom-left
     };
     float rect_c_t[] = {
         // position         color           texture coor
@@ -147,9 +149,53 @@ glm::vec3 cubePositions[] = {
     glm::vec3(-1.3f,  1.0f, -1.5f)  
 };
 
+
+
 };
 
 
+void create_circle(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, unsigned int tri_cnt){
+
+
+    std::vector<float> circle;
+    std::vector<unsigned int> ind;
+    unsigned int index = 0;
+
+    for(unsigned int tri = 0; tri < tri_cnt; tri++){
+       
+        
+        for(int vi = 0; vi<3;vi++){
+
+            glm::vec3 vert;
+            if(vi > 0){
+                glm::mat4 transform(1.0f);
+                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
+                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
+                glm::vec3 radius_vec(1.0f,0.0f,0.0f);
+                glm::vec4 radius_vec4(radius_vec,1.0f);
+                radius_vec4 = transform * radius_vec4;
+                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
+            }
+            else{
+                vert = glm::vec3(0.0f,0.0f,0.0f);
+            }
+            circle.push_back(vert.x);
+            circle.push_back(vert.y);
+            circle.push_back(vert.z);
+            
+            ind.push_back(index);
+            index++;
+            ind.push_back(index);
+            index++;
+            ind.push_back(index);
+            index++;
+        }
+    }
+    
+    create_shape(VAO,VBO,EBO,&circle[0],tri_cnt*9,&ind[0],tri_cnt*9,3);
+    
+
+}
 
 
 
@@ -177,33 +223,13 @@ int main(int argc, char * argv[]) {
     
 
 
+    Shader circleShader("Glitter/Shaders/mvp-color.vs","Glitter/Shaders/mvp-color.fs");
     
-    unsigned int texture1;
-    create_texture(texture1, "Glitter/Textures/container.jpg", "jpg");
-    unsigned int texture2;
-    create_texture(texture2, "Glitter/Textures/awesomeface.png", "png");
-
-
-    Shader shader("Glitter/Shaders/shader.vs", "Glitter/Shaders/shader.fs");
-    Shader shaderTexture("Glitter/Shaders/texture.vs", "Glitter/Shaders/texture.fs");
-    Shader shaderDoubleTexture("Glitter/Shaders/double-texture.vs", "Glitter/Shaders/double-texture.fs");
-    Shader shaderColoredTexture("Glitter/Shaders/disco-texture.vs", "Glitter/Shaders/disco-texture.fs");
-    Shader shaderDoubleTextureTransform("Glitter/Shaders/double-texture-transform.vs", "Glitter/Shaders/double-texture.fs");
-    Shader shaderDoubleTextureMVP("Glitter/Shaders/double-texture-mvp.vs", "Glitter/Shaders/double-texture.fs");
+    unsigned int VAO, VBO, EBO;
     
-    unsigned int VBO_T, VAO_T, EBO_T;
-    
-    
-    
-    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::cube, 5*36, shapes::cube_ind, 36);
-    
-    
-
-    shaderDoubleTextureMVP.use();
-    shaderDoubleTextureMVP.setUniform("ourTexture1",0);
-    shaderDoubleTextureMVP.setUniform("ourTexture2",1);
-    
+    create_circle(VAO, VBO, EBO, 32);
     glm::mat4 proj;
+    //proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
     proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
     //float divisor = (float)mWidth/8.0f;
     //proj = glm::ortho(-(float)mWidth/divisor,(float)mWidth/divisor,-(float)mHeight/divisor,(float)mHeight/divisor,0.1f,100.0f);
@@ -213,9 +239,11 @@ int main(int argc, char * argv[]) {
 
     glm::mat4 model(1.0f);
 
-    shaderDoubleTextureMVP.setUniform("projection", proj);
-    shaderDoubleTextureMVP.setUniform("view", view);
-    shaderDoubleTextureMVP.setUniform("model",model);
+    circleShader.use();
+    circleShader.setUniform("projection", proj);
+    circleShader.setUniform("view", view);
+    circleShader.setUniform("model",model);
+    circleShader.setUniform("aColor", glm::vec3(1.0f,0.0f,0.0f));
     
     
     
@@ -228,18 +256,11 @@ int main(int argc, char * argv[]) {
         // Background Fill Color
         glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT);
         
 
+        drawShape(VAO, EBO, circleShader, 32*3);
 
-        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, shapes::cubePositions[i]);
-            model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
-            shaderDoubleTextureMVP.setUniform("model",model);
-            drawDoubleTexturedShape(VAO_T, EBO_T, shaderDoubleTextureMVP, 36, texture1, texture2);
-            
-
-        }
         
 
 
