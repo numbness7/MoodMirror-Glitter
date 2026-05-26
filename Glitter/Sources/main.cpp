@@ -154,7 +154,7 @@ glm::vec3 cubePositions[] = {
 };
 
 
-void create_circle(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, unsigned int tri_cnt){
+unsigned int create_circle(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, unsigned int tri_cnt){
 
 
     std::vector<float> circle;
@@ -183,16 +183,16 @@ void create_circle(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, unsi
             circle.push_back(vert.y);
             circle.push_back(vert.z);
             
-            ind.push_back(index);
-            index++;
-            ind.push_back(index);
-            index++;
-            ind.push_back(index);
-            index++;
+            for(unsigned int i = 0; i<3; i++){
+                ind.push_back(index);
+                index++;
+            }
         }
     }
     
-    create_shape(VAO,VBO,EBO,&circle[0],tri_cnt*9,&ind[0],tri_cnt*9,3);
+    create_shape(VAO,VBO,EBO,&circle[0],tri_cnt*3*3,&ind[0],tri_cnt*3*3,3);
+    
+    return tri_cnt*3;
     
 
 }
@@ -227,7 +227,7 @@ int main(int argc, char * argv[]) {
     
     unsigned int VAO, VBO, EBO;
     
-    create_circle(VAO, VBO, EBO, 32);
+    unsigned int vert_count = create_circle(VAO, VBO, EBO, 128);
     glm::mat4 proj;
     //proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
     proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
@@ -238,6 +238,7 @@ int main(int argc, char * argv[]) {
     view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
 
     glm::mat4 model(1.0f);
+    model = glm::translate(model, glm::vec3(1.0f,0.0f,0.0f));
 
     circleShader.use();
     circleShader.setUniform("projection", proj);
@@ -259,7 +260,7 @@ int main(int argc, char * argv[]) {
         glClear(GL_COLOR_BUFFER_BIT);
         
 
-        drawShape(VAO, EBO, circleShader, 32*3);
+        drawShape(VAO, EBO, circleShader, vert_count);
 
         
 
