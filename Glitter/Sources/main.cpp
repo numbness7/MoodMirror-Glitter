@@ -249,6 +249,7 @@ int main(int argc, char * argv[]) {
     circleShader.setUniform("view", view);
     circleShader.setUniform("model",model);
     circleShader.setUniform("aColor", glm::vec3(1.0f,0.0f,0.0f));
+    circleShader.setUniform("shadeType", 0);
     
     
     
