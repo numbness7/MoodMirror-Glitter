@@ -223,11 +223,13 @@ int main(int argc, char * argv[]) {
     
 
 
-    Shader circleShader("Glitter/Shaders/mvp-color.vs","Glitter/Shaders/mvp-color.fs");
+    Shader circleShader("Glitter/Shaders/ellipse.vs","Glitter/Shaders/ellipse.fs");
     
     unsigned int VAO, VBO, EBO;
     
-    unsigned int vert_count = create_circle(VAO, VBO, EBO, 128);
+    unsigned int vert_count = 6;
+    create_shape(VAO,VBO,EBO,shapes::rect,4*3,shapes::rect_ind,6,3);
+    //unsigned int vert_count = create_circle(VAO, VBO, EBO, 128);
     glm::mat4 proj;
     //proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
     proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
@@ -239,6 +241,8 @@ int main(int argc, char * argv[]) {
 
     glm::mat4 model(1.0f);
     model = glm::translate(model, glm::vec3(1.0f,0.0f,0.0f));
+    model = glm::rotate(model, glm::radians(30.0f), glm::vec3(0.5f,0.5f,1.0f));
+    model = glm::scale(model, glm::vec3(1.0f,0.5f,1.0f));
 
     circleShader.use();
     circleShader.setUniform("projection", proj);
