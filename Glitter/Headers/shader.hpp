@@ -27,7 +27,8 @@ class Shader {
     private:
         unsigned int shaderProgram;
         void compileShader(const char vertex_shader_source[], const char fragment_shader_source[]);
-
+        std::string vertex_shader_filepath;
+        std::string fragment_shader_filepath;
 
 };
 #endif
