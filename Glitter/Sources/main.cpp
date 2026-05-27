@@ -238,6 +238,7 @@ int main(int argc, char * argv[]) {
 
     glm::mat4 view(1.0f);
     view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+    //view = glm::rotate(view, glm::radians(45.0f),glm::vec3(25.0f,25.0f,25.0f));
 
     glm::mat4 model(1.0f);
     model = glm::translate(model, glm::vec3(1.0f,0.0f,0.0f));
@@ -249,7 +250,8 @@ int main(int argc, char * argv[]) {
     circleShader.setUniform("view", view);
     circleShader.setUniform("model",model);
     circleShader.setUniform("aColor", glm::vec3(1.0f,0.0f,0.0f));
-    circleShader.setUniform("shadeType", 0);
+    circleShader.setUniform("shadeType", (unsigned int)3);
+    circleShader.setUniform("minPercentage", 0.6f);
     
     
     
