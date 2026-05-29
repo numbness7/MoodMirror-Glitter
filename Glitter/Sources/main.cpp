@@ -55,9 +55,9 @@ namespace shapes {
     };
     
     float acute_tri[] = {
-        0.0f, 0.5f, 0.0f, // Top
-        0.5f, -0.5f, 0.0f, // Right
-        -0.5f, -0.5f, 0.0f, // Left
+        0.0f, 1.0f, 0.0f, // Top
+        1.0f, -1.0f, 0.0f, // Right
+        -1.0f, -1.0f, 0.0f, // Left
     };
     
     float rect[] = {
@@ -235,10 +235,8 @@ int main(int argc, char * argv[]) {
     unsigned int VAO, VBO, EBO;
     unsigned int VAO_T, VBO_T, EBO_T;
     
-    unsigned int vert_count = 6;
     create_shape(VAO,VBO,EBO,shapes::rect,4*3,shapes::rect_ind,6,3);
     create_shape(VAO_T,VBO_T,EBO_T,shapes::acute_tri,3*3,shapes::r_tri_ind,3,3);
-    //unsigned int vert_count = create_circle(VAO, VBO, EBO, 128);
 
 
     
@@ -293,8 +291,8 @@ int main(int argc, char * argv[]) {
             shader->setUniform("aColor",item.color);
 
 
-            if(item.shapeTYPE == SHAPE_TYPE::TRIANGLE) drawShape(VAO_T, EBO_T, *shader, 3);
-            drawShape(VAO, EBO, *shader, vert_count);
+            if (item.shapeTYPE == SHAPE_TYPE::TRIANGLE)  drawShape(VAO_T, EBO_T, *shader, 3);
+            else drawShape(VAO,EBO,*shader,6);
         }
 
         
