@@ -25,6 +25,7 @@
 #include <list>
 
 // Function Prototypes
+float blender(float minBound, float maxBound, float ratio);
 void worldInit(Shader shader);
 float rand_range_uniform(float min=-1.0f, float max=1.0f);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
@@ -265,10 +266,21 @@ int main(int argc, char * argv[]) {
     float elapsedTime;
     float timeSinceLastIteration;
     float objectLifespan = circle_cnt*spawnTime;
-    float backGroundChangeTime = 10.0f;
+    float backGroundChangeTime = 8.0f;
     float bgChange = 0.0f;
-    glm::vec3 backGroundColorPre(randRGB());
-    glm::vec3 backGroundColorNext(randRGB());
+    bool randColor = true;
+    glm::vec3 backGroundColorPre;
+    glm::vec3 backGroundColorNext;
+    glm::vec3 black(0.0f,0.0f,0.0f);
+    glm::vec3 white(1.0f,1.0f,1.0f);
+    if(randColor){
+        backGroundColorPre = (randRGB());
+        backGroundColorNext = (randRGB());
+    }
+    else{
+        backGroundColorPre = white;
+        backGroundColorNext = black;
+    }
     
     
     // Rendering Loop
@@ -277,16 +289,22 @@ int main(int argc, char * argv[]) {
         // Background Fill Color
         // 
         bgChange += timeSinceLastIteration;
-
         if(bgChange > backGroundChangeTime){
             backGroundColorPre = backGroundColorNext;
-            backGroundColorNext = randRGB();
+            if(randColor){
+                backGroundColorNext = randRGB();
+            }
+            else{
+                if(backGroundColorPre == white) backGroundColorNext = black;
+                else backGroundColorNext = white;
+            }
             bgChange = 0.0f;
             
         }
-        
-        float bgRatio = bgChange/backGroundChangeTime;
-        glm::vec3 curBG = (1-bgRatio)*backGroundColorPre + bgRatio*backGroundColorNext;
+        float bgTimeRatio = bgChange/backGroundChangeTime;
+        float bgRatio = blender(0.25f,1.00f,bgTimeRatio);
+        glm::vec3 curBG;
+        curBG = (1-bgRatio)*backGroundColorPre + bgRatio*backGroundColorNext;
 
         
         glClearColor(curBG.x,curBG.y,curBG.z,1.0f);
@@ -317,16 +335,7 @@ int main(int argc, char * argv[]) {
             shader->setUniform("model",model);
             float timeAlive = elapsedTime - item.creationTime;
             float timeAliveRatio = timeAlive/objectLifespan;
-            float alphaPercent;
-            float minBound = 0.25f;
-            float maxBound = 0.8f;
-            if (timeAliveRatio < minBound)
-                alphaPercent = timeAliveRatio/minBound;
-            else if(timeAliveRatio < maxBound)
-                alphaPercent = 1.0f;
-            else 
-                alphaPercent = (1.0f - (timeAliveRatio-maxBound)/(1.0f-maxBound));
-
+            float alphaPercent = blender(0.25f,0.8f,timeAliveRatio);
             shader->setUniform("aColor",glm::vec4(item.color.x,item.color.y,item.color.z,alphaPercent*item.color.w));
             
             
@@ -576,4 +585,15 @@ void worldInit(Shader shader){
     shader.setUniform("aColor", glm::vec3(1.0f,0.0f,0.0f));
     shader.setUniform("shadeType", (unsigned int)0);
     shader.setUniform("minPercentage", 0.0f);
+}
+
+float blender(float minBound, float maxBound, float ratio){
+    float blend;
+    if (ratio < minBound)
+        blend = ratio/minBound;
+    else if(ratio < maxBound)
+        blend = 1.0f;
+    else 
+        blend = (1.0f - (ratio-maxBound)/(1.0f-maxBound));
+    return blend;
 }
