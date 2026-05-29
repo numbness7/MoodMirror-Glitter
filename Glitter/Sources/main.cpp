@@ -172,6 +172,7 @@ struct AShape{
     glm::vec2 pos;
     glm::vec4 color;
     glm::vec2 scale;
+    float rotation;
     SHAPE_TYPE shapeTYPE;
 
 };
@@ -282,6 +283,7 @@ int main(int argc, char * argv[]) {
         for (const auto& item : ranShapes){
             model = glm::mat4(1.0f);
             model = glm::translate(model, glm::vec3(item.pos,1.0f));
+            model = glm::rotate(model, item.rotation, glm::vec3(0.0f,0.0f,1.0f));
             model = glm::scale(model,glm::vec3(item.scale,1.0f));
             Shader* shader;
             if(item.shapeTYPE == SHAPE_TYPE::CIRCLE) shader = &circleShader;
@@ -501,6 +503,7 @@ AShape genRanShape(){
     ranShape.scale = glm::vec2(x,y);
     unsigned int ranTypeIndex = rand_range_uniform((unsigned int)0,(unsigned int)2);
     SHAPE_TYPE shapeType;
+    ranShape.rotation = glm::radians(rand_range_uniform(0.0f,360.0f));
     switch (ranTypeIndex)
         {
         case 0:
