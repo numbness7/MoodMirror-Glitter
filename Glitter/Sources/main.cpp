@@ -22,6 +22,7 @@
 
 #include <vector>
 #include <random>
+#include <list>
 
 float rand_range_uniform(float min=-1.0f, float max=1.0f);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
@@ -250,17 +251,19 @@ int main(int argc, char * argv[]) {
     glBlendFunc(GL_SRC_ALPHA , GL_ONE_MINUS_SRC_ALPHA);
 
     
-    std::vector<RanCircle> ranCircles;
+    std::list<RanCircle> ranCircles;
     
-    unsigned int circle_cnt = 10;
+    unsigned int circle_cnt = 30;
     
     for(unsigned int i=0; i < circle_cnt; i++){
         ranCircles.push_back(genRanCircle());
     }
     
     float spawnTimer = 0.0f;
-    float spawnTime = 60.0f;
+    float spawnTime = 0.1f;
+    float preTime = (float)glfwGetTime();
     float elapsedTime;
+    float timeSinceLastIteration;
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -270,17 +273,22 @@ int main(int argc, char * argv[]) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClear(GL_COLOR_BUFFER_BIT);
         elapsedTime = (float)glfwGetTime();
-        spawnTimer += elapsedTime;
+        timeSinceLastIteration = elapsedTime - preTime;
+        preTime = elapsedTime;
+        spawnTimer += timeSinceLastIteration;
         if(spawnTimer >= spawnTime){
-            
+           ranCircles.pop_back();
+           ranCircles.emplace_front(genRanCircle());
+           spawnTimer = 0.0f;
         }
+
         
-        for(unsigned int i=0; i < ranCircles.size(); i++){
+        for (const auto& item : ranCircles){
             model = glm::mat4(1.0f);
-            model = glm::translate(model, glm::vec3(ranCircles[i].pos,1.0f));
-            model = glm::scale(model,glm::vec3(ranCircles[i].scale,1.0f));
+            model = glm::translate(model, glm::vec3(item.pos,1.0f));
+            model = glm::scale(model,glm::vec3(item.scale,1.0f));
             circleShader.setUniform("model",model);
-            circleShader.setUniform("aColor",ranCircles[i].color);
+            circleShader.setUniform("aColor",item.color);
             drawShape(VAO, EBO, circleShader, vert_count);
         }
 
@@ -485,7 +493,7 @@ RanCircle genRanCircle(){
     float b = rand_range_uniform(0.0f,1.0f);
     float a = rand_range_uniform(0.0f,1.0f);
     ranCircle.color = glm::vec4(r,g,b,a);
-    while((x = rand_range_normal(0.2f,0.2f)) < 0.1f || x > 1.0f);
+    while((x = rand_range_normal(0.2f,0.1f)) < 0.1f || x > 1.0f);
     y = x;
     ranCircle.scale = glm::vec2(x,y);
     return ranCircle;
