@@ -257,18 +257,19 @@ int main(int argc, char * argv[]) {
     
     std::list<AShape> ranShapes;
     
-    unsigned int circle_cnt = 30;
+    unsigned int circle_cnt = 40;
     
     
     float spawnTimer = 0.0f;
-    float spawnTime = 0.25f;
+    float spawnTime = 0.15f;
     float preTime = (float)glfwGetTime();
     float elapsedTime;
     float timeSinceLastIteration;
     float objectLifespan = circle_cnt*spawnTime;
-    float backGroundChangeTime = 8.0f;
+    float backGroundChangeTime = 10.0f;
     float bgChange = 0.0f;
-    bool randColor = true;
+    bool randColor = false;
+    bool doBGChange = false;
     glm::vec3 backGroundColorPre;
     glm::vec3 backGroundColorNext;
     glm::vec3 black(0.0f,0.0f,0.0f);
@@ -285,24 +286,25 @@ int main(int argc, char * argv[]) {
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
-
+        float bgRatio = 0.0f;
         // Background Fill Color
-        // 
-        bgChange += timeSinceLastIteration;
-        if(bgChange > backGroundChangeTime){
-            backGroundColorPre = backGroundColorNext;
-            if(randColor){
-                backGroundColorNext = randRGB();
+        if(doBGChange){
+            bgChange += timeSinceLastIteration;
+            if(bgChange > backGroundChangeTime){
+                backGroundColorPre = backGroundColorNext;
+                if(randColor){
+                    backGroundColorNext = randRGB();
+                }
+                else{
+                    if(backGroundColorPre == white) backGroundColorNext = black;
+                    else backGroundColorNext = white;
+                }
+                bgChange = 0.0f;
+                
             }
-            else{
-                if(backGroundColorPre == white) backGroundColorNext = black;
-                else backGroundColorNext = white;
-            }
-            bgChange = 0.0f;
-            
+            float bgTimeRatio = bgChange/backGroundChangeTime;
+            bgRatio = blender(0.25f,1.00f,bgTimeRatio);
         }
-        float bgTimeRatio = bgChange/backGroundChangeTime;
-        float bgRatio = blender(0.25f,1.00f,bgTimeRatio);
         glm::vec3 curBG;
         curBG = (1-bgRatio)*backGroundColorPre + bgRatio*backGroundColorNext;
 
