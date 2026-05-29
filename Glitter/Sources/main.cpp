@@ -155,49 +155,13 @@ glm::vec3 cubePositions[] = {
 
 };
 
+struct RanCircle{
+    glm::vec2 pos;
+    glm::vec4 color;
+    glm::vec2 scale;
+};
 
-unsigned int create_circle(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, unsigned int tri_cnt){
-
-
-    std::vector<float> circle;
-    std::vector<unsigned int> ind;
-    unsigned int index = 0;
-
-    for(unsigned int tri = 0; tri < tri_cnt; tri++){
-       
-        
-        for(int vi = 0; vi<3;vi++){
-
-            glm::vec3 vert;
-            if(vi > 0){
-                glm::mat4 transform(1.0f);
-                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
-                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
-                glm::vec3 radius_vec(1.0f,0.0f,0.0f);
-                glm::vec4 radius_vec4(radius_vec,1.0f);
-                radius_vec4 = transform * radius_vec4;
-                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
-            }
-            else{
-                vert = glm::vec3(0.0f,0.0f,0.0f);
-            }
-            circle.push_back(vert.x);
-            circle.push_back(vert.y);
-            circle.push_back(vert.z);
-            
-            for(unsigned int i = 0; i<3; i++){
-                ind.push_back(index);
-                index++;
-            }
-        }
-    }
-    
-    create_shape(VAO,VBO,EBO,&circle[0],tri_cnt*3*3,&ind[0],tri_cnt*3*3,3);
-    
-    return tri_cnt*3;
-    
-
-}
+RanCircle genRanCircle();
 
 enum DIST {NORMAL, UNIFORM};
 
@@ -286,28 +250,17 @@ int main(int argc, char * argv[]) {
     glBlendFunc(GL_SRC_ALPHA , GL_ONE_MINUS_SRC_ALPHA);
 
     
-    std::vector<glm::vec2> ranCoords;
-    std::vector<glm::vec4> ranColors;
-    std::vector<glm::vec2> ranScale;
+    std::vector<RanCircle> ranCircles;
     
     unsigned int circle_cnt = 10;
     
     for(unsigned int i=0; i < circle_cnt; i++){
-        float x = rand_range_uniform();
-        float y = rand_range_uniform();
-        ranCoords.push_back(glm::vec2(x,y));
-        float r = rand_range_uniform(0.0f,1.0f);
-        float g = rand_range_uniform(0.0f,1.0f);
-        float b = rand_range_uniform(0.0f,1.0f);
-        float a = rand_range_uniform(0.0f,1.0f);
-        ranColors.push_back(glm::vec4(r,g,b,a));
-        while((x = rand_range_normal(0.2f,0.2f)) < 0.1f || x > 1.0f);
-        y = x;
-        std::cout << "Scale: " << x << std::endl;
-        ranScale.push_back(glm::vec2(x,y));
-        
+        ranCircles.push_back(genRanCircle());
     }
     
+    float spawnTimer = 0.0f;
+    float spawnTime = 60.0f;
+    float elapsedTime;
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -316,13 +269,18 @@ int main(int argc, char * argv[]) {
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClear(GL_COLOR_BUFFER_BIT);
+        elapsedTime = (float)glfwGetTime();
+        spawnTimer += elapsedTime;
+        if(spawnTimer >= spawnTime){
+            
+        }
         
-        for(unsigned int i=0; i < ranCoords.size(); i++){
+        for(unsigned int i=0; i < ranCircles.size(); i++){
             model = glm::mat4(1.0f);
-            model = glm::translate(model, glm::vec3(ranCoords[i],1.0f));
-            model = glm::scale(model,glm::vec3(ranScale[i],1.0f));
+            model = glm::translate(model, glm::vec3(ranCircles[i].pos,1.0f));
+            model = glm::scale(model,glm::vec3(ranCircles[i].scale,1.0f));
             circleShader.setUniform("model",model);
-            circleShader.setUniform("aColor",ranColors[i]);
+            circleShader.setUniform("aColor",ranCircles[i].color);
             drawShape(VAO, EBO, circleShader, vert_count);
         }
 
@@ -474,4 +432,61 @@ void create_texture(unsigned int &texture, const char texture_filepath[], std::s
         throw std::runtime_error("Failed to load texture: " + std::string(texture_filepath));
     }
     stbi_image_free(data);
+}
+unsigned int create_circle(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, unsigned int tri_cnt){
+
+
+    std::vector<float> circle;
+    std::vector<unsigned int> ind;
+    unsigned int index = 0;
+
+    for(unsigned int tri = 0; tri < tri_cnt; tri++){
+       
+        
+        for(int vi = 0; vi<3;vi++){
+
+            glm::vec3 vert;
+            if(vi > 0){
+                glm::mat4 transform(1.0f);
+                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
+                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
+                glm::vec3 radius_vec(1.0f,0.0f,0.0f);
+                glm::vec4 radius_vec4(radius_vec,1.0f);
+                radius_vec4 = transform * radius_vec4;
+                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
+            }
+            else{
+                vert = glm::vec3(0.0f,0.0f,0.0f);
+            }
+            circle.push_back(vert.x);
+            circle.push_back(vert.y);
+            circle.push_back(vert.z);
+            
+            for(unsigned int i = 0; i<3; i++){
+                ind.push_back(index);
+                index++;
+            }
+        }
+    }
+    
+    create_shape(VAO,VBO,EBO,&circle[0],tri_cnt*3*3,&ind[0],tri_cnt*3*3,3);
+    
+    return tri_cnt*3;
+    
+
+}
+RanCircle genRanCircle(){
+    RanCircle ranCircle;
+    float x = rand_range_uniform();
+    float y = rand_range_uniform();
+    ranCircle.pos = glm::vec2(x,y);
+    float r = rand_range_uniform(0.0f,1.0f);
+    float g = rand_range_uniform(0.0f,1.0f);
+    float b = rand_range_uniform(0.0f,1.0f);
+    float a = rand_range_uniform(0.0f,1.0f);
+    ranCircle.color = glm::vec4(r,g,b,a);
+    while((x = rand_range_normal(0.2f,0.2f)) < 0.1f || x > 1.0f);
+    y = x;
+    ranCircle.scale = glm::vec2(x,y);
+    return ranCircle;
 }
