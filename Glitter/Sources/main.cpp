@@ -174,7 +174,7 @@ struct AShape{
     glm::vec2 scale;
     float rotation;
     SHAPE_TYPE shapeTYPE;
-
+    float creationTime;
 };
 
 AShape genRanShape();
@@ -252,15 +252,13 @@ int main(int argc, char * argv[]) {
     
     unsigned int circle_cnt = 30;
     
-    for(unsigned int i=0; i < circle_cnt; i++){
-        ranShapes.push_back(genRanShape());
-    }
     
     float spawnTimer = 0.0f;
     float spawnTime = 0.1f;
     float preTime = (float)glfwGetTime();
     float elapsedTime;
     float timeSinceLastIteration;
+    float objectLifespan = circle_cnt*spawnTime;
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -274,7 +272,9 @@ int main(int argc, char * argv[]) {
         preTime = elapsedTime;
         spawnTimer += timeSinceLastIteration;
         if(spawnTimer >= spawnTime){
-           ranShapes.pop_back();
+           if(ranShapes.size()>circle_cnt){
+               ranShapes.pop_back();
+           }
            ranShapes.emplace_front(genRanShape());
            spawnTimer = 0.0f;
         }
@@ -290,7 +290,22 @@ int main(int argc, char * argv[]) {
             else shader = &rectShader;
             shader->use();
             shader->setUniform("model",model);
-            shader->setUniform("aColor",item.color);
+            float timeAlive = elapsedTime - item.creationTime;
+            float timeAliveRatio = timeAlive/objectLifespan;
+            float alphaPercent;
+            float minBound = 0.25f;
+            float maxBound = 0.8f;
+            if (timeAliveRatio < minBound)
+                alphaPercent = timeAliveRatio/minBound;
+            else if(timeAliveRatio < maxBound)
+                alphaPercent = 1.0f;
+            else 
+                alphaPercent = (1.0f - (timeAliveRatio-maxBound)/(1.0f-maxBound));
+
+            shader->setUniform("aColor",glm::vec4(item.color.x,item.color.y,item.color.z,alphaPercent*item.color.w));
+            
+            
+
 
 
             if (item.shapeTYPE == SHAPE_TYPE::TRIANGLE)  drawShape(VAO_T, EBO_T, *shader, 3);
@@ -517,6 +532,7 @@ AShape genRanShape(){
             break;
         }
     ranShape.shapeTYPE = shapeType;
+    ranShape.creationTime = (float)glfwGetTime();
     return ranShape;
 }
 
