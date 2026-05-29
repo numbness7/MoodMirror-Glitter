@@ -202,7 +202,13 @@ float rand_range_normal(float mean, float stddev){
     return dis(gen);
 }
 
+glm::vec3 randRGB(){
+    return glm::vec3(rand_range_normal(0.0f,1.0f),rand_range_normal(0.0f,1.0f),rand_range_normal(0.0f,1.0f));
+}
 
+glm::vec4 randRGBA(){
+    return glm::vec4(rand_range_normal(0.0f,1.0f),rand_range_normal(0.0f,1.0f),rand_range_normal(0.0f,1.0f),rand_range_normal(0.0f,1.0f));
+}
 
 int main(int argc, char * argv[]) {
 
@@ -254,17 +260,36 @@ int main(int argc, char * argv[]) {
     
     
     float spawnTimer = 0.0f;
-    float spawnTime = 0.1f;
+    float spawnTime = 0.25f;
     float preTime = (float)glfwGetTime();
     float elapsedTime;
     float timeSinceLastIteration;
     float objectLifespan = circle_cnt*spawnTime;
+    float backGroundChangeTime = 10.0f;
+    float bgChange = 0.0f;
+    glm::vec3 backGroundColorPre(randRGB());
+    glm::vec3 backGroundColorNext(randRGB());
+    
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
 
         // Background Fill Color
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        // 
+        bgChange += timeSinceLastIteration;
+
+        if(bgChange > backGroundChangeTime){
+            backGroundColorPre = backGroundColorNext;
+            backGroundColorNext = randRGB();
+            bgChange = 0.0f;
+            
+        }
+        
+        float bgRatio = bgChange/backGroundChangeTime;
+        glm::vec3 curBG = (1-bgRatio)*backGroundColorPre + bgRatio*backGroundColorNext;
+
+        
+        glClearColor(curBG.x,curBG.y,curBG.z,1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClear(GL_COLOR_BUFFER_BIT);
         elapsedTime = (float)glfwGetTime();
@@ -325,6 +350,7 @@ int main(int argc, char * argv[]) {
     }   glfwTerminate();
     return EXIT_SUCCESS;
 }
+
 
 void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2){
     shader.use();
