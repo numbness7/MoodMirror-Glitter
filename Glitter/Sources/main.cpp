@@ -24,6 +24,8 @@
 #include <random>
 #include <list>
 
+// Function Prototypes
+void worldInit(Shader shader);
 float rand_range_uniform(float min=-1.0f, float max=1.0f);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture);
@@ -50,6 +52,12 @@ namespace shapes {
     
     unsigned int r_tri_ind[] = {
         0, 1, 2
+    };
+    
+    float acute_tri[] = {
+        0.0f, 0.5f, 0.0f, // Top
+        0.5f, -0.5f, 0.0f, // Right
+        -0.5f, -0.5f, 0.0f, // Left
     };
     
     float rect[] = {
@@ -156,13 +164,19 @@ glm::vec3 cubePositions[] = {
 
 };
 
-struct RanCircle{
+enum class SHAPE_TYPE {
+    CIRCLE, RECTANGLE, TRIANGLE
+};
+
+struct AShape{
     glm::vec2 pos;
     glm::vec4 color;
     glm::vec2 scale;
+    SHAPE_TYPE shapeTYPE;
+
 };
 
-RanCircle genRanCircle();
+AShape genRanShape();
 
 enum DIST {NORMAL, UNIFORM};
 
@@ -214,35 +228,19 @@ int main(int argc, char * argv[]) {
 
 
     Shader circleShader("Glitter/Shaders/ellipse.vs","Glitter/Shaders/ellipse.fs");
-    
+    worldInit(circleShader);
+    Shader rectShader("Glitter/Shaders/mvp-color.vs","Glitter/Shaders/mvp-color.fs");
+    worldInit(rectShader);
+    glm::mat4 model;
     unsigned int VAO, VBO, EBO;
+    unsigned int VAO_T, VBO_T, EBO_T;
     
     unsigned int vert_count = 6;
     create_shape(VAO,VBO,EBO,shapes::rect,4*3,shapes::rect_ind,6,3);
+    create_shape(VAO_T,VBO_T,EBO_T,shapes::acute_tri,3*3,shapes::r_tri_ind,3,3);
     //unsigned int vert_count = create_circle(VAO, VBO, EBO, 128);
-    glm::mat4 proj;
-    //proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-    //float divisor = (float)mWidth/8.0f;
-    //proj = glm::ortho(-(float)mWidth/divisor,(float)mWidth/divisor,-(float)mHeight/divisor,(float)mHeight/divisor,0.1f,100.0f);
-
-    glm::mat4 view(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
-    //view = glm::rotate(view, glm::radians(45.0f),glm::vec3(25.0f,25.0f,25.0f));
-
-    glm::mat4 model(1.0f);
-//    model = glm::translate(model, glm::vec3(1.0f,0.0f,0.0f));
-//    model = glm::rotate(model, glm::radians(30.0f), glm::vec3(0.5f,0.5f,1.0f));
-//    model = glm::scale(model, glm::vec3(1.0f,0.5f,1.0f));
 
 
-    circleShader.use();
-    circleShader.setUniform("projection", proj);
-    circleShader.setUniform("view", view);
-    circleShader.setUniform("model",model);
-    circleShader.setUniform("aColor", glm::vec3(1.0f,0.0f,0.0f));
-    circleShader.setUniform("shadeType", (unsigned int)0);
-    circleShader.setUniform("minPercentage", 0.0f);
     
     
     
@@ -251,12 +249,12 @@ int main(int argc, char * argv[]) {
     glBlendFunc(GL_SRC_ALPHA , GL_ONE_MINUS_SRC_ALPHA);
 
     
-    std::list<RanCircle> ranCircles;
+    std::list<AShape> ranShapes;
     
     unsigned int circle_cnt = 30;
     
     for(unsigned int i=0; i < circle_cnt; i++){
-        ranCircles.push_back(genRanCircle());
+        ranShapes.push_back(genRanShape());
     }
     
     float spawnTimer = 0.0f;
@@ -277,19 +275,26 @@ int main(int argc, char * argv[]) {
         preTime = elapsedTime;
         spawnTimer += timeSinceLastIteration;
         if(spawnTimer >= spawnTime){
-           ranCircles.pop_back();
-           ranCircles.emplace_front(genRanCircle());
+           ranShapes.pop_back();
+           ranShapes.emplace_front(genRanShape());
            spawnTimer = 0.0f;
         }
 
         
-        for (const auto& item : ranCircles){
+        for (const auto& item : ranShapes){
             model = glm::mat4(1.0f);
             model = glm::translate(model, glm::vec3(item.pos,1.0f));
             model = glm::scale(model,glm::vec3(item.scale,1.0f));
-            circleShader.setUniform("model",model);
-            circleShader.setUniform("aColor",item.color);
-            drawShape(VAO, EBO, circleShader, vert_count);
+            Shader* shader;
+            if(item.shapeTYPE == SHAPE_TYPE::CIRCLE) shader = &circleShader;
+            else shader = &rectShader;
+            shader->use();
+            shader->setUniform("model",model);
+            shader->setUniform("aColor",item.color);
+
+
+            if(item.shapeTYPE == SHAPE_TYPE::TRIANGLE) drawShape(VAO_T, EBO_T, *shader, 3);
+            drawShape(VAO, EBO, *shader, vert_count);
         }
 
         
@@ -483,18 +488,49 @@ unsigned int create_circle(unsigned int &VAO, unsigned int &VBO, unsigned int& E
     
 
 }
-RanCircle genRanCircle(){
-    RanCircle ranCircle;
+AShape genRanShape(){
+    AShape ranShape;
     float x = rand_range_uniform();
     float y = rand_range_uniform();
-    ranCircle.pos = glm::vec2(x,y);
+    ranShape.pos = glm::vec2(x,y);
     float r = rand_range_uniform(0.0f,1.0f);
     float g = rand_range_uniform(0.0f,1.0f);
     float b = rand_range_uniform(0.0f,1.0f);
     float a = rand_range_uniform(0.0f,1.0f);
-    ranCircle.color = glm::vec4(r,g,b,a);
+    ranShape.color = glm::vec4(r,g,b,a);
     while((x = rand_range_normal(0.2f,0.1f)) < 0.1f || x > 1.0f);
     y = x;
-    ranCircle.scale = glm::vec2(x,y);
-    return ranCircle;
+    ranShape.scale = glm::vec2(x,y);
+    unsigned int ranTypeIndex = rand_range_uniform((unsigned int)0,(unsigned int)2);
+    SHAPE_TYPE shapeType;
+    switch (ranTypeIndex)
+        {
+        case 0:
+            shapeType = SHAPE_TYPE::CIRCLE;
+            break;
+        case 1:
+            shapeType = SHAPE_TYPE::RECTANGLE;
+            break;
+        case 2:
+            shapeType = SHAPE_TYPE::TRIANGLE;
+            break;
+        }
+    ranShape.shapeTYPE = shapeType;
+    return ranShape;
+}
+
+void worldInit(Shader shader){
+    shader.use();
+    glm::mat4 proj(1.0f);
+    float aspectRatio = (float)mWidth/(float)mHeight;
+    proj = glm::scale(proj,glm::vec3(1/aspectRatio,1.0f,1.0f));
+    glm::mat4 view(1.0f);
+    glm::mat4 model(1.0f);
+    shader.use();
+    shader.setUniform("projection", proj);
+    shader.setUniform("view", view);
+    shader.setUniform("model",model);
+    shader.setUniform("aColor", glm::vec3(1.0f,0.0f,0.0f));
+    shader.setUniform("shadeType", (unsigned int)0);
+    shader.setUniform("minPercentage", 0.0f);
 }
