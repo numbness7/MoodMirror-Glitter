@@ -257,11 +257,11 @@ int main(int argc, char * argv[]) {
     
     std::list<AShape> ranShapes;
     
-    unsigned int circle_cnt = 40;
+    unsigned int circle_cnt = 1000;
     
     
     float spawnTimer = 0.0f;
-    float spawnTime = 0.15f;
+    float spawnTime = 0.005f;
     float preTime = (float)glfwGetTime();
     float elapsedTime;
     float timeSinceLastIteration;
@@ -550,7 +550,7 @@ AShape genRanShape(){
     float b = rand_range_uniform(0.0f,1.0f);
     float a = rand_range_uniform(0.0f,1.0f);
     ranShape.color = glm::vec4(r,g,b,a);
-    while((x = rand_range_normal(0.2f,0.1f)) < 0.1f || x > 1.0f);
+    while((x = rand_range_normal(0.2f,0.4f)) < 0.1f || x > 2.0f);
     y = x;
     ranShape.scale = glm::vec2(x,y);
     unsigned int ranTypeIndex = rand_range_uniform((unsigned int)0,(unsigned int)2);
