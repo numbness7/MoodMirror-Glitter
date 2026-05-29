@@ -72,6 +72,9 @@ if(NOT WIN32 AND NOT MSVC)
     set(PLATFORM_LIBRARIES dl)
 endif()
 
+#set(march native)
+set(march x86-64)
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
     glfw
     glad

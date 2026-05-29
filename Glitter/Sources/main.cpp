@@ -21,7 +21,9 @@
 #include <stdexcept>
 
 #include <vector>
+#include <random>
 
+float rand_range_uniform(float min=-1.0f, float max=1.0f);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture);
 void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2);
@@ -197,6 +199,29 @@ unsigned int create_circle(unsigned int &VAO, unsigned int &VBO, unsigned int& E
 
 }
 
+enum DIST {NORMAL, UNIFORM};
+
+float rand_range_uniform(float min, float max){
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(min,max);
+    return dis(gen);
+}
+
+unsigned int rand_range_uniform(unsigned int min, unsigned int max){
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(min,max);
+    return dis(gen);
+}
+
+float rand_range_normal(float mean, float stddev){
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<> dis(mean,stddev);
+    return dis(gen);
+}
+
 
 
 int main(int argc, char * argv[]) {
@@ -241,33 +266,65 @@ int main(int argc, char * argv[]) {
     //view = glm::rotate(view, glm::radians(45.0f),glm::vec3(25.0f,25.0f,25.0f));
 
     glm::mat4 model(1.0f);
-    model = glm::translate(model, glm::vec3(1.0f,0.0f,0.0f));
-    model = glm::rotate(model, glm::radians(30.0f), glm::vec3(0.5f,0.5f,1.0f));
-    model = glm::scale(model, glm::vec3(1.0f,0.5f,1.0f));
+//    model = glm::translate(model, glm::vec3(1.0f,0.0f,0.0f));
+//    model = glm::rotate(model, glm::radians(30.0f), glm::vec3(0.5f,0.5f,1.0f));
+//    model = glm::scale(model, glm::vec3(1.0f,0.5f,1.0f));
+
 
     circleShader.use();
     circleShader.setUniform("projection", proj);
     circleShader.setUniform("view", view);
     circleShader.setUniform("model",model);
     circleShader.setUniform("aColor", glm::vec3(1.0f,0.0f,0.0f));
-    circleShader.setUniform("shadeType", (unsigned int)3);
-    circleShader.setUniform("minPercentage", 0.6f);
+    circleShader.setUniform("shadeType", (unsigned int)0);
+    circleShader.setUniform("minPercentage", 0.0f);
     
     
     
-    glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA , GL_ONE_MINUS_SRC_ALPHA);
+
+    
+    std::vector<glm::vec2> ranCoords;
+    std::vector<glm::vec4> ranColors;
+    std::vector<glm::vec2> ranScale;
+    
+    unsigned int circle_cnt = 10;
+    
+    for(unsigned int i=0; i < circle_cnt; i++){
+        float x = rand_range_uniform();
+        float y = rand_range_uniform();
+        ranCoords.push_back(glm::vec2(x,y));
+        float r = rand_range_uniform(0.0f,1.0f);
+        float g = rand_range_uniform(0.0f,1.0f);
+        float b = rand_range_uniform(0.0f,1.0f);
+        float a = rand_range_uniform(0.0f,1.0f);
+        ranColors.push_back(glm::vec4(r,g,b,a));
+        while((x = rand_range_normal(0.2f,0.2f)) < 0.1f || x > 1.0f);
+        y = x;
+        std::cout << "Scale: " << x << std::endl;
+        ranScale.push_back(glm::vec2(x,y));
+        
+    }
     
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
 
         // Background Fill Color
-        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClear(GL_COLOR_BUFFER_BIT);
         
-
-        drawShape(VAO, EBO, circleShader, vert_count);
+        for(unsigned int i=0; i < ranCoords.size(); i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(ranCoords[i],1.0f));
+            model = glm::scale(model,glm::vec3(ranScale[i],1.0f));
+            circleShader.setUniform("model",model);
+            circleShader.setUniform("aColor",ranColors[i]);
+            drawShape(VAO, EBO, circleShader, vert_count);
+        }
 
         
 
