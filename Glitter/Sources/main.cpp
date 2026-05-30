@@ -182,23 +182,21 @@ AShape genRanShape();
 
 enum DIST {NORMAL, UNIFORM};
 
+
+std::random_device rd;
+std::mt19937 gen(rd());
+
 float rand_range_uniform(float min, float max){
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::uniform_real_distribution<> dis(min,max);
     return dis(gen);
 }
 
 unsigned int rand_range_uniform(unsigned int min, unsigned int max){
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(min,max);
     return dis(gen);
 }
 
 float rand_range_normal(float mean, float stddev){
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::normal_distribution<> dis(mean,stddev);
     return dis(gen);
 }
@@ -257,19 +255,20 @@ int main(int argc, char * argv[]) {
     
     std::list<AShape> ranShapes;
     
-    unsigned int circle_cnt = 1000;
+    unsigned int batche_size = 4;
+    unsigned int batches = 1600;
+    
+    unsigned int shape_cnt = batche_size*batches;
     
     
     float spawnTimer = 0.0f;
-    float spawnTime = 0.005f;
+    float spawnTime = 0.015f;
     float preTime = (float)glfwGetTime();
+    float lastSpawnTime = preTime;
     float elapsedTime;
-    float timeSinceLastIteration;
-    float objectLifespan = circle_cnt*spawnTime;
-    float backGroundChangeTime = 10.0f;
-    float bgChange = 0.0f;
+
+    float objectLifespan = (float)shape_cnt*spawnTime/(float)batche_size;
     bool randColor = false;
-    bool doBGChange = false;
     glm::vec3 backGroundColorPre;
     glm::vec3 backGroundColorNext;
     glm::vec3 black(0.0f,0.0f,0.0f);
@@ -283,45 +282,25 @@ int main(int argc, char * argv[]) {
         backGroundColorNext = black;
     }
     
+        Shader* shader;
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
-        float bgRatio = 0.0f;
-        // Background Fill Color
-        if(doBGChange){
-            bgChange += timeSinceLastIteration;
-            if(bgChange > backGroundChangeTime){
-                backGroundColorPre = backGroundColorNext;
-                if(randColor){
-                    backGroundColorNext = randRGB();
-                }
-                else{
-                    if(backGroundColorPre == white) backGroundColorNext = black;
-                    else backGroundColorNext = white;
-                }
-                bgChange = 0.0f;
-                
-            }
-            float bgTimeRatio = bgChange/backGroundChangeTime;
-            bgRatio = blender(0.25f,1.00f,bgTimeRatio);
-        }
-        glm::vec3 curBG;
-        curBG = (1-bgRatio)*backGroundColorPre + bgRatio*backGroundColorNext;
-
         
-        glClearColor(curBG.x,curBG.y,curBG.z,1.0f);
+        Shader* shader;
+        glClearColor(white.x,white.y,white.z,1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClear(GL_COLOR_BUFFER_BIT);
         elapsedTime = (float)glfwGetTime();
-        timeSinceLastIteration = elapsedTime - preTime;
-        preTime = elapsedTime;
-        spawnTimer += timeSinceLastIteration;
+        spawnTimer = elapsedTime - lastSpawnTime;
         if(spawnTimer >= spawnTime){
-           if(ranShapes.size()>circle_cnt){
-               ranShapes.pop_back();
+           if(ranShapes.size()>shape_cnt){
+               for(int i = 0; i < batche_size; i++)
+                   ranShapes.pop_back();
            }
-           ranShapes.emplace_front(genRanShape());
-           spawnTimer = 0.0f;
+           for(int i = 0; i < batche_size; i++)
+               ranShapes.emplace_front(genRanShape());
+           lastSpawnTime = elapsedTime;
         }
 
         
@@ -330,7 +309,6 @@ int main(int argc, char * argv[]) {
             model = glm::translate(model, glm::vec3(item.pos,1.0f));
             model = glm::rotate(model, item.rotation, glm::vec3(0.0f,0.0f,1.0f));
             model = glm::scale(model,glm::vec3(item.scale,1.0f));
-            Shader* shader;
             if(item.shapeTYPE == SHAPE_TYPE::CIRCLE) shader = &circleShader;
             else shader = &rectShader;
             shader->use();
@@ -339,11 +317,6 @@ int main(int argc, char * argv[]) {
             float timeAliveRatio = timeAlive/objectLifespan;
             float alphaPercent = blender(0.25f,0.8f,timeAliveRatio);
             shader->setUniform("aColor",glm::vec4(item.color.x,item.color.y,item.color.z,alphaPercent*item.color.w));
-            
-            
-
-
-
             if (item.shapeTYPE == SHAPE_TYPE::TRIANGLE)  drawShape(VAO_T, EBO_T, *shader, 3);
             else drawShape(VAO,EBO,*shader,6);
         }
@@ -550,7 +523,7 @@ AShape genRanShape(){
     float b = rand_range_uniform(0.0f,1.0f);
     float a = rand_range_uniform(0.0f,1.0f);
     ranShape.color = glm::vec4(r,g,b,a);
-    while((x = rand_range_normal(0.2f,0.4f)) < 0.1f || x > 2.0f);
+    while((x = rand_range_normal(0.2f,0.05f)) < 0.01f || x > 2.0f);
     y = x;
     ranShape.scale = glm::vec2(x,y);
     unsigned int ranTypeIndex = rand_range_uniform((unsigned int)0,(unsigned int)2);
