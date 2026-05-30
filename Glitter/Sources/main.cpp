@@ -176,6 +176,8 @@ struct AShape{
     float rotation;
     SHAPE_TYPE shapeTYPE;
     float creationTime;
+    float destroyTime;
+    bool destroy;
 };
 
 AShape genRanShape();
@@ -255,14 +257,14 @@ int main(int argc, char * argv[]) {
     
     std::list<AShape> ranShapes;
     
-    unsigned int batche_size = 4;
-    unsigned int batches = 1600;
+    unsigned int batche_size = 1;
+    unsigned int batches = 500;
     
     unsigned int shape_cnt = batche_size*batches;
     
     
     float spawnTimer = 0.0f;
-    float spawnTime = 0.015f;
+    float spawnTime = 0.016f;
     float preTime = (float)glfwGetTime();
     float lastSpawnTime = preTime;
     float elapsedTime;
@@ -297,6 +299,8 @@ int main(int argc, char * argv[]) {
            if(ranShapes.size()>shape_cnt){
                for(int i = 0; i < batche_size; i++)
                    ranShapes.pop_back();
+                ranShapes.back().destroy = true;
+                ranShapes.back().destroyTime = elapsedTime;
            }
            for(int i = 0; i < batche_size; i++)
                ranShapes.emplace_front(genRanShape());
@@ -315,7 +319,7 @@ int main(int argc, char * argv[]) {
             shader->setUniform("model",model);
             float timeAlive = elapsedTime - item.creationTime;
             float timeAliveRatio = timeAlive/objectLifespan;
-            float alphaPercent = blender(0.25f,0.8f,timeAliveRatio);
+            float alphaPercent = blender(0.25f,0.75f,timeAliveRatio);
             shader->setUniform("aColor",glm::vec4(item.color.x,item.color.y,item.color.z,alphaPercent*item.color.w));
             if (item.shapeTYPE == SHAPE_TYPE::TRIANGLE)  drawShape(VAO_T, EBO_T, *shader, 3);
             else drawShape(VAO,EBO,*shader,6);
@@ -471,6 +475,7 @@ void create_texture(unsigned int &texture, const char texture_filepath[], std::s
     }
     stbi_image_free(data);
 }
+
 unsigned int create_circle(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, unsigned int tri_cnt){
 
 
@@ -523,8 +528,8 @@ AShape genRanShape(){
     float b = rand_range_uniform(0.0f,1.0f);
     float a = rand_range_uniform(0.0f,1.0f);
     ranShape.color = glm::vec4(r,g,b,a);
-    while((x = rand_range_normal(0.2f,0.05f)) < 0.01f || x > 2.0f);
-    y = x;
+    while((x = rand_range_normal(0.2f,0.2f)) < 0.01f || x > 2.0f);
+    while((y = rand_range_normal(0.2f,0.2f)) < 0.01f || y > 2.0f);
     ranShape.scale = glm::vec2(x,y);
     unsigned int ranTypeIndex = rand_range_uniform((unsigned int)0,(unsigned int)2);
     SHAPE_TYPE shapeType;
