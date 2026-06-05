@@ -1,26 +1,13 @@
 #include "glm/gtc/type_ptr.hpp"
 #include <fstream>
 #include <shader.hpp>
-std::string readfile(const char filepath[]){
-    std::string s = "";
-    char line[5000];
-    std::fstream file{filepath, file.in};
-    if(!file.is_open()){
-        throw std::exception();
-    }
-    while(file.getline(line,5000,'\n')){
-        s += line;        
-        s += '\n';
-    }
-    //std::string lines = "dog\ncat\nelephant";
-    return s;
-}
+#include <third_party.hpp>
 
 Shader::Shader(const char vertex_shader_filepath[], const char fragment_shader_filepath[]){
     this->vertex_shader_filepath = vertex_shader_filepath;
     this->fragment_shader_filepath = fragment_shader_filepath;
-    std::string vertex_shader_source = readfile(vertex_shader_filepath);
-    std::string fragment_shader_source = readfile(fragment_shader_filepath);
+    std::string vertex_shader_source = read_file(vertex_shader_filepath);
+    std::string fragment_shader_source = read_file(fragment_shader_filepath);
     compileShader(vertex_shader_source.c_str(), fragment_shader_source.c_str());
 }
 
