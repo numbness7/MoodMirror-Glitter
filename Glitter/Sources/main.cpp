@@ -24,9 +24,27 @@
 #include <random>
 #include <list>
 #include <json.hpp>
+#include <third_party.hpp>
+
+// Custom Types
+enum class SHAPE_TYPE {
+    CIRCLE, RECTANGLE, TRIANGLE
+};
+
+struct AShape{
+    glm::vec2 pos;
+    glm::vec4 color;
+    glm::vec2 scale;
+    float rotation;
+    SHAPE_TYPE shapeTYPE;
+    float creationTime;
+    float destroyTime;
+    bool destroy;
+};
 
 // Function Prototypes
 float blender(float minBound, float maxBound, float ratio);
+AShape genShape();
 void worldInit(Shader shader);
 float rand_range_uniform(float min=-1.0f, float max=1.0f);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
@@ -166,20 +184,6 @@ glm::vec3 cubePositions[] = {
 
 };
 
-enum class SHAPE_TYPE {
-    CIRCLE, RECTANGLE, TRIANGLE
-};
-
-struct AShape{
-    glm::vec2 pos;
-    glm::vec4 color;
-    glm::vec2 scale;
-    float rotation;
-    SHAPE_TYPE shapeTYPE;
-    float creationTime;
-    float destroyTime;
-    bool destroy;
-};
 
 AShape genRanShape();
 
@@ -259,13 +263,13 @@ int main(int argc, char * argv[]) {
     std::list<AShape> ranShapes;
     
     unsigned int batche_size = 1;
-    unsigned int batches = 500;
+    unsigned int batches = 10;
     
     unsigned int shape_cnt = batche_size*batches;
     
     
     float spawnTimer = 0.0f;
-    float spawnTime = 0.016f;
+    float spawnTime = 1.016f;
     float preTime = (float)glfwGetTime();
     float lastSpawnTime = preTime;
     float elapsedTime;
@@ -287,10 +291,6 @@ int main(int argc, char * argv[]) {
     
     Shader* shader;
     
-    using json = nlohmann::json;
-    std::ifstream f("../data.json");
-    json data = json::parse(f);
-    std::cout << data["emotion_array"][0][1] << std::endl;
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -303,13 +303,13 @@ int main(int argc, char * argv[]) {
         spawnTimer = elapsedTime - lastSpawnTime;
         if(spawnTimer >= spawnTime){
            if(ranShapes.size()>shape_cnt){
-               for(int i = 0; i < batche_size; i++)
+               for(unsigned int i = 0; i < batche_size; i++)
                    ranShapes.pop_back();
                 ranShapes.back().destroy = true;
                 ranShapes.back().destroyTime = elapsedTime;
            }
-           for(int i = 0; i < batche_size; i++)
-               ranShapes.emplace_front(genRanShape());
+           for(unsigned int i = 0; i < batche_size; i++)
+               ranShapes.emplace_front(genShape());
            lastSpawnTime = elapsedTime;
         }
 
@@ -325,7 +325,8 @@ int main(int argc, char * argv[]) {
             shader->setUniform("model",model);
             float timeAlive = elapsedTime - item.creationTime;
             float timeAliveRatio = timeAlive/objectLifespan;
-            float alphaPercent = blender(0.25f,0.75f,timeAliveRatio);
+            //float alphaPercent = blender(0.25f,0.75f,timeAliveRatio);
+            float alphaPercent = 1.0f;
             shader->setUniform("aColor",glm::vec4(item.color.x,item.color.y,item.color.z,alphaPercent*item.color.w));
             if (item.shapeTYPE == SHAPE_TYPE::TRIANGLE)  drawShape(VAO_T, EBO_T, *shader, 3);
             else drawShape(VAO,EBO,*shader,6);
@@ -582,4 +583,48 @@ float blender(float minBound, float maxBound, float ratio){
     else 
         blend = (1.0f - (ratio-maxBound)/(1.0f-maxBound));
     return blend;
+}
+AShape genShape(){
+    using json = nlohmann::json;
+    std::string json_string = read_file("../data.json");
+    json data = json::parse(json_string);
+    std::vector<std::vector<float>> array = data["emotion_array"];
+
+    float happy = array[0][0];
+    float sad = array[0][1];
+    float anger = array[0][2];
+    float fear = array[0][3];
+    float surprise = array[0][4];
+    float disgust = array[0][5];
+
+    AShape theShape;
+    float x = rand_range_uniform();
+    float y = rand_range_uniform();
+    theShape.pos = glm::vec2(x,y);
+    float r = anger;
+    float g = happy + surprise;
+    float b = sad;
+    float a = 1 - fear;
+    theShape.color = glm::vec4(r,g,b,a);
+    x = 0.25;
+    y = 0.25;
+    theShape.scale = glm::vec2(x,y);
+    unsigned int ranTypeIndex = rand_range_uniform((unsigned int)0,(unsigned int)2);
+    SHAPE_TYPE shapeType;
+    theShape.rotation = glm::radians(disgust*360.0f);
+    switch (ranTypeIndex)
+        {
+        case 0:
+            shapeType = SHAPE_TYPE::CIRCLE;
+            break;
+        case 1:
+            shapeType = SHAPE_TYPE::RECTANGLE;
+            break;
+        case 2:
+            shapeType = SHAPE_TYPE::TRIANGLE;
+            break;
+        }
+    theShape.shapeTYPE = shapeType;
+    theShape.creationTime = (float)glfwGetTime();
+    return theShape;
 }

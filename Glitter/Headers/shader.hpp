@@ -1,5 +1,5 @@
-#ifndef SHADER
-#define SHADER
+#ifndef INCLUDE_SHADER
+#define INCLUDE_SHADER
 // Local Headers
 #include "glitter.hpp"
 
@@ -12,6 +12,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
+#include "glm/gtc/type_ptr.hpp"
+#include <third_party.hpp>
 
 class Shader {
     public:

@@ -1,7 +1,6 @@
-#include "glm/gtc/type_ptr.hpp"
-#include <fstream>
+#ifndef SHADER
+#define SHADER
 #include <shader.hpp>
-#include <third_party.hpp>
 
 Shader::Shader(const char vertex_shader_filepath[], const char fragment_shader_filepath[]){
     this->vertex_shader_filepath = vertex_shader_filepath;
@@ -78,3 +77,4 @@ void Shader::setUniform(const char name[], const glm::mat4 mat4){
     unsigned int uniform_loc = glGetUniformLocation(shaderProgram, name);
     glUniformMatrix4fv(uniform_loc, 1, GL_FALSE, glm::value_ptr(mat4));
 }
+#endif
