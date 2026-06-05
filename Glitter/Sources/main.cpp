@@ -23,6 +23,7 @@
 #include <vector>
 #include <random>
 #include <list>
+#include <json.hpp>
 
 // Function Prototypes
 float blender(float minBound, float maxBound, float ratio);
@@ -284,7 +285,12 @@ int main(int argc, char * argv[]) {
         backGroundColorNext = black;
     }
     
-        Shader* shader;
+    Shader* shader;
+    
+    using json = nlohmann::json;
+    std::ifstream f("../data.json");
+    json data = json::parse(f);
+    std::cout << data["emotion_array"][0][1] << std::endl;
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
