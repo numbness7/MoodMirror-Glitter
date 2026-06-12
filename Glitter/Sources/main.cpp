@@ -43,6 +43,7 @@ struct AShape{
 };
 
 // Function Prototypes
+void drawAShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, unsigned int& VAO, unsigned int& EBO, unsigned int& VAO_T, unsigned int& EBO_T);
 float blender(float minBound, float maxBound, float ratio);
 AShape genShape();
 void worldInit(Shader shader);
@@ -295,7 +296,6 @@ int main(int argc, char * argv[]) {
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
         
-        Shader* shader;
         glClearColor(white.x,white.y,white.z,1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -315,21 +315,7 @@ int main(int argc, char * argv[]) {
 
         
         for (const auto& item : ranShapes){
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, glm::vec3(item.pos,1.0f));
-            model = glm::rotate(model, item.rotation, glm::vec3(0.0f,0.0f,1.0f));
-            model = glm::scale(model,glm::vec3(item.scale,1.0f));
-            if(item.shapeTYPE == SHAPE_TYPE::CIRCLE) shader = &circleShader;
-            else shader = &rectShader;
-            shader->use();
-            shader->setUniform("model",model);
-            float timeAlive = elapsedTime - item.creationTime;
-            float timeAliveRatio = timeAlive/objectLifespan;
-            //float alphaPercent = blender(0.25f,0.75f,timeAliveRatio);
-            float alphaPercent = 1.0f;
-            shader->setUniform("aColor",glm::vec4(item.color.x,item.color.y,item.color.z,alphaPercent*item.color.w));
-            if (item.shapeTYPE == SHAPE_TYPE::TRIANGLE)  drawShape(VAO_T, EBO_T, *shader, 3);
-            else drawShape(VAO,EBO,*shader,6);
+            drawAShape(item, circleShader, rectShader, elapsedTime, objectLifespan, VAO, EBO, VAO_T, EBO_T);
         }
 
         
@@ -344,6 +330,25 @@ int main(int argc, char * argv[]) {
         
     }   glfwTerminate();
     return EXIT_SUCCESS;
+}
+
+void drawAShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, unsigned int& VAO, unsigned int& EBO, unsigned int& VAO_T, unsigned int& EBO_T){
+    Shader* shader;
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(item.pos,1.0f));
+    model = glm::rotate(model, item.rotation, glm::vec3(0.0f,0.0f,1.0f));
+    model = glm::scale(model,glm::vec3(item.scale,1.0f));
+    if(item.shapeTYPE == SHAPE_TYPE::CIRCLE) shader = &circleShader;
+    else shader = &rectShader;
+    shader->use();
+    shader->setUniform("model",model);
+    float timeAlive = elapsedTime - item.creationTime;
+    float timeAliveRatio = timeAlive/objectLifespan;
+    //float alphaPercent = blender(0.25f,0.75f,timeAliveRatio);
+    float alphaPercent = 1.0f;
+    shader->setUniform("aColor",glm::vec4(item.color.x,item.color.y,item.color.z,alphaPercent*item.color.w));
+    if (item.shapeTYPE == SHAPE_TYPE::TRIANGLE)  drawShape(VAO_T, EBO_T, *shader, 3);
+    else drawShape(VAO,EBO,*shader,6);
 }
 
 
