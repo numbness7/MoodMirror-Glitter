@@ -50,6 +50,8 @@ struct OGL_Shape{
 };
 
 // Function Prototypes
+nlohmann::json readjsonfile(std::string filepath);
+AShape genShape(std::vector<std::vector<float>> emotion_array);
 void drawAShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, OGL_Shape& rect, OGL_Shape& tri);
 float blender(float minBound, float maxBound, float ratio);
 AShape genShape();
@@ -316,8 +318,19 @@ int main(int argc, char * argv[]) {
                 ranShapes.front().destroy = true;
                 ranShapes.front().destroyTime = elapsedTime;
            }
-           for(unsigned int i = 0; i < batche_size; i++)
-               ranShapes.emplace_back(genRanShape());
+           for(unsigned int i = 0; i < batche_size; i++){
+               nlohmann::json data = readjsonfile("../data.json");
+               std::vector<std::vector<float>> md_array{};
+               for(unsigned int f = 0; f < 6; f++){
+                   md_array.push_back(std::vector<float>{});
+                for(unsigned int e = 0; e < 6; e++){
+                    md_array[f].push_back(rand_range_uniform(0.0f, 1.0f));
+                    
+                }
+               }
+               //ranShapes.emplace_back(genShape(data["emotion_array"]));
+               ranShapes.emplace_back(genShape(md_array));
+           }
            lastSpawnTime = elapsedTime;
         }
 
@@ -615,62 +628,89 @@ float blender(float minBound, float maxBound, float ratio){
         blend = (1.0f - (ratio-maxBound)/(1.0f-maxBound));
     return blend;
 }
-AShape genShape(){
-    std::vector<std::vector<float>> array;
-    /**
-     * @brief Construct a new while object
-     * Keep trying to read data into array until successful
-     * 
-     */
+
+nlohmann::json readjsonfile(std::string filepath){
+
     while(true){
         try{
             using json = nlohmann::json;
-            std::string json_string = read_file("../data.json");
+            std::string json_string = read_file(filepath);
             json data = json::parse(json_string);
-            array = data["emotion_array"];
-            break;
+            return data;
         }
         catch(std::exception e){
             std::cout << e.what() << std::endl;
                 
         }
     }
+}
+
+float getSum(std::vector<float> array){
+    float sum = 0.0f;
+    for(const auto& item : array) sum += item;
+    return sum;
+}
+
+float getMean(std::vector<float> array){
+    float mean = getSum(array)/(float)array.size();
+    return mean;
+}
+float measureVolatileness(std::vector<float> array){
+    float mean = getMean(array);
+    float difference = 0.0f;
+    for(const auto& item : array) difference += glm::abs(mean - item);
+    return difference/array.size();
+}
+std::vector<float> getColumn(std::vector<std::vector<float>> array, unsigned int col){
+    std::vector<float> column{};
+    for(unsigned int row = 0; row < array.size(); row++){
+        column.push_back(array[row][col]);
+    }
+    return column;
+}
+
+AShape genShape(std::vector<std::vector<float>> emotion_array){
 
 
-    float happy = array[0][0];
-    float sad = array[0][1];
-    float anger = array[0][2];
-    float fear = array[0][3];
-    float surprise = array[0][4];
-    float disgust = array[0][5];
+
+    float happy    = getMean(getColumn(emotion_array,0));
+    float sad      = getMean(getColumn(emotion_array,1));
+    float anger    = getMean(getColumn(emotion_array,2));
+    float fear     = getMean(getColumn(emotion_array,3));
+    float surprise = getMean(getColumn(emotion_array,4));
+    float disgust  = getMean(getColumn(emotion_array,5));
+    
+    std::cout << "happy: " << happy << ", sad: " << sad << ", anger: " << anger << ", fear: " << fear << ", surprise: " << surprise << ", disgust: " << disgust << std::endl;
 
     AShape theShape;
     float x = rand_range_uniform();
     float y = rand_range_uniform();
     theShape.pos = glm::vec2(x,y);
-    float r = anger;
-    float g = happy + surprise;
-    float b = sad;
+    float r = anger/2.0f + disgust/2.0f;
+    float g = happy/2.0f + surprise/2.0f;
+    float b = sad/2.0f + fear/2.0f;
     float a = 1 - fear;
     theShape.color = glm::vec4(r,g,b,a);
-    x = 0.25;
-    y = 0.25;
+    x = 0.1;
+    y = 0.1;
     theShape.scale = glm::vec2(x,y);
-    unsigned int ranTypeIndex = 0;
+
     SHAPE_TYPE shapeType;
+    float difference = 0.0f;
+    for(const auto& array : emotion_array){
+        difference += measureVolatileness(array);
+    }
+    std::cout << "difference: " << difference << std::endl;
+
     theShape.rotation = glm::radians(disgust*360.0f);
-    switch (ranTypeIndex)
-        {
-        case 0:
-            shapeType = SHAPE_TYPE::CIRCLE;
-            break;
-        case 1:
-            shapeType = SHAPE_TYPE::RECTANGLE;
-            break;
-        case 2:
-            shapeType = SHAPE_TYPE::TRIANGLE;
-            break;
-        }
+    
+    if(difference < 1.0f) shapeType = SHAPE_TYPE::CIRCLE;
+    else if (difference < 1.2f) shapeType = SHAPE_TYPE::RECTANGLE;
+    else shapeType = SHAPE_TYPE::TRIANGLE;
+
+
+
+    
     theShape.shapeTYPE = shapeType;
     theShape.creationTime = (float)glfwGetTime();
     return theShape;
