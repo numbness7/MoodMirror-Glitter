@@ -263,13 +263,13 @@ int main(int argc, char * argv[]) {
     std::list<AShape> ranShapes;
     
     unsigned int batche_size = 1;
-    unsigned int batches = 10;
+    unsigned int batches = 500;
     
     unsigned int shape_cnt = batche_size*batches;
     
     
     float spawnTimer = 0.0f;
-    float spawnTime = 1.016f;
+    float spawnTime = 1.01f;
     float preTime = (float)glfwGetTime();
     float lastSpawnTime = preTime;
     float elapsedTime;
@@ -304,12 +304,12 @@ int main(int argc, char * argv[]) {
         if(spawnTimer >= spawnTime){
            if(ranShapes.size()>shape_cnt){
                for(unsigned int i = 0; i < batche_size; i++)
-                   ranShapes.pop_back();
-                ranShapes.back().destroy = true;
-                ranShapes.back().destroyTime = elapsedTime;
+                   ranShapes.pop_front();
+                ranShapes.front().destroy = true;
+                ranShapes.front().destroyTime = elapsedTime;
            }
            for(unsigned int i = 0; i < batche_size; i++)
-               ranShapes.emplace_front(genShape());
+               ranShapes.emplace_back(genShape());
            lastSpawnTime = elapsedTime;
         }
 
@@ -585,10 +585,26 @@ float blender(float minBound, float maxBound, float ratio){
     return blend;
 }
 AShape genShape(){
-    using json = nlohmann::json;
-    std::string json_string = read_file("../data.json");
-    json data = json::parse(json_string);
-    std::vector<std::vector<float>> array = data["emotion_array"];
+    std::vector<std::vector<float>> array;
+    /**
+     * @brief Construct a new while object
+     * Keep trying to read data into array until successful
+     * 
+     */
+    while(true){
+        try{
+            using json = nlohmann::json;
+            std::string json_string = read_file("../data.json");
+            json data = json::parse(json_string);
+            array = data["emotion_array"];
+            break;
+        }
+        catch(std::exception e){
+            std::cout << e.what() << std::endl;
+                
+        }
+    }
+
 
     float happy = array[0][0];
     float sad = array[0][1];
@@ -609,7 +625,7 @@ AShape genShape(){
     x = 0.25;
     y = 0.25;
     theShape.scale = glm::vec2(x,y);
-    unsigned int ranTypeIndex = rand_range_uniform((unsigned int)0,(unsigned int)2);
+    unsigned int ranTypeIndex = 0;
     SHAPE_TYPE shapeType;
     theShape.rotation = glm::radians(disgust*360.0f);
     switch (ranTypeIndex)
