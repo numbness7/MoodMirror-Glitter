@@ -42,8 +42,15 @@ struct AShape{
     bool destroy;
 };
 
+
+struct OGL_Shape{
+    unsigned int VAO = 0;
+    unsigned int EBO = 0;
+    unsigned int VBO = 0;
+};
+
 // Function Prototypes
-void drawAShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, unsigned int& VAO, unsigned int& EBO, unsigned int& VAO_T, unsigned int& EBO_T);
+void drawAShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, OGL_Shape& rect, OGL_Shape& tri);
 float blender(float minBound, float maxBound, float ratio);
 AShape genShape();
 void worldInit(Shader shader);
@@ -52,6 +59,9 @@ void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture);
 void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2);
 void create_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
+    float vert[], unsigned int vert_cnt, unsigned int ind[], 
+    unsigned int ind_cnt, unsigned int dimensions);
+void create_shape(OGL_Shape& shape, 
     float vert[], unsigned int vert_cnt, unsigned int ind[], 
     unsigned int ind_cnt, unsigned int dimensions);
 void create_colored_textued_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
@@ -245,12 +255,11 @@ int main(int argc, char * argv[]) {
     worldInit(circleShader);
     Shader rectShader("Glitter/Shaders/mvp-color.vs","Glitter/Shaders/mvp-color.fs");
     worldInit(rectShader);
-    glm::mat4 model;
-    unsigned int VAO, VBO, EBO;
-    unsigned int VAO_T, VBO_T, EBO_T;
+    OGL_Shape rect;
+    OGL_Shape tri;
     
-    create_shape(VAO,VBO,EBO,shapes::rect,4*3,shapes::rect_ind,6,3);
-    create_shape(VAO_T,VBO_T,EBO_T,shapes::acute_tri,3*3,shapes::r_tri_ind,3,3);
+    create_shape(rect,shapes::rect,4*3,shapes::rect_ind,6,3);
+    create_shape(tri,shapes::acute_tri,3*3,shapes::r_tri_ind,3,3);
 
 
     
@@ -290,7 +299,6 @@ int main(int argc, char * argv[]) {
         backGroundColorNext = black;
     }
     
-    Shader* shader;
     
     
     // Rendering Loop
@@ -309,13 +317,13 @@ int main(int argc, char * argv[]) {
                 ranShapes.front().destroyTime = elapsedTime;
            }
            for(unsigned int i = 0; i < batche_size; i++)
-               ranShapes.emplace_back(genShape());
+               ranShapes.emplace_back(genRanShape());
            lastSpawnTime = elapsedTime;
         }
 
         
         for (const auto& item : ranShapes){
-            drawAShape(item, circleShader, rectShader, elapsedTime, objectLifespan, VAO, EBO, VAO_T, EBO_T);
+            drawAShape(item, circleShader, rectShader, elapsedTime, objectLifespan, rect, tri);
         }
 
         
@@ -332,7 +340,7 @@ int main(int argc, char * argv[]) {
     return EXIT_SUCCESS;
 }
 
-void drawAShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, unsigned int& VAO, unsigned int& EBO, unsigned int& VAO_T, unsigned int& EBO_T){
+void drawAShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, OGL_Shape& rect, OGL_Shape& tri){
     Shader* shader;
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(item.pos,1.0f));
@@ -347,8 +355,8 @@ void drawAShape(AShape item, Shader& circleShader, Shader& rectShader, float ela
     //float alphaPercent = blender(0.25f,0.75f,timeAliveRatio);
     float alphaPercent = 1.0f;
     shader->setUniform("aColor",glm::vec4(item.color.x,item.color.y,item.color.z,alphaPercent*item.color.w));
-    if (item.shapeTYPE == SHAPE_TYPE::TRIANGLE)  drawShape(VAO_T, EBO_T, *shader, 3);
-    else drawShape(VAO,EBO,*shader,6);
+    if (item.shapeTYPE == SHAPE_TYPE::TRIANGLE)  drawShape(tri.VAO, tri.EBO, *shader, 3);
+    else drawShape(rect.VAO,rect.EBO,*shader,6);
 }
 
 
@@ -382,6 +390,24 @@ void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int
 void processInput(GLFWwindow* mWindow){
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(mWindow, true);
+}
+
+void create_shape(OGL_Shape& shape, 
+    float vert[], unsigned int vert_cnt, unsigned int ind[], 
+    unsigned int ind_cnt, unsigned int dimensions){
+        glGenBuffers(1, &shape.VBO);
+        glBindBuffer(GL_ARRAY_BUFFER, shape.VBO);
+        glBufferData(GL_ARRAY_BUFFER, vert_cnt*sizeof(float), vert, GL_STATIC_DRAW);
+        
+        glGenBuffers(1,&shape.EBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shape.EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, ind_cnt*sizeof(unsigned int), ind, GL_STATIC_DRAW);
+        
+        
+        glGenVertexArrays(1, &shape.VAO);
+        glBindVertexArray(shape.VAO);
+        glVertexAttribPointer(0, dimensions, GL_FLOAT, GL_FALSE, dimensions * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
 }
 
 void create_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
