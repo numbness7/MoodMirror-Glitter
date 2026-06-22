@@ -50,6 +50,8 @@ struct OGL_Shape{
 };
 
 // Function Prototypes
+void drawAGridShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, OGL_Shape& rect, OGL_Shape& tri, unsigned int row, unsigned int column, float scale_x, float scale_y);
+void drawAGridShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, OGL_Shape& rect, OGL_Shape& tri, unsigned int row, unsigned int column, float scale);
 nlohmann::json readjsonfile(std::string filepath);
 AShape genShape(std::vector<std::vector<float>> emotion_array);
 void drawAShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, OGL_Shape& rect, OGL_Shape& tri);
@@ -275,13 +277,16 @@ int main(int argc, char * argv[]) {
     std::list<AShape> ranShapes;
     
     unsigned int batche_size = 1;
-    unsigned int batches = 500;
+    unsigned int batches = 100;
     
     unsigned int shape_cnt = batche_size*batches;
     
     
     float spawnTimer = 0.0f;
-    float spawnTime = 1.01f;
+    float spawnTime = 0.10f;
+    float quickSpawnTime = 0.02f;
+    float curSpawnTime =  quickSpawnTime;
+    bool hasFilled = false;
     float preTime = (float)glfwGetTime();
     float lastSpawnTime = preTime;
     float elapsedTime;
@@ -311,32 +316,34 @@ int main(int argc, char * argv[]) {
         glClear(GL_COLOR_BUFFER_BIT);
         elapsedTime = (float)glfwGetTime();
         spawnTimer = elapsedTime - lastSpawnTime;
-        if(spawnTimer >= spawnTime){
+        if(spawnTimer >= curSpawnTime){
            if(ranShapes.size()>shape_cnt){
                for(unsigned int i = 0; i < batche_size; i++)
                    ranShapes.pop_front();
                 ranShapes.front().destroy = true;
                 ranShapes.front().destroyTime = elapsedTime;
+                curSpawnTime = spawnTime;
            }
            for(unsigned int i = 0; i < batche_size; i++){
                nlohmann::json data = readjsonfile("../data.json");
-               std::vector<std::vector<float>> md_array{};
-               for(unsigned int f = 0; f < 6; f++){
-                   md_array.push_back(std::vector<float>{});
-                for(unsigned int e = 0; e < 6; e++){
-                    md_array[f].push_back(rand_range_uniform(0.0f, 1.0f));
-                    
-                }
-               }
-               //ranShapes.emplace_back(genShape(data["emotion_array"]));
-               ranShapes.emplace_back(genShape(md_array));
+               ranShapes.emplace_back(genShape(data["emotion_array"]));
            }
            lastSpawnTime = elapsedTime;
         }
 
         
+        unsigned int i = 0;
+        unsigned int rows = 10;
+        unsigned int columns = 10;
         for (const auto& item : ranShapes){
-            drawAShape(item, circleShader, rectShader, elapsedTime, objectLifespan, rect, tri);
+
+            unsigned int row = i/columns;
+            unsigned int column = i%columns;
+            float scale_x = 1.0f/(float)columns;
+            float scale_y = 1.0f/(float)rows;
+
+            drawAGridShape(item, circleShader, rectShader, elapsedTime, objectLifespan, rect, tri, row, column, scale_x, scale_y);
+            i++;
         }
 
         
@@ -351,6 +358,28 @@ int main(int argc, char * argv[]) {
         
     }   glfwTerminate();
     return EXIT_SUCCESS;
+}
+
+void drawAGridShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, OGL_Shape& rect, OGL_Shape& tri, unsigned int row, unsigned int column, float scale_x, float scale_y){
+    Shader* shader;
+    glm::mat4 model = glm::mat4(1.0f);
+    float x = scale_x + 2*scale_x*column - 1;
+    float y = scale_y + 2*scale_y*row - 1;
+    glm::vec2 position(x,y);
+    model = glm::translate(model, glm::vec3(position,1.0f));
+    //model = glm::rotate(model, item.rotation, glm::vec3(0.0f,0.0f,1.0f));
+    model = glm::scale(model,glm::vec3(scale_x,scale_y,1.0f));
+    if(item.shapeTYPE == SHAPE_TYPE::CIRCLE) shader = &circleShader;
+    else shader = &rectShader;
+    shader->use();
+    shader->setUniform("model",model);
+    float timeAlive = elapsedTime - item.creationTime;
+    float timeAliveRatio = timeAlive/objectLifespan;
+    //float alphaPercent = blender(0.25f,0.75f,timeAliveRatio);
+    float alphaPercent = 1.0f;
+    shader->setUniform("aColor",glm::vec4(item.color.x,item.color.y,item.color.z,alphaPercent*item.color.w));
+    if (item.shapeTYPE == SHAPE_TYPE::TRIANGLE)  drawShape(tri.VAO, tri.EBO, *shader, 3);
+    else drawShape(rect.VAO,rect.EBO,*shader,6);
 }
 
 void drawAShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, OGL_Shape& rect, OGL_Shape& tri){
@@ -704,8 +733,8 @@ AShape genShape(std::vector<std::vector<float>> emotion_array){
 
     theShape.rotation = glm::radians(disgust*360.0f);
     
-    if(difference < 1.0f) shapeType = SHAPE_TYPE::CIRCLE;
-    else if (difference < 1.2f) shapeType = SHAPE_TYPE::RECTANGLE;
+    if(difference < 1.2f) shapeType = SHAPE_TYPE::CIRCLE;
+    else if (difference < 1.3f) shapeType = SHAPE_TYPE::RECTANGLE;
     else shapeType = SHAPE_TYPE::TRIANGLE;
 
 
