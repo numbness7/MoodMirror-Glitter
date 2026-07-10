@@ -26,6 +26,18 @@
 #include <json.hpp>
 #include <third_party.hpp>
 
+// Macros
+#define BATCHES 100
+#define BATCH_SIZE 1
+#define OPENING_SPAWN_TIME 0.02f
+#define RUNNING_SPAWN_TIME 0.10f
+
+// Globals
+glm::vec3 black(0.0f,0.0f,0.0f);
+glm::vec3 white(1.0f,1.0f,1.0f);
+glm::vec3 backGroundColorPre = white;
+glm::vec3 backGroundColorNext = black;
+
 // Custom Types
 enum class SHAPE_TYPE {
     CIRCLE, RECTANGLE, TRIANGLE
@@ -50,6 +62,8 @@ struct OGL_Shape{
 };
 
 // Function Prototypes
+void pushShape(std::list<AShape>& ranShapes, unsigned int shape_cnt, float elapsedTime, float& curSpawnTime);
+int openGLINIT();
 void drawAGridShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, OGL_Shape& rect, OGL_Shape& tri, unsigned int row, unsigned int column, float scale_x, float scale_y);
 void drawAGridShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, OGL_Shape& rect, OGL_Shape& tri, unsigned int row, unsigned int column, float scale);
 nlohmann::json readjsonfile(std::string filepath);
@@ -267,44 +281,24 @@ int main(int argc, char * argv[]) {
 
 
     
-    
-    
-    //glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA , GL_ONE_MINUS_SRC_ALPHA);
 
     
     std::list<AShape> ranShapes;
     
-    unsigned int batche_size = 1;
-    unsigned int batches = 100;
     
-    unsigned int shape_cnt = batche_size*batches;
+    unsigned int shape_cnt = BATCH_SIZE*BATCHES;
     
     
     float spawnTimer = 0.0f;
-    float spawnTime = 0.10f;
-    float quickSpawnTime = 0.02f;
-    float curSpawnTime =  quickSpawnTime;
-    bool hasFilled = false;
+
+    float curSpawnTime =  OPENING_SPAWN_TIME;
     float preTime = (float)glfwGetTime();
     float lastSpawnTime = preTime;
     float elapsedTime;
 
-    float objectLifespan = (float)shape_cnt*spawnTime/(float)batche_size;
-    bool randColor = false;
-    glm::vec3 backGroundColorPre;
-    glm::vec3 backGroundColorNext;
-    glm::vec3 black(0.0f,0.0f,0.0f);
-    glm::vec3 white(1.0f,1.0f,1.0f);
-    if(randColor){
-        backGroundColorPre = (randRGB());
-        backGroundColorNext = (randRGB());
-    }
-    else{
-        backGroundColorPre = white;
-        backGroundColorNext = black;
-    }
+    float objectLifespan = (float)shape_cnt*RUNNING_SPAWN_TIME/(float)BATCH_SIZE;
     
     
     
@@ -317,18 +311,8 @@ int main(int argc, char * argv[]) {
         elapsedTime = (float)glfwGetTime();
         spawnTimer = elapsedTime - lastSpawnTime;
         if(spawnTimer >= curSpawnTime){
-           if(ranShapes.size()>shape_cnt){
-               for(unsigned int i = 0; i < batche_size; i++)
-                   ranShapes.pop_front();
-                ranShapes.front().destroy = true;
-                ranShapes.front().destroyTime = elapsedTime;
-                curSpawnTime = spawnTime;
-           }
-           for(unsigned int i = 0; i < batche_size; i++){
-               nlohmann::json data = readjsonfile("../data.json");
-               ranShapes.emplace_back(genShape(data["emotion_array"]));
-           }
            lastSpawnTime = elapsedTime;
+           pushShape(ranShapes, shape_cnt, elapsedTime, curSpawnTime);
         }
 
         
@@ -358,6 +342,28 @@ int main(int argc, char * argv[]) {
         
     }   glfwTerminate();
     return EXIT_SUCCESS;
+}
+
+int openGLINIT(){
+    // Load GLFW and Create a Window
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    auto mWindow = glfwCreateWindow(mWidth, mHeight, "OpenGL", nullptr, nullptr);
+
+    // Check for Valid Context
+    if (mWindow == nullptr) {
+        fprintf(stderr, "Failed to Create OpenGL Context");
+        return EXIT_FAILURE;
+    }
+
+    // Create Context and Load OpenGL Functions
+    glfwMakeContextCurrent(mWindow);
+    gladLoadGL();
+    fprintf(stderr, "OpenGL %s\n", glGetString(GL_VERSION));
 }
 
 void drawAGridShape(AShape item, Shader& circleShader, Shader& rectShader, float elapsedTime, float objectLifespan, OGL_Shape& rect, OGL_Shape& tri, unsigned int row, unsigned int column, float scale_x, float scale_y){
@@ -743,4 +749,20 @@ AShape genShape(std::vector<std::vector<float>> emotion_array){
     theShape.shapeTYPE = shapeType;
     theShape.creationTime = (float)glfwGetTime();
     return theShape;
+}
+
+void pushShape(std::list<AShape>& ranShapes, unsigned int shape_cnt, float elapsedTime, float& curSpawnTime){
+       if(ranShapes.size()>shape_cnt){
+           // Remove oldest batch
+           for(unsigned int i = 0; i < BATCH_SIZE; i++)
+               ranShapes.pop_front();
+            ranShapes.front().destroy = true;
+            ranShapes.front().destroyTime = elapsedTime;
+            curSpawnTime = RUNNING_SPAWN_TIME;
+       }
+       // Add new batch to back
+       for(unsigned int i = 0; i < BATCH_SIZE; i++){
+           nlohmann::json data = readjsonfile("../data.json");
+           ranShapes.emplace_back(genShape(data["emotion_array"]));
+       }
 }
