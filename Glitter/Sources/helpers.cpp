@@ -223,6 +223,67 @@ void create_colored_textued_shape(unsigned int &VAO, unsigned int &VBO, unsigned
         glEnableVertexAttribArray(2);
     }
 
+void generate_texture(unsigned int &texture, std::string texture_filepath, std::string filetype){
+    int width, height, nrChannels;
+
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
+    if(filetype=="jpg"){
+        for(int i = 0; i < height; i+=1){
+            for(int j = 0; j < width*3; j+=1){
+                for(int color = 0; color < 3; color++){
+                    if(color == 0)
+                        data[i*width*3+j+color] = 0x01;
+                    if(color == 1)
+                        data[i*width*3+j+color] = 0x01;
+                    if(color == 2)
+                        data[i*width*3+j+color] = 0x01;
+                }
+            }
+        }
+    }
+    else if(filetype=="png"){
+        for(int i = 0; i < height; i+=1){
+            for(int j = 0; j < width*4; j+=4){
+                for(int color = 0; color < 4; color++){
+                    if(color == 0) // Red
+                        data[i*width*4+j+color] = 0x7F;
+                    if(color == 1) // Green
+                        data[i*width*4+j+color] = 0x00;
+                    if(color == 2) // Blue
+                        data[i*width*4+j+color] = 0x7F;
+                    if(color == 3) // Don't Know
+                        data[i*width*4+j+color] = 0x00;
+                }
+            }
+        }
+    }
+
+    glGenTextures(1, &texture);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    glBindTexture(GL_TEXTURE_2D, texture);
+    
+    if (data){
+        if(filetype == "jpg")
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        else if(filetype == "png")
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        else {
+            throw std::runtime_error("Bad file type: " + filetype);
+        }
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else {
+        throw std::runtime_error("Failed to load texture: " + std::string(texture_filepath));
+    }
+    stbi_image_free(data);
+}
+
 void create_texture(unsigned int &texture, std::string texture_filepath, std::string filetype){
     int width, height, nrChannels;
     stbi_set_flip_vertically_on_load(true);
@@ -290,6 +351,103 @@ void DeltaTimer::updateDeltaTime(){
 
 // learnopgl start
 
+int mainGenerateTexturesCubes(int argc, char * argv[]){
+    
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
+
+    
+    unsigned int texture1;
+    generate_texture(texture1, "Glitter/Textures/awesomeface.png", "png");
+
+
+
+    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp.vs", "Glitter/Shaders/texture-mvp.fs");
+    
+    unsigned int VBO_T, VAO_T, EBO_T;
+    
+    
+    
+    
+    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_cube, 5*36, shapes::cube_ind, 36);
+    
+    
+
+    shaderTextureMVP.use();
+    shaderTextureMVP.setUniform("ourTexture1",(unsigned int)0);
+    shaderTextureMVP.setUniform("ourTexture2",(unsigned int)1);
+    
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+
+    shaderTextureMVP.setUniform("projection", proj);
+    shaderTextureMVP.setUniform("view", view);
+    shaderTextureMVP.setUniform("model",model);
+    
+    
+    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
+    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
+    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
+    
+    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
+    glm::vec3 up(0.0f,1.0f,0.0f);
+    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
+
+
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+
+        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        shaderTextureMVP.setUniform("projection",proj);
+        
+
+        view = camera.GetViewMatrix();
+        shaderTextureMVP.setUniform("view",view);
+
+
+        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, shapes::cubePositions[i]);
+            model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
+            shaderTextureMVP.setUniform("model",model);
+            drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
+
+        }
+        
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+}
 int mainCubes(int argc, char * argv[]){
     
     // Initialize OpenGL
@@ -417,6 +575,180 @@ void scroll_callback(GLFWwindow* mWindow, double xoffset, double yoffset){
 }
 
 int mainLight(int argc, char * argv[]){
+    
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
+
+    
+
+
+    
+    unsigned int VBO_O, VAO_O, EBO_O;
+    unsigned int VAO_T;
+    unsigned int diffuse_sampler_2d;
+    unsigned int specular_sampler_2d;
+    create_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+    create_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
+
+
+    
+    create_lamp_and_light_object(VAO_O, VAO_T, VBO_O, EBO_O, shapes::normal_textured_cube, 8*36, shapes::cube_ind, 36);
+    
+    
+    
+    
+
+    
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+    glm::vec3 light_positions[4] = {
+        glm::vec3(-10.2f,1.0f,2.0f),
+        glm::vec3(0.0f,-10.0f,2.0f),
+        glm::vec3(1.2f,0.0f,-10.0f),
+        glm::vec3(1.2f,1.0f,2.0f),
+    };
+
+    Shader object_shader("Glitter/Shaders/light-object.vs", "Glitter/Shaders/light-object.fs");
+    Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
+    object_shader.use();
+    object_shader.setUniform("projection", proj);
+    object_shader.setUniform("view", view);
+    object_shader.setUniform("model",model);
+    
+    Material material;
+    material.diffuse = 0;
+    material.specular = 1;
+    material.shininess  = 128.0f*0.25; 
+
+   object_shader.setUniform("material.diffuse",   material.diffuse);
+   object_shader.setUniform("material.specular",  material.specular);
+   object_shader.setUniform("material.shininess", material.shininess); 
+   object_shader.setUniform("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
+   object_shader.setUniform("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
+
+
+    object_shader.setUniform("dir_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniform("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
+    object_shader.setUniform("dir_light.specular", glm::vec3(0.2f)); 
+    object_shader.setUniform("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
+    
+    object_shader.setUniform("spot_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniform("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
+    object_shader.setUniform("spot_light.specular", glm::vec3(1.0f)); 
+    glm::vec3 diffuses[4] = {
+        glm::vec3(1.0f,0.0f,0.0f),
+        glm::vec3(0.0f,1.0f,0.0f),
+        glm::vec3(0.0f,0.0f,1.0f),
+        glm::vec3(0.3f,0.3f,0.3f),
+    };
+
+    std::stringstream s ("");
+    for(int i = 0; i < 4; i ++){
+        s << "point_lights" << "[" << i << "]";
+        object_shader.setUniform(s.str() + ".ambient",  glm::vec3(0.1f));
+        object_shader.setUniform(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
+        object_shader.setUniform(s.str() + ".specular", diffuses[i]); 
+        object_shader.setUniform(s.str() + ".position", light_positions[i]);
+        object_shader.setUniform(s.str() + ".constant", 1.0f);
+        object_shader.setUniform(s.str() + ".linear", .09f);
+        object_shader.setUniform(s.str() + ".quadratic", .032f);
+        s.str("");
+        s.clear();
+    }
+    
+    light_shader.use();
+    
+    light_shader.setUniform("projection", proj);
+    light_shader.setUniform("view", view);
+    light_shader.setUniform("model",model);
+    light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
+
+    
+    
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
+
+
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+
+        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        
+
+        view = camera.GetViewMatrix();
+        
+        
+        
+
+        light_shader.use();
+        light_shader.setUniform("projection",proj);
+        light_shader.setUniform("view",view);
+
+        for(int i = 0; i < 4; i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, light_positions[i]);
+            model = glm::scale(model, glm::vec3(0.2f));
+            light_shader.setUniform("model", model);
+            light_shader.setUniform("aColor", diffuses[i]);
+            drawShape(VAO_T, EBO_O, light_shader, 36);
+        }
+
+        object_shader.use();
+        object_shader.setUniform("view",view);
+        object_shader.setUniform("projection",proj);
+        object_shader.setUniform("view_pos", camera.Position);
+       object_shader.setUniform("spot_light.position", camera.Position);
+       object_shader.setUniform("spot_light.direction", camera.Front);
+       object_shader.setUniform("spot_light.is_on", (bool)flash_light);
+
+        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, shapes::cubePositions[i]);
+            model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
+            object_shader.setUniform("model", model);
+            drawTexturedShape(VAO_O, EBO_O, object_shader, 36, diffuse_sampler_2d);
+        }
+        
+        
+
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+}
+int mainModel(int argc, char * argv[]){
     
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
@@ -571,6 +903,182 @@ int mainLight(int argc, char * argv[]){
 
         
        backpack.Draw(object_shader);
+        
+
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+}
+
+    
+int mainTextureGenerate(int argc, char * argv[]){
+    
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
+
+    
+
+
+    
+    unsigned int VBO_O, VAO_O, EBO_O;
+    unsigned int VAO_T;
+    unsigned int diffuse_sampler_2d;
+    unsigned int specular_sampler_2d;
+    generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+    create_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
+
+
+    
+    create_lamp_and_light_object(VAO_O, VAO_T, VBO_O, EBO_O, shapes::normal_textured_cube, 8*36, shapes::cube_ind, 36);
+    
+    
+    
+    
+
+    
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+    glm::vec3 light_positions[4] = {
+        glm::vec3(-10.2f,1.0f,2.0f),
+        glm::vec3(0.0f,-10.0f,2.0f),
+        glm::vec3(1.2f,0.0f,-10.0f),
+        glm::vec3(1.2f,1.0f,2.0f),
+    };
+
+    Shader object_shader("Glitter/Shaders/light-object.vs", "Glitter/Shaders/light-object.fs");
+    Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
+    object_shader.use();
+    object_shader.setUniform("projection", proj);
+    object_shader.setUniform("view", view);
+    object_shader.setUniform("model",model);
+    
+    Material material;
+    material.diffuse = 0;
+    material.specular = 1;
+    material.shininess  = 128.0f*0.25; 
+
+   object_shader.setUniform("material.diffuse",   material.diffuse);
+   object_shader.setUniform("material.specular",  material.specular);
+   object_shader.setUniform("material.shininess", material.shininess); 
+   object_shader.setUniform("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
+   object_shader.setUniform("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
+
+
+    object_shader.setUniform("dir_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniform("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
+    object_shader.setUniform("dir_light.specular", glm::vec3(0.2f)); 
+    object_shader.setUniform("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
+    
+    object_shader.setUniform("spot_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniform("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
+    object_shader.setUniform("spot_light.specular", glm::vec3(1.0f)); 
+    glm::vec3 diffuses[4] = {
+        glm::vec3(1.0f,0.0f,0.0f),
+        glm::vec3(0.0f,1.0f,0.0f),
+        glm::vec3(0.0f,0.0f,1.0f),
+        glm::vec3(0.3f,0.3f,0.3f),
+    };
+
+    std::stringstream s ("");
+    for(int i = 0; i < 4; i ++){
+        s << "point_lights" << "[" << i << "]";
+        object_shader.setUniform(s.str() + ".ambient",  glm::vec3(0.1f));
+        object_shader.setUniform(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
+        object_shader.setUniform(s.str() + ".specular", diffuses[i]); 
+        object_shader.setUniform(s.str() + ".position", light_positions[i]);
+        object_shader.setUniform(s.str() + ".constant", 1.0f);
+        object_shader.setUniform(s.str() + ".linear", .09f);
+        object_shader.setUniform(s.str() + ".quadratic", .032f);
+        s.str("");
+        s.clear();
+    }
+    
+    light_shader.use();
+    
+    light_shader.setUniform("projection", proj);
+    light_shader.setUniform("view", view);
+    light_shader.setUniform("model",model);
+    light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
+
+    
+    
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
+
+
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+
+        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        
+
+        view = camera.GetViewMatrix();
+        
+        
+        
+
+        light_shader.use();
+        light_shader.setUniform("projection",proj);
+        light_shader.setUniform("view",view);
+
+        for(int i = 0; i < 4; i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, light_positions[i]);
+            model = glm::scale(model, glm::vec3(0.2f));
+            light_shader.setUniform("model", model);
+            light_shader.setUniform("aColor", diffuses[i]);
+            drawShape(VAO_T, EBO_O, light_shader, 36);
+        }
+
+        object_shader.use();
+        object_shader.setUniform("view",view);
+        object_shader.setUniform("projection",proj);
+        object_shader.setUniform("view_pos", camera.Position);
+       object_shader.setUniform("spot_light.position", camera.Position);
+       object_shader.setUniform("spot_light.direction", camera.Front);
+       object_shader.setUniform("spot_light.is_on", (bool)flash_light);
+
+        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, shapes::cubePositions[i]);
+            model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
+            object_shader.setUniform("model", model);
+            drawTexturedShape(VAO_O, EBO_O, object_shader, 36, diffuse_sampler_2d);
+        }
+        
         
 
 

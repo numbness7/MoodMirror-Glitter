@@ -87,7 +87,7 @@ vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 view_dir){
     vec3 reflect_dir = normalize(reflect(-light_dir,norm));
     
     float spec = pow(max(dot(view_dir,reflect_dir), 0.0f), material.shininess);
-    vec3 specular = light.specular * (spec * vec3(texture(material.specular, TexCoords)));
+    vec3 specular = light.specular * (spec * vec3(texture(material.texture_specular1, TexCoords)) * vec3(texture(material.texture_specular2, TexCoords)));
     
 
     diffuse *= intensity;
@@ -112,7 +112,7 @@ vec3 calcDirLight(DirLight light, vec3 normal, vec3 view_dir){
     vec3 reflect_dir = normalize(reflect(-light_dir,norm));
     
     float spec = pow(max(dot(view_dir,reflect_dir), 0.0f), material.shininess);
-    vec3 specular = light.specular * (spec * vec3(texture(material.specular, TexCoords)));
+    vec3 specular = light.specular * (spec * vec3(texture(material.texture_specular1, TexCoords)) * vec3(texture(material.texture_specular2, TexCoords)));
     
 
     
@@ -133,7 +133,7 @@ vec3 calcPointLight(PointLight light, vec3 normal, vec3 view_dir){
     vec3 reflect_dir = normalize(reflect(-light_dir,norm));
     
     float spec = pow(max(dot(view_dir,reflect_dir), 0.0f), material.shininess);
-    vec3 specular = light.specular * (spec * vec3(texture(material.specular, TexCoords)));
+    vec3 specular = light.specular * (spec * vec3(texture(material.texture_specular1, TexCoords)) * vec3(texture(material.texture_specular2, TexCoords)));
     
     float dist = length(FragPos - light.position);
     float attenuation = 1.0f/(light.constant + light.linear*dist + light.quadratic*pow(dist,2));
