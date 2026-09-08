@@ -1093,3 +1093,145 @@ int mainTextureGenerate(int argc, char * argv[]){
     }   glfwTerminate();
     return EXIT_SUCCESS;
 }
+
+#define ProgressMargin 0.0001f
+    
+void StraightPath::setProgress(float prog, bool loop) { 
+    if (loop){
+        if( prog < 0){
+            progress = 1.0f;
+        }
+        else if( prog > 1){
+            progress = 0.0f;
+        }
+        else{
+            progress = prog; 
+        }
+    }
+    else if (prog >= 0.0f && prog <= 1.0f + ProgressMargin )
+        progress = prog; 
+    else{
+        throw std::runtime_error("Error: Invalid progress: " + std::to_string(prog) + ", should be between 0 and 1!");
+    }
+}
+
+glm::vec3 StraightPath::getPositionOnPath(){
+    int numPoints = points.size();
+    // Find start point
+    float point_progress = float(progress*(float)(numPoints-1));
+    int start_point_index = (int)point_progress;
+    if(start_point_index >= numPoints - 1){
+        return points.back();
+    }
+    int end_point_index = start_point_index + 1;
+    glm::vec3 start_point = points[start_point_index];
+    glm::vec3 end_point = points[end_point_index];
+    glm::vec3 direction = glm::normalize(end_point-start_point);
+    float distance = glm::distance(end_point,start_point);
+    float left_over_point_progress = point_progress - (float) start_point_index;
+    glm::vec3 change_vector = direction * distance * left_over_point_progress;
+    glm::vec3 point_on_path = start_point + change_vector;
+    std::cout << "point_on_path: " << point_on_path.x << " " << point_on_path.y << " " << point_on_path.z << std::endl;
+    return start_point + change_vector;
+}
+
+int mainPathCube(int argc, char * argv[]){
+    
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
+
+    
+    unsigned int texture1;
+    generate_texture(texture1, "Glitter/Textures/awesomeface.png", "png");
+
+
+
+    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp.vs", "Glitter/Shaders/texture-mvp.fs");
+    
+    unsigned int VBO_T, VAO_T, EBO_T;
+    
+    
+    
+    
+    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_cube, 5*36, shapes::cube_ind, 36);
+    
+    
+
+    shaderTextureMVP.use();
+    shaderTextureMVP.setUniform("ourTexture",(unsigned int)0);
+    
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+
+    shaderTextureMVP.setUniform("projection", proj);
+    shaderTextureMVP.setUniform("view", view);
+    shaderTextureMVP.setUniform("model",model);
+    
+    
+    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
+    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
+    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
+    
+    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
+    glm::vec3 up(0.0f,1.0f,0.0f);
+    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
+
+    StraightPath path(std::vector<glm::vec3>{glm::vec3(10,10,0), glm::vec3(0, 10, 0), glm::vec3(0,0,0), glm::vec3(10, 0, 0), glm::vec3(10,10,0)}, 0);
+
+    DeltaTimer delta_timer{};
+    float timer = 0.0f;
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+
+        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        shaderTextureMVP.setUniform("projection",proj);
+        
+
+        view = camera.GetViewMatrix();
+        shaderTextureMVP.setUniform("view",view);
+        timer += delta_timer.getDeltaTime();
+        if(timer > 1.0f) {
+            timer = timer - 1.0f;
+        }
+        std::cout << "timer: " << timer << std::endl;
+        path.setProgress(timer);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, path.getPositionOnPath());
+        shaderTextureMVP.setUniform("model",model);
+        drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
+        
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+}

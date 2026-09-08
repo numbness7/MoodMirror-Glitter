@@ -21,5 +21,5 @@
 
 
 int main(int argc, char * argv[]) {
-    mainGenerateTexturesCubes(argc, argv);
+    mainPathCube(argc, argv);
 }

@@ -10,6 +10,7 @@
 #include <camera.hpp>
 #include <shapes.hpp>
 #include <model.hpp>
+#include <vector>
 
 // System Headers
 #include <glad/glad.h>
@@ -29,6 +30,7 @@ int mainCubes(int argc, char * argv[]);
 int mainGenerateTexturesCubes(int argc, char * argv[]);
 int mainOther(int argc, char * argv[]);
 int mainTextureGenerate(int argc, char * argv[]);
+int mainPathCube(int argc, char * argv[]);
 
 
 // Draw
@@ -61,6 +63,7 @@ GLFWwindow* initOpenGL(int& return_status, int width, int height);
 //  Callback
 void scroll_callback(GLFWwindow* mWindow, double xoffset, double yoffset);
 void mouse_callback(GLFWwindow* mWindow, double xPos, double yPos);
+glm::vec3 cameraDirection(float yaw, float pitch);
 
 //  Immediate
 void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFront, glm::vec3 cameraUp);
@@ -74,17 +77,29 @@ extern float lastX;
 extern float lastY;
 extern bool first_mouse;
 
-
+// Classes
 class DeltaTimer{
     public:
         DeltaTimer();
         float getDeltaTime(bool do_update = true);
+        float getElapsedTime(bool do_update = true) { if (do_update) updateDeltaTime(); return elapsed_time; }
     private:
         void updateDeltaTime();
         float elapsed_time = 0.0f;
         float lastframe_time = 0.0f;
         float deltatime = 0.0f;
 };
-glm::vec3 cameraDirection(float yaw, float pitch);
+
+
+// Path consisting of just points
+class StraightPath{
+    public:
+        StraightPath( std::vector<glm::vec3> p, double prog) : points(p), progress(prog){};
+        glm::vec3 getPositionOnPath();
+        void setProgress(float prog, bool loop = false);
+    private:
+        std::vector<glm::vec3> points;
+        float progress; // Ranges from 0 to 1
+};
 
 #endif
