@@ -602,7 +602,7 @@ int mainLight(int argc, char * argv[]){
 
 
     
-    create_lamp_and_light_object(VAO_O, VAO_T, VBO_O, EBO_O, shapes::normal_textured_cube, 8*36, shapes::cube_ind, 36);
+    create_lamp_and_light_object(VAO_O, VAO_T, VBO_O, EBO_O, shapes::normal_textured_triangle_pyramid, 8*36, shapes::normal_textured_triangle_pyramid_ind, 36);
     
     
     
@@ -729,7 +729,7 @@ int mainLight(int argc, char * argv[]){
         for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
             model = glm::mat4(1.0f);
             model = glm::translate(model, shapes::cubePositions[i]);
-            model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
+            //model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
             object_shader.setUniform("model", model);
             drawTexturedShape(VAO_O, EBO_O, object_shader, 36, diffuse_sampler_2d);
         }

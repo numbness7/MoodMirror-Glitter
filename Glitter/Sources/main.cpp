@@ -21,5 +21,5 @@
 
 
 int main(int argc, char * argv[]) {
-    mainPathCube(argc, argv);
+    mainLight(argc, argv);
 }
