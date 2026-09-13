@@ -241,7 +241,59 @@ const float normal_textured_cube[] = {
         glm::vec3(-1.3f,  1.0f, -1.5f)  
     };
 
+const float normal_triangle_pyramid[] = {
     
+    -0.5f, -0.5f, -0.5f,   0.0f, -1.0f,  0.0f,   0.0f, 0.0f, // Bottom left
+     0.5f, -0.5f, -0.5f,   0.0f, -1.0f,  0.0f,   1.0f, 0.0f, // Bottom right
+     0.0f, -0.5f,  0.5f,   0.0f, -1.0f,  0.0f,   0.5f, 1.0f, // Bottom back-ward
+     
+    -0.5f, -0.5f, -0.5f,   0.0f,  1.0f, -2.0f,   0.0f, 0.0f, // Bottom left
+     0.5f, -0.5f, -0.5f,   0.0f,  1.0f, -2.0f,   1.0f, 0.0f, // Bottom right
+     0.0f,  0.5f,  0.0f,   0.0f,  1.0f, -2.0f,   0.5f, 1.0f, // Bottom back-ward
+
+    -0.5f, -0.5f, -0.5f,   1.0f, -0.25f, -0.5f,   0.0f, 0.0f, // Bottom left
+     0.0f, -0.5f,  0.5f,   1.0f, -0.25f, -0.5f,   1.0f, 0.0f, // Bottom right
+     0.0f,  0.5f,  0.0f,   1.0f, -0.25f, -0.5f,   0.5f, 1.0f, // Bottom back-ward
+    
+     0.5f, -0.5f, -0.5f,   1.0f,  0.25f, 0.5f,   0.0f, 0.0f, // Bottom left
+     0.0f, -0.5f,  0.5f,   1.0f,  0.25f, 0.5f,   1.0f, 0.0f, // Bottom right
+     0.0f,  0.5f,  0.0f,   1.0f,  0.25f, 0.5f,   0.5f, 1.0f, // Bottom back-ward
+
+};
+
+const unsigned int normal_triangle_pyramid_ind[] = {
+    0, 1, 2,
+    3, 4, 5,
+    6, 7, 8,
+    9, 10, 11,
+};
+    
+const float textured_triangle_pyramid[] = {
+    
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // Bottom left
+     0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // Bottom right
+     0.0f, -0.5f,  0.5f,  0.5f, 1.0f, // Bottom back-ward
+     
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // Bottom left
+     0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // Bottom right
+     0.0f,  0.5f,  0.0f,  0.5f, 1.0f, // Bottom back-ward
+
+    -0.5f, -0.5f, -0.5f,   0.0f, 0.0f, // Bottom left
+     0.0f, -0.5f,  0.5f,   1.0f, 0.0f, // Bottom right
+     0.0f,  0.5f,  0.0f,   0.5f, 1.0f, // Bottom back-ward
+    
+     0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // Bottom left
+     0.0f, -0.5f,  0.5f,  1.0f, 0.0f, // Bottom right
+     0.0f,  0.5f,  0.0f,  0.5f, 1.0f, // Bottom back-ward
+
+};
+
+const unsigned int textured_triangle_pyramid_ind[] = {
+    0, 1, 2,
+    3, 4, 5,
+    6, 7, 8,
+    9, 10, 11,
+};
 const float normal_textured_triangle_pyramid[] = {
     
     -0.5f, -0.5f, -0.5f,   0.0f, -1.0f,  0.0f,   0.0f, 0.0f, // Bottom left

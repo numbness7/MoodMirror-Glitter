@@ -21,5 +21,5 @@
 
 
 int main(int argc, char * argv[]) {
-    mainLight(argc, argv);
+    mainPathRectangle(argc, argv);
 }

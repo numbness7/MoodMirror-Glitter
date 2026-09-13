@@ -12,7 +12,8 @@ float fov = 30.0f;
 bool first_mouse = true;
 bool flash_light = true;
 bool flash_light_pressed = false;
-Camera camera(glm::vec3(1.0f,1.3f,3.0f), glm::vec3(0.0f,1.0f,0.0f), -100, -20);
+Camera camera(glm::vec3(0.0f,0.0f,3.0f), glm::vec3(0.0f,1.0f,0.0f), -90, 0);
+//Camera camera(glm::vec3(1.0f,1.3f,3.0f), glm::vec3(0.0f,1.0f,0.0f), -100, -20);
 
 struct Material {
     unsigned int diffuse;
@@ -76,8 +77,25 @@ void processInput(GLFWwindow* mWindow, Camera& camera, float deltatime){
         flash_light_pressed = false;
         flash_light = !flash_light;
     }
-        
 }
+
+        
+void processInputFreezeGimbal(GLFWwindow* mWindow, Camera& camera, float deltatime){
+
+    if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(mWindow, true);
+    if (glfwGetKey(mWindow, GLFW_KEY_D) == GLFW_PRESS)
+        camera.ProcessKeyboard(RIGHT, deltatime);
+    if (glfwGetKey(mWindow, GLFW_KEY_A) == GLFW_PRESS)
+        camera.ProcessKeyboard(LEFT, deltatime);
+    if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_PRESS)
+        camera.ProcessKeyboard(UP, deltatime);
+    if (glfwGetKey(mWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        camera.ProcessKeyboard(DOWN, deltatime);
+}
+        
+
+
 void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFront, glm::vec3 cameraUp, float deltatime){
     float movementSpeed = 5.5;
     float cameraSpeed = movementSpeed * deltatime;
@@ -1158,7 +1176,107 @@ int mainPathCube(int argc, char * argv[]){
     
     
     
-    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_cube, 5*36, shapes::cube_ind, 36);
+    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_triangle_pyramid, 5*36, shapes::textured_triangle_pyramid_ind, 36);
+    
+    
+
+    shaderTextureMVP.use();
+    shaderTextureMVP.setUniform("ourTexture",(unsigned int)0);
+    
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+
+    shaderTextureMVP.setUniform("projection", proj);
+    shaderTextureMVP.setUniform("view", view);
+    shaderTextureMVP.setUniform("model",model);
+    
+    
+    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
+    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
+    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
+    
+    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
+    glm::vec3 up(0.0f,1.0f,0.0f);
+    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
+
+    StraightPath path(std::vector<glm::vec3>{glm::vec3(10,10,0), glm::vec3(0, 10, 0), glm::vec3(0,0,0), glm::vec3(10, 0, 0), glm::vec3(10,10,0)}, 0);
+
+    DeltaTimer delta_timer{};
+    float timer = 0.0f;
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+
+        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        shaderTextureMVP.setUniform("projection",proj);
+        
+
+        view = camera.GetViewMatrix();
+        shaderTextureMVP.setUniform("view",view);
+        timer += delta_timer.getDeltaTime();
+        if(timer > 1.0f) {
+            timer = timer - 1.0f;
+        }
+        std::cout << "timer: " << timer << std::endl;
+        path.setProgress(timer);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, path.getPositionOnPath());
+        shaderTextureMVP.setUniform("model",model);
+        drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
+        
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+}
+int mainPathRectangle(int argc, char * argv[]){
+    
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
+
+    
+    unsigned int texture1;
+    generate_texture(texture1, "Glitter/Textures/awesomeface.png", "png");
+
+
+
+    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp.vs", "Glitter/Shaders/texture-mvp.fs");
+    
+    unsigned int VBO_T, VAO_T, EBO_T;
+    
+    
+    
+    
+    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::rect_t, 5*6, shapes::rect_ind, 6);
     
     
 

@@ -31,6 +31,7 @@ int mainGenerateTexturesCubes(int argc, char * argv[]);
 int mainOther(int argc, char * argv[]);
 int mainTextureGenerate(int argc, char * argv[]);
 int mainPathCube(int argc, char * argv[]);
+int mainPathRectangle(int argc, char * argv[]);
 
 
 // Draw

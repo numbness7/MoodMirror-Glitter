@@ -15,4 +15,8 @@ namespace shapes {
     extern const std::vector<glm::vec3> cubePositions;
     extern const unsigned int normal_textured_triangle_pyramid_ind[];
     extern const float normal_textured_triangle_pyramid[];
+    extern const unsigned int normal_triangle_pyramid_ind[];
+    extern const float normal_triangle_pyramid[];
+    extern const unsigned int textured_triangle_pyramid_ind[];
+    extern const float textured_triangle_pyramid[];
 };
