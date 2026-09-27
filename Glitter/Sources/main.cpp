@@ -21,5 +21,5 @@
 
 
 int main(int argc, char * argv[]) {
-    mainPathRectangle(argc, argv);
+    mainTurning(argc, argv);
 }

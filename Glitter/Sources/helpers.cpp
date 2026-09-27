@@ -12,7 +12,7 @@ float fov = 30.0f;
 bool first_mouse = true;
 bool flash_light = true;
 bool flash_light_pressed = false;
-Camera camera(glm::vec3(0.0f,0.0f,3.0f), glm::vec3(0.0f,1.0f,0.0f), -90, 0);
+Camera camera(glm::vec3(0.0f,0.0f,9.0f), glm::vec3(0.0f,1.0f,0.0f), -90, 0);
 //Camera camera(glm::vec3(1.0f,1.3f,3.0f), glm::vec3(0.0f,1.0f,0.0f), -100, -20);
 
 struct Material {
@@ -1253,6 +1253,132 @@ int mainPathCube(int argc, char * argv[]){
     }   glfwTerminate();
     return EXIT_SUCCESS;
 }
+int mainTurning(int argc, char * argv[]){
+    
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
+
+    
+    unsigned int texture1;
+    generate_texture(texture1, "Glitter/Textures/awesomeface.png", "png");
+
+
+
+    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp.vs", "Glitter/Shaders/texture-mvp.fs");
+    
+    unsigned int VBO_T, VAO_T, EBO_T;
+    
+    
+    
+    
+    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_cube, 36*5, shapes::cube_ind, 36);
+    
+    
+
+    shaderTextureMVP.use();
+    shaderTextureMVP.setUniform("ourTexture",(unsigned int)0);
+    
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+
+    shaderTextureMVP.setUniform("projection", proj);
+    shaderTextureMVP.setUniform("view", view);
+    shaderTextureMVP.setUniform("model",model);
+    
+    
+    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
+    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
+    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
+    
+    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
+    glm::vec3 up(0.0f,1.0f,0.0f);
+    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
+    
+    
+    //glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetCursorPosCallback(mWindow, mouse_callback);
+    //glfwSetScrollCallback(mWindow, scroll_callback);
+
+
+    DeltaTimer delta_timer{};
+    float timer = 0.0f;
+    
+    std::vector<glm::mat4> cubeMatrices{};
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+
+        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        shaderTextureMVP.setUniform("projection",proj);
+        
+
+        view = camera.GetViewMatrix();
+        shaderTextureMVP.setUniform("view",view);
+        std::cout << "timer: " << timer << std::endl;
+
+        model = glm::mat4(1.0f);
+        shaderTextureMVP.setUniform("model",model);
+        drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
+        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime())), glm::vec3(0.0f,0.0f,1.0f));
+        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime()*2.1345f)), glm::vec3(0.0f,1.0f,0.0f));
+        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime()*3.787878f)), glm::vec3(1.0f,0.0f,0.0f));
+        model = glm::translate(model, glm::vec3(1.5f,0.0f,0.0f));
+        model = glm::scale(model, glm::vec3(3.0f,0.5f,0.5f));
+        shaderTextureMVP.setUniform("model",model);
+        drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
+        
+        timer += delta_timer.getDeltaTime()*100000.0f;
+        if(timer > 1.0f) {
+            model = glm::mat4(1.0f);
+            model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime())), glm::vec3(0.0f,0.0f,1.0f));
+            model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime()*2.1345f)), glm::vec3(0.0f,1.0f,0.0f));
+            model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime()*3.787878f)), glm::vec3(1.0f,0.0f,0.0f));
+            model = glm::translate(model, glm::vec3(3.0f,0.0f,0.0f));
+            model = glm::scale(model, glm::vec3(0.5f));
+            if (cubeMatrices.size() > 200){
+                for(int i = cubeMatrices.size()-1; i > 0; i--){
+                    cubeMatrices[i] = cubeMatrices[i-1];
+                }
+                cubeMatrices[0] = model;
+            }
+            else{
+                cubeMatrices.push_back(model);
+            }
+            timer = 0.0f;
+        }
+
+        for( glm::mat4 cube : cubeMatrices){
+            shaderTextureMVP.setUniform("model",cube);
+            drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
+        }
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+}
+
 int mainPathRectangle(int argc, char * argv[]){
     
     // Initialize OpenGL
