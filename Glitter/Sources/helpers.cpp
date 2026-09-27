@@ -1499,11 +1499,12 @@ int mainTurning(int argc, char * argv[]){
 
         std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
         glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
-        glm::vec3 rotationAxis = emotionArrayToRotationAxis(emotionArray);
-        float lengthChange = 3.0f*emotionArrayToLength(emotionArray);
-        length += (lengthChange-length)*0.2f*deltaTimer.getDeltaTime();
+        glm::vec3 rotationAxis = glm::normalize(emotionArrayToRotationAxis(emotionArray));
+        float lengthTarget = 3.0f*emotionArrayToLength(emotionArray);
+        length = lengthTarget;
         if (length > 3.0f) length = 3.0f;
-        rotatedModel = glm::rotate(rotatedModel, deltaTimer.getDeltaTime(), rotationAxis);
+        rotatedModel = glm::rotate(glm::mat4(1.0f), (float)(1.0f*((float)(M_PI))), rotationAxis);
+        std::cout << "rotation axis: " << "(" << rotationAxis.x << "," << rotationAxis.y << "," << rotationAxis.z << ")" << std::endl;
 
         
         model = glm::mat4(1.0f);
@@ -1522,8 +1523,8 @@ int mainTurning(int argc, char * argv[]){
         model = glm::mat4(rotatedModel);
         model = glm::translate(model, glm::vec3(length,0.0f,0.0f));
         model = glm::scale(model, glm::vec3(0.10f));
-        cubeMatrices.push_front(CubePair{model,glm::vec4(emotionRGB,1.0f)});
-        if (cubeMatrices.size() > 1000){
+        cubeMatrices.push_front(CubePair{model,glm::vec4(emotionRGB,0.5f)});
+        if (cubeMatrices.size() > 100000){
             cubeMatrices.pop_back();
         }
 
@@ -1681,9 +1682,9 @@ float emotionArrayToLength(std::vector<std::vector<float>> emotionArray){
 
 glm::vec3 emotionArrayToColor(std::vector<std::vector<float>> emotionArray){
     std::vector<float> array0 = emotionArray[0];
-    float red = array0[0];
-    float green = array0[1];
-    float blue = array0[2];
+    float red   =   0.5f + (array0[3] - array0[0])/2;
+    float green =   0.5f + (array0[4] - array0[1])/2;
+    float blue  =   0.5f + (array0[5] - array0[2])/2;
     return glm::vec3(red,green,blue);
     
 }
