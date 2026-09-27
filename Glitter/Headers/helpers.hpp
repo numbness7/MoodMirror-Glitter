@@ -26,6 +26,7 @@
 
 // Main Programs
 int mainLight(int argc, char * argv[]);
+int mainTurning(int argc, char * argv[]);
 int mainCubes(int argc, char * argv[]);
 int mainGenerateTexturesCubes(int argc, char * argv[]);
 int mainOther(int argc, char * argv[]);
