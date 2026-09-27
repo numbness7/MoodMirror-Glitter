@@ -1499,10 +1499,7 @@ int mainTurning(int argc, char * argv[]){
 
         std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
         glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
-        glm::vec3 rotationAxis = glm::normalize(emotionArrayToRotationAxis(emotionArray));
-        float lengthTarget = 3.0f*emotionArrayToLength(emotionArray);
-        length = lengthTarget;
-        if (length > 3.0f) length = 3.0f;
+        glm::vec3 rotationAxis = glm::vec3(sin(deltaTimer.getElapsedTime()*1.0f + M_1_PI),-sin(deltaTimer.getElapsedTime()*1.0f/2.7865432f + M_1_PI/2),sin(deltaTimer.getElapsedTime()*1.0f/3.125105f + M_1_PI/3));
         rotatedModel = glm::rotate(glm::mat4(1.0f), (float)(1.0f*((float)(M_PI))), rotationAxis);
         std::cout << "rotation axis: " << "(" << rotationAxis.x << "," << rotationAxis.y << "," << rotationAxis.z << ")" << std::endl;
 
