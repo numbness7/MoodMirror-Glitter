@@ -79,6 +79,9 @@ void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFro
 // Read
 nlohmann::json readjsonfile(std::string filepath);
 std::vector<std::vector<float>> readEmotionArray(std::string filepath);
+glm::vec3 emotionArrayToRotationAxis(std::vector<std::vector<float>> emotionArray);
+float emotionArrayToLength(std::vector<std::vector<float>> emotionArray);
+
 
 glm::vec3 emotionArrayToColor(std::vector<std::vector<float>> emotionArray);
 

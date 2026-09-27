@@ -1450,10 +1450,12 @@ int mainTurning(int argc, char * argv[]){
     glfwSetScrollCallback(mWindow, scroll_callback);
 
 
-    float timer = 0.0f;
     
     std::deque<CubePair> cubeMatrices{};
     
+
+    glm::mat4 rotatedModel(1.0f);
+    float length = 3.0f;
 
     
     
@@ -1497,6 +1499,12 @@ int mainTurning(int argc, char * argv[]){
 
         std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
         glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
+        glm::vec3 rotationAxis = emotionArrayToRotationAxis(emotionArray);
+        float lengthChange = 3.0f*emotionArrayToLength(emotionArray);
+        length += (lengthChange-length)*0.2f*deltaTimer.getDeltaTime();
+        if (length > 3.0f) length = 3.0f;
+        rotatedModel = glm::rotate(rotatedModel, deltaTimer.getDeltaTime(), rotationAxis);
+
         
         model = glm::mat4(1.0f);
         model = glm::scale(model, glm::vec3(0.2f));
@@ -1504,22 +1512,15 @@ int mainTurning(int argc, char * argv[]){
         object_shader.setUniform("model",model);
         object_shader.setUniform("aColor", color);
         objectShape.draw(object_shader);
-        model = glm::mat4(1.0f);
-        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5)), glm::vec3(0.0f,0.0f,1.0f));
-        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5*2.1345f)), glm::vec3(0.0f,1.0f,0.0f));
-        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5*3.787878f)), glm::vec3(1.0f,0.0f,0.0f));
-        model = glm::translate(model, glm::vec3(1.5f,0.0f,0.0f));
-        model = glm::scale(model, glm::vec3(3.0f,0.1f,0.1f));
+        model = glm::mat4(rotatedModel);
+        model = glm::translate(model, glm::vec3(length/2,0.0f,0.0f));
+        model = glm::scale(model, glm::vec3(length,0.1f,0.1f));
         object_shader.setUniform("model",model);
         object_shader.setUniform("aColor", color);
         objectShape.draw(object_shader);
         
-        model = glm::translate(model, glm::vec3(3.0f,0.0f,0.0f));
-        model = glm::mat4(1.0f);
-        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5f)), glm::vec3(0.0f,0.0f,1.0f));
-        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5f*2.1345f)), glm::vec3(0.0f,1.0f,0.0f));
-        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5f*3.787878f)), glm::vec3(1.0f,0.0f,0.0f));
-        model = glm::translate(model, glm::vec3(3.0f,0.0f,0.0f));
+        model = glm::mat4(rotatedModel);
+        model = glm::translate(model, glm::vec3(length,0.0f,0.0f));
         model = glm::scale(model, glm::vec3(0.10f));
         cubeMatrices.push_front(CubePair{model,glm::vec4(emotionRGB,1.0f)});
         if (cubeMatrices.size() > 1000){
@@ -1673,11 +1674,24 @@ std::vector<std::vector<float>> readEmotionArray(std::string filepath){
     return data["emotion_array"];
 }
 
+float emotionArrayToLength(std::vector<std::vector<float>> emotionArray){
+    std::vector<float> array0 = emotionArray[0];
+    return array0[0] + 0.1f;
+}
+
 glm::vec3 emotionArrayToColor(std::vector<std::vector<float>> emotionArray){
     std::vector<float> array0 = emotionArray[0];
     float red = array0[0];
     float green = array0[1];
     float blue = array0[2];
     return glm::vec3(red,green,blue);
+    
+}
+glm::vec3 emotionArrayToRotationAxis(std::vector<std::vector<float>> emotionArray){
+    std::vector<float> array0 = emotionArray[0];
+    float x = array0[3] - array0[0];
+    float y = array0[4] - array0[1];
+    float z = array0[5] - array0[2];
+    return glm::vec3(x,y,z);
     
 }
