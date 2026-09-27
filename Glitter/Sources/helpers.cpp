@@ -1495,6 +1495,8 @@ int mainTurning(int argc, char * argv[]){
        object_shader.setUniform("spot_light.direction", camera.Front);
        object_shader.setUniform("spot_light.is_on", (bool)flash_light);
 
+        std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
+        glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
         
         model = glm::mat4(1.0f);
         model = glm::scale(model, glm::vec3(0.2f));
@@ -1519,7 +1521,7 @@ int mainTurning(int argc, char * argv[]){
         model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5f*3.787878f)), glm::vec3(1.0f,0.0f,0.0f));
         model = glm::translate(model, glm::vec3(3.0f,0.0f,0.0f));
         model = glm::scale(model, glm::vec3(0.10f));
-        cubeMatrices.push_front(CubePair{model,glm::vec4(randRGB(),1.0f)});
+        cubeMatrices.push_front(CubePair{model,glm::vec4(emotionRGB,1.0f)});
         if (cubeMatrices.size() > 1000){
             cubeMatrices.pop_back();
         }
@@ -1666,7 +1668,16 @@ nlohmann::json readjsonfile(std::string filepath){
     }
 }
 
-std::vector<float> readEmotionArray(std::string filepath){
+std::vector<std::vector<float>> readEmotionArray(std::string filepath){
     nlohmann::json data = readjsonfile(filepath);
     return data["emotion_array"];
+}
+
+glm::vec3 emotionArrayToColor(std::vector<std::vector<float>> emotionArray){
+    std::vector<float> array0 = emotionArray[0];
+    float red = array0[0];
+    float green = array0[1];
+    float blue = array0[2];
+    return glm::vec3(red,green,blue);
+    
 }
