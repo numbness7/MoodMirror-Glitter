@@ -91,3 +91,15 @@ void Shader::setUniform(std::string name, const glm::mat4 mat4){
 void Shader::setVec3(std::string name, const float x,const float y,const float z){
     setUniform(name, glm::vec3(x,y,z));
 }
+
+
+void Shader::setUniform(std::string name, const glm::vec4 vec4){;
+    unsigned int uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+    glUniform4fv(uniform_loc, 1, glm::value_ptr(vec4));
+}
+void Shader::setUniform(std::string name, const glm::vec4 vec4[], const int size){
+    for (int i = 0; i < size; i++){
+        std::string partName = name + "[" + std::to_string(i) + "]";
+        setUniform(partName, vec4[i]);
+    }
+}

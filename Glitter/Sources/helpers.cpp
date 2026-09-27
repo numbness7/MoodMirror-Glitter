@@ -1,6 +1,7 @@
 
 #include <helpers.hpp>
 
+
 #define SMALL_FLOAT 0.00000001f
 
 glm::vec3 cameraFront(0.0f,0.0f,-1.0f);
@@ -12,6 +13,8 @@ float fov = 30.0f;
 bool first_mouse = true;
 bool flash_light = true;
 bool flash_light_pressed = false;
+bool debug_pressed = false;
+bool mouseCaptured = true;
 Camera camera(glm::vec3(0.0f,0.0f,9.0f), glm::vec3(0.0f,1.0f,0.0f), -90, 0);
 //Camera camera(glm::vec3(1.0f,1.3f,3.0f), glm::vec3(0.0f,1.0f,0.0f), -100, -20);
 
@@ -20,6 +23,38 @@ struct Material {
     unsigned int specular;
     float shininess;
 };
+
+struct CubePair {
+    glm::mat4 model;
+    glm::vec4 color;
+};
+
+std::random_device rd;
+std::mt19937 gen(rd());
+
+float rand_range_uniform(float min, float max){
+    std::uniform_real_distribution<> dis(min,max);
+    return dis(gen);
+}
+
+unsigned int rand_range_uniform(unsigned int min, unsigned int max){
+    std::uniform_int_distribution<> dis(min,max);
+    return dis(gen);
+}
+
+float rand_range_normal(float mean, float stddev){
+    std::normal_distribution<> dis(mean,stddev);
+    return dis(gen);
+}
+
+glm::vec3 randRGB(){
+    return glm::vec3(rand_range_normal(0.0f,1.0f),rand_range_normal(0.0f,1.0f),rand_range_normal(0.0f,1.0f));
+}
+
+glm::vec4 randRGBA(){
+    return glm::vec4(rand_range_normal(0.0f,1.0f),rand_range_normal(0.0f,1.0f),rand_range_normal(0.0f,1.0f),rand_range_normal(0.0f,1.0f));
+}
+
 
 
 void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2){
@@ -77,6 +112,15 @@ void processInput(GLFWwindow* mWindow, Camera& camera, float deltatime){
         flash_light_pressed = false;
         flash_light = !flash_light;
     }
+    if(glfwGetKey(mWindow, GLFW_KEY_E) == GLFW_PRESS){
+        debug_pressed = true;
+    }
+    else if(debug_pressed){
+        debug_pressed = false;
+        mouseCaptured = !mouseCaptured;
+
+        glfwSetInputMode(mWindow, GLFW_CURSOR, mouseCaptured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+    }
 }
 
         
@@ -115,6 +159,35 @@ void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFro
         velocity = glm::normalize(velocity) * cameraSpeed;
     cameraPos += velocity;
 }
+void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, const unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes){
+    unsigned int totalSize = 0;
+    for(unsigned int count : attributeSizes){
+        totalSize += count;
+    }
+
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, totalSize*ind_cnt*sizeof(float), vertices, GL_STATIC_DRAW);
+    
+    glGenBuffers(1,&EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, ind_cnt*sizeof(unsigned int), indices, GL_STATIC_DRAW);
+
+    // Object
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+
+    unsigned int previousCount = 0;
+    unsigned int attributeNumber = 0;
+    for (unsigned int size : attributeSizes){
+        glVertexAttribPointer(attributeNumber, size, GL_FLOAT, GL_FALSE, totalSize * sizeof(float), (void*) + (previousCount * sizeof(float)));
+        glEnableVertexAttribArray(attributeNumber);
+        attributeNumber++;
+    }
+
+}
+
+
 void create_lamp_and_light_object(unsigned int &VAO_O, unsigned int &VAO_T,unsigned int &VBO, unsigned int& EBO, 
     const float vert[], unsigned int vert_cnt, const unsigned int ind[], 
     unsigned int ind_cnt){
@@ -265,13 +338,13 @@ void generate_texture(unsigned int &texture, std::string texture_filepath, std::
             for(int j = 0; j < width*4; j+=4){
                 for(int color = 0; color < 4; color++){
                     if(color == 0) // Red
-                        data[i*width*4+j+color] = 0x7F;
+                        data[i*width*4+j+color] = 0xFF;
                     if(color == 1) // Green
-                        data[i*width*4+j+color] = 0x00;
+                        data[i*width*4+j+color] = 0xFF;
                     if(color == 2) // Blue
-                        data[i*width*4+j+color] = 0x7F;
-                    if(color == 3) // Don't Know
-                        data[i*width*4+j+color] = 0x00;
+                        data[i*width*4+j+color] = 0xFF;
+                    if(color == 3) // Don't know
+                        data[i*width*4+j+color] = 0xFF;
                 }
             }
         }
@@ -346,6 +419,16 @@ GLFWwindow* initOpenGL(int& return_status, int width, int height){
     glfwMakeContextCurrent(mWindow);
     gladLoadGL();
     fprintf(stderr, "OpenGL %s\n", glGetString(GL_VERSION));
+    // Source - https://stackoverflow.com/a/1617379
+    // Posted by Goz
+    // Retrieved 2026-09-26, License - CC BY-SA 2.5
+    
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable( GL_BLEND );
+
+
+    
+    unsigned int VBO_O, VAO_O, EBO_O;
     
 
     glEnable(GL_DEPTH_TEST);
@@ -459,7 +542,7 @@ int mainGenerateTexturesCubes(int argc, char * argv[]){
         // Flip Buffers and Draw
         glfwSwapBuffers(mWindow);
         glfwPollEvents();
-        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        processInput(mWindow, camera, deltaTimer.getDeltaTime(false));
         
 
         
@@ -1253,8 +1336,8 @@ int mainPathCube(int argc, char * argv[]){
     }   glfwTerminate();
     return EXIT_SUCCESS;
 }
+
 int mainTurning(int argc, char * argv[]){
-    
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
     auto mWindow = initOpenGL(return_status, mWidth, mHeight);
@@ -1262,26 +1345,32 @@ int mainTurning(int argc, char * argv[]){
     
     DeltaTimer deltaTimer{};
     
+    unsigned int diffuse_sampler_2d;
+    unsigned int specular_sampler_2d;
+    generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+    generate_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
+
 
     
-    unsigned int texture1;
-    generate_texture(texture1, "Glitter/Textures/awesomeface.png", "png");
-
-
-
-    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp.vs", "Glitter/Shaders/texture-mvp.fs");
     
-    unsigned int VBO_T, VAO_T, EBO_T;
+    std::vector<unsigned int> lightSizes{};
+    lightSizes.push_back(3);
+    
+    Shape lightShape((unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
+    
+    std::vector<unsigned int> objectSizes{3,3,2};
+    
+    Shape objectShape((unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
     
     
-    
-    
-    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_cube, 36*5, shapes::cube_ind, 36);
     
     
 
-    shaderTextureMVP.use();
-    shaderTextureMVP.setUniform("ourTexture",(unsigned int)0);
     
     glm::mat4 proj;
     proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
@@ -1290,93 +1379,175 @@ int mainTurning(int argc, char * argv[]){
     view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
 
     glm::mat4 model(1.0f);
+    glm::vec3 light_positions[4] = {
+        glm::vec3(-10.2f,1.0f,2.0f),
+        glm::vec3(0.0f,-10.0f,2.0f),
+        glm::vec3(1.2f,0.0f,-10.0f),
+        glm::vec3(1.2f,1.0f,2.0f),
+    };
 
-    shaderTextureMVP.setUniform("projection", proj);
-    shaderTextureMVP.setUniform("view", view);
-    shaderTextureMVP.setUniform("model",model);
+    Shader object_shader("Glitter/Shaders/light-object-color.vs", "Glitter/Shaders/light-object-color.fs");
+    Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
+    object_shader.use();
+    object_shader.setUniform("projection", proj);
+    object_shader.setUniform("view", view);
+    object_shader.setUniform("model",model);
     
-    
-    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
-    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
-    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
-    
-    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
-    glm::vec3 up(0.0f,1.0f,0.0f);
-    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
-    
-    
-    //glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    //glfwSetCursorPosCallback(mWindow, mouse_callback);
-    //glfwSetScrollCallback(mWindow, scroll_callback);
+    Material material;
+    material.diffuse = 0;
+    material.specular = 1;
+    material.shininess  = 128.0f*0.25; 
+
+   object_shader.setUniform("material.diffuse",   material.diffuse);
+   object_shader.setUniform("material.specular",  material.specular);
+   object_shader.setUniform("material.shininess", material.shininess); 
+   object_shader.setUniform("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
+   object_shader.setUniform("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
 
 
-    DeltaTimer delta_timer{};
+    object_shader.setUniform("dir_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniform("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
+    object_shader.setUniform("dir_light.specular", glm::vec3(0.2f)); 
+    object_shader.setUniform("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
+    
+    object_shader.setUniform("spot_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniform("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
+    object_shader.setUniform("spot_light.specular", glm::vec3(1.0f)); 
+    glm::vec3 diffuses[4] = {
+        glm::vec3(1.0f,0.0f,0.0f),
+        glm::vec3(0.0f,1.0f,0.0f),
+        glm::vec3(0.0f,0.0f,1.0f),
+        glm::vec3(0.3f,0.3f,0.3f),
+    };
+
+    std::stringstream s ("");
+    for(int i = 0; i < 4; i ++){
+        s << "point_lights" << "[" << i << "]";
+        object_shader.setUniform(s.str() + ".ambient",  glm::vec3(0.1f));
+        object_shader.setUniform(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
+        object_shader.setUniform(s.str() + ".specular", diffuses[i]); 
+        object_shader.setUniform(s.str() + ".position", light_positions[i]);
+        object_shader.setUniform(s.str() + ".constant", 1.0f);
+        object_shader.setUniform(s.str() + ".linear", .09f);
+        object_shader.setUniform(s.str() + ".quadratic", .032f);
+        s.str("");
+        s.clear();
+    }
+    
+    light_shader.use();
+    
+    light_shader.setUniform("projection", proj);
+    light_shader.setUniform("view", view);
+    light_shader.setUniform("model",model);
+    light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
+
+    
+    
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
+
+
     float timer = 0.0f;
     
-    std::vector<glm::mat4> cubeMatrices{};
+    std::deque<CubePair> cubeMatrices{};
+    
+
     
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
 
         // Background Fill Color
-        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
         
 
         proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        shaderTextureMVP.setUniform("projection",proj);
         
 
         view = camera.GetViewMatrix();
-        shaderTextureMVP.setUniform("view",view);
-        std::cout << "timer: " << timer << std::endl;
-
-        model = glm::mat4(1.0f);
-        shaderTextureMVP.setUniform("model",model);
-        drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
-        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime())), glm::vec3(0.0f,0.0f,1.0f));
-        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime()*2.1345f)), glm::vec3(0.0f,1.0f,0.0f));
-        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime()*3.787878f)), glm::vec3(1.0f,0.0f,0.0f));
-        model = glm::translate(model, glm::vec3(1.5f,0.0f,0.0f));
-        model = glm::scale(model, glm::vec3(3.0f,0.5f,0.5f));
-        shaderTextureMVP.setUniform("model",model);
-        drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
         
-        timer += delta_timer.getDeltaTime()*100000.0f;
-        if(timer > 1.0f) {
+        
+        
+
+        light_shader.use();
+        light_shader.setUniform("projection",proj);
+        light_shader.setUniform("view",view);
+
+        for(int i = 0; i < 4; i++){
             model = glm::mat4(1.0f);
-            model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime())), glm::vec3(0.0f,0.0f,1.0f));
-            model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime()*2.1345f)), glm::vec3(0.0f,1.0f,0.0f));
-            model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)delta_timer.getElapsedTime()*3.787878f)), glm::vec3(1.0f,0.0f,0.0f));
-            model = glm::translate(model, glm::vec3(3.0f,0.0f,0.0f));
-            model = glm::scale(model, glm::vec3(0.5f));
-            if (cubeMatrices.size() > 200){
-                for(int i = cubeMatrices.size()-1; i > 0; i--){
-                    cubeMatrices[i] = cubeMatrices[i-1];
-                }
-                cubeMatrices[0] = model;
-            }
-            else{
-                cubeMatrices.push_back(model);
-            }
-            timer = 0.0f;
+            model = glm::translate(model, light_positions[i]);
+            model = glm::scale(model, glm::vec3(0.2f));
+            light_shader.setUniform("model", model);
+            light_shader.setUniform("aColor", diffuses[i]);
+            lightShape.draw(light_shader);
         }
 
-        for( glm::mat4 cube : cubeMatrices){
-            shaderTextureMVP.setUniform("model",cube);
-            drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
+        object_shader.use();
+        object_shader.setUniform("view",view);
+        object_shader.setUniform("projection",proj);
+        object_shader.setUniform("view_pos", camera.Position);
+       object_shader.setUniform("spot_light.position", camera.Position);
+       object_shader.setUniform("spot_light.direction", camera.Front);
+       object_shader.setUniform("spot_light.is_on", (bool)flash_light);
+
+        
+        model = glm::mat4(1.0f);
+        model = glm::scale(model, glm::vec3(0.2f));
+        glm::vec4 color = glm::vec4(1.0f,1.0f,1.0f,1.0f);
+        object_shader.setUniform("model",model);
+        object_shader.setUniform("aColor", color);
+        objectShape.draw(object_shader);
+        model = glm::mat4(1.0f);
+        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5)), glm::vec3(0.0f,0.0f,1.0f));
+        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5*2.1345f)), glm::vec3(0.0f,1.0f,0.0f));
+        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5*3.787878f)), glm::vec3(1.0f,0.0f,0.0f));
+        model = glm::translate(model, glm::vec3(1.5f,0.0f,0.0f));
+        model = glm::scale(model, glm::vec3(3.0f,0.1f,0.1f));
+        object_shader.setUniform("model",model);
+        object_shader.setUniform("aColor", color);
+        objectShape.draw(object_shader);
+        
+        model = glm::translate(model, glm::vec3(3.0f,0.0f,0.0f));
+        model = glm::mat4(1.0f);
+        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5f)), glm::vec3(0.0f,0.0f,1.0f));
+        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5f*2.1345f)), glm::vec3(0.0f,1.0f,0.0f));
+        model = glm::rotate(model, (float)(1.0f*M_PI*sin((float)deltaTimer.getElapsedTime()*0.5f*3.787878f)), glm::vec3(1.0f,0.0f,0.0f));
+        model = glm::translate(model, glm::vec3(3.0f,0.0f,0.0f));
+        model = glm::scale(model, glm::vec3(0.10f));
+        cubeMatrices.push_front(CubePair{model,glm::vec4(randRGB(),1.0f)});
+        if (cubeMatrices.size() > 1000){
+            cubeMatrices.pop_back();
         }
+
+        for( CubePair cubePair : cubeMatrices){
+            object_shader.setUniform("model",cubePair.model);
+            object_shader.setUniform("aColor", cubePair.color);
+            objectShape.draw(object_shader);
+        }
+        
+
+
 
         // Flip Buffers and Draw
         glfwSwapBuffers(mWindow);
         glfwPollEvents();
+        std::cout << "FPS: " << 1/deltaTimer.getDeltaTime() << std::endl;
         processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+        deltaTimer.updateDeltaTime();
         
 
         
     }   glfwTerminate();
     return EXIT_SUCCESS;
+    
+    
+    
 }
 
 int mainPathRectangle(int argc, char * argv[]){
@@ -1478,4 +1649,24 @@ int mainPathRectangle(int argc, char * argv[]){
         
     }   glfwTerminate();
     return EXIT_SUCCESS;
+}
+nlohmann::json readjsonfile(std::string filepath){
+
+    while(true){
+        try{
+            using json = nlohmann::json;
+            std::string json_string = readfile(filepath.c_str());
+            json data = json::parse(json_string);
+            return data;
+        }
+        catch(std::exception e){
+            std::cout << e.what() << std::endl;
+                
+        }
+    }
+}
+
+std::vector<float> readEmotionArray(std::string filepath){
+    nlohmann::json data = readjsonfile(filepath);
+    return data["emotion_array"];
 }

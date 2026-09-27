@@ -13,12 +13,13 @@
 #include <iostream>
 #include <fstream>
 
+std::string readfile(const char filepath[]);
 class Shader {
     public:
         Shader(std::string vertex_shader_filepath, std::string fragment_shader_filepath) ;
         void use() { glUseProgram(shaderProgram); }
         void setUniform(std::string name, const glm::vec4 vec4);
-        void setUniform(std::string name, const glm::vec4 vec4[]);
+        void setUniform(std::string name, const glm::vec4 vec4[], const int size);
         void setUniform(std::string name, const glm::vec3 vec3);
         void setUniform(std::string name, const unsigned int integer);
         void setUniform(std::string name, const float floating);

@@ -11,6 +11,7 @@
 #include <shapes.hpp>
 #include <model.hpp>
 #include <vector>
+#include <random>
 
 // System Headers
 #include <glad/glad.h>
@@ -24,12 +25,15 @@
 
 #include <sstream>
 
+
+#include <deque>
+#include <json.hpp>
+
 // Main Programs
 int mainLight(int argc, char * argv[]);
 int mainTurning(int argc, char * argv[]);
 int mainCubes(int argc, char * argv[]);
 int mainGenerateTexturesCubes(int argc, char * argv[]);
-int mainOther(int argc, char * argv[]);
 int mainTextureGenerate(int argc, char * argv[]);
 int mainPathCube(int argc, char * argv[]);
 int mainPathRectangle(int argc, char * argv[]);
@@ -56,6 +60,7 @@ void generate_texture(unsigned int &texture, std::string texture_filepath, std::
 void create_lamp_and_light_object(unsigned int &VAO_O, unsigned int &VAO_T,unsigned int &VBO, unsigned int& EBO, 
     const float vert[], unsigned int vert_cnt, const unsigned int ind[], 
     unsigned int ind_cnt);
+void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, const unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes);
 
 
 // Initialization
@@ -71,6 +76,10 @@ glm::vec3 cameraDirection(float yaw, float pitch);
 void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFront, glm::vec3 cameraUp);
 void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFront, glm::vec3 cameraUp, float deltatime);
 
+// Read
+nlohmann::json readjsonfile(std::string filepath);
+std::vector<float> readEmotionArray(std::string filepath);
+
 
 // Externs
 extern float yaw;
@@ -83,10 +92,10 @@ extern bool first_mouse;
 class DeltaTimer{
     public:
         DeltaTimer();
-        float getDeltaTime(bool do_update = true);
-        float getElapsedTime(bool do_update = true) { if (do_update) updateDeltaTime(); return elapsed_time; }
-    private:
+        float getDeltaTime(bool do_update = false);
+        float getElapsedTime(bool do_update = false) { if (do_update) updateDeltaTime(); return elapsed_time; }
         void updateDeltaTime();
+    private:
         float elapsed_time = 0.0f;
         float lastframe_time = 0.0f;
         float deltatime = 0.0f;
@@ -102,6 +111,29 @@ class StraightPath{
     private:
         std::vector<glm::vec3> points;
         float progress; // Ranges from 0 to 1
+};
+
+class Shape {
+    public:
+        Shape(unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture){
+            this->ind_cnt = ind_cnt;
+            this->texture = texture;
+            this->hasTexture = hasTexture;
+            create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, &vertices[0], &indices[0], attributeSizes);
+        }
+        void draw(Shader shader){
+            if(hasTexture)
+                drawTexturedShape(VAO, EBO, shader, ind_cnt, texture);
+            else
+                drawShape(VAO, EBO, shader, ind_cnt);
+        }
+    private:
+        bool hasTexture;
+        unsigned int VAO;
+        unsigned int VBO;
+        unsigned int EBO;
+        unsigned int ind_cnt;
+        unsigned int texture;
 };
 
 #endif
