@@ -149,6 +149,8 @@ extern float lastX;
 extern float lastY;
 extern bool first_mouse;
 
+// Random
+glm::vec3 randCoords();
 
 
 #endif

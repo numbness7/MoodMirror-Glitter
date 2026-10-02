@@ -1806,7 +1806,8 @@ int mainCoords(int argc, char * argv[]){
         
         // Use emotion array to set properties of shapes
         glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
-        glm::vec3 coords = emotionArrayToVec3(emotionArray);
+        glm::vec3 coords = randCoords();
+
         
         lightingEnvironment.model = glm::mat4(1.0f);
         float scaleCoords = 2.0f;
@@ -1844,4 +1845,11 @@ int mainCoords(int argc, char * argv[]){
     
     
     
+}
+glm::vec3 randCoords(){
+    glm::vec3 coords(0.0f);
+    for (unsigned int i = 0; i < 3; i++){
+        coords[i] = rand_range_uniform(-1.0f,1.0f);
+    }
+    return coords;
 }
