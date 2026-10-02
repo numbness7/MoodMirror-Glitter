@@ -1339,6 +1339,27 @@ int mainPathCube(int argc, char * argv[]){
     return EXIT_SUCCESS;
 }
 
+void generateSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sampler_2d){
+
+    generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+    generate_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
+}
+void setupSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sampler_2d, std::string diffuse_path, std::string diffuse_file_type, std::string specular_path, std::string specular_file_type){
+    
+    create_texture(diffuse_sampler_2d, diffuse_path, diffuse_file_type);
+    create_texture(specular_sampler_2d, specular_path, specular_file_type);
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
+}
+
 int mainTurning(int argc, char * argv[]){
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
@@ -1349,13 +1370,7 @@ int mainTurning(int argc, char * argv[]){
     
     unsigned int diffuse_sampler_2d;
     unsigned int specular_sampler_2d;
-    generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
-    generate_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
-    
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
+    generateSampler2Ds(diffuse_sampler_2d, specular_sampler_2d);
 
 
     
@@ -1388,8 +1403,6 @@ int mainTurning(int argc, char * argv[]){
     
     LightingEnvironment lightingEnvironment = initLighting(light_positions, diffuses);
 
-    Shader light_shader = lightingEnvironment.light_shader;
-    Shader object_shader = lightingEnvironment.object_shader;
     
     
     
@@ -1417,15 +1430,21 @@ int mainTurning(int argc, char * argv[]){
         setupLightingEnvironmentToDraw(lightingEnvironment, light_positions, diffuses, lightShape);
 
 
+
         std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
+        
+        // Use emotion array to set properties of shapes
         glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
         glm::vec3 rotationAxis = glm::vec3(sin(deltaTimer.getElapsedTime()*1.0f + M_1_PI),-sin(deltaTimer.getElapsedTime()*1.0f/2.7865432f + M_1_PI/2),sin(deltaTimer.getElapsedTime()*1.0f/3.125105f + M_1_PI/3));
         rotatedModel = glm::rotate(glm::mat4(1.0f), (float)(1.0f*((float)(M_PI))), rotationAxis);
         std::cout << "rotation axis: " << "(" << rotationAxis.x << "," << rotationAxis.y << "," << rotationAxis.z << ")" << std::endl;
 
         
+        // Stationary Cube
         lightingEnvironment.model = glm::mat4(1.0f);
         lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.2f));
+        
+        // Rotating Rod
         glm::vec4 color = glm::vec4(1.0f,1.0f,1.0f,1.0f);
         lightingEnvironment.object_shader.setUniform("model",lightingEnvironment.model);
         lightingEnvironment.object_shader.setUniform("aColor", color);
@@ -1437,14 +1456,19 @@ int mainTurning(int argc, char * argv[]){
         lightingEnvironment.object_shader.setUniform("aColor", color);
         objectShape.draw(lightingEnvironment.object_shader);
         
+        // Create cube at location rod is pointing to
         lightingEnvironment.model = glm::mat4(rotatedModel);
         lightingEnvironment.model = glm::translate(lightingEnvironment.model, glm::vec3(length,0.0f,0.0f));
         lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.10f));
+
         cubeMatrices.push_front(CubePair{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f)});
+        
+        // Delete a cube
         if (cubeMatrices.size() > 10000){
             cubeMatrices.pop_back();
         }
 
+        // Draw cubes
         for( CubePair cubePair : cubeMatrices){
             lightingEnvironment.object_shader.setUniform("model",cubePair.model);
             lightingEnvironment.object_shader.setUniform("aColor", cubePair.color);
@@ -1459,9 +1483,7 @@ int mainTurning(int argc, char * argv[]){
         glfwPollEvents();
         std::cout << "FPS: " << 1/deltaTimer.getDeltaTime() << std::endl;
         processInput(mWindow, camera, deltaTimer.getDeltaTime());
-        
         deltaTimer.updateDeltaTime();
-        
 
         
     }   glfwTerminate();
