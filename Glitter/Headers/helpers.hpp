@@ -13,6 +13,7 @@
 #include <vector>
 #include <random>
 
+
 // System Headers
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -31,7 +32,11 @@
 
 // Header Macros
 #define POINT_LIGHT_COUNT 4
-#define MAXIMUM_SHAPES 10000
+#define MAXIMUM_BATCHES 100
+#define SHAPES_IN_BATCH 10
+#define SHAPE_INITIAL_SPAWN_TIME 0.02f
+#define SHAPE_SPAWN_TIME 0.02f
+#define SHAPE_MAX_FADE 0.99f
 
 // Classes
 class DeltaTimer{
@@ -39,6 +44,7 @@ class DeltaTimer{
         DeltaTimer();
         float getDeltaTime(bool do_update = false);
         float getElapsedTime(bool do_update = false) { if (do_update) updateDeltaTime(); return elapsed_time; }
+        float timePassed(float timeStamp){return getElapsedTime() - timeStamp;}
         void updateDeltaTime();
     private:
         float elapsed_time = 0.0f;
@@ -50,10 +56,13 @@ class Alarm{
     public:
         Alarm( float waitTime);
         void setWaitTime(float waitTime);
+        float getWaitTime(){return waitTime;}
         bool checkAndUpdate();
+        bool check(){ return alarmSounded; }
     private:
         float waitTime;
         float time;
+        bool alarmSounded;
         DeltaTimer timer{};
 };
 
@@ -83,7 +92,19 @@ class OpenGLShape {
         unsigned int texture;
 };
 
+// Enums
+enum SHAPE_TYPE { CUBE, PYRAMID};
+
 // Structs
+
+struct ShapeProperties {
+    glm::mat4 model;
+    glm::vec4 color;
+    SHAPE_TYPE type;
+    float creationTimeStamp;
+    float fadeTime;
+    glm::vec3 coords;
+};
 
 struct LightingEnvironment {
     glm::mat4 model;
@@ -94,17 +115,18 @@ struct LightingEnvironment {
 };
 
 // Main Programs
+int mainCoords(int argc, char * argv[]);
 int mainLight(int argc, char * argv[]);
 int mainTurning(int argc, char * argv[]);
 int mainCubes(int argc, char * argv[]);
 int mainGenerateTexturesCubes(int argc, char * argv[]);
-int mainCoords(int argc, char * argv[]);
 int mainTextureGenerate(int argc, char * argv[]);
 int mainPathCube(int argc, char * argv[]);
 int mainPathRectangle(int argc, char * argv[]);
 
 
 // Draw
+void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture);
@@ -133,10 +155,14 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
 
 // Initialization
 GLFWwindow* loadGLFWCreateWindow(int width, int height);
-GLFWwindow* initOpenGL(int& return_status, int width, int height);
+bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height);
+int initOpenGL(GLFWwindow*& mWindow, int width, int height);
 void initMouse(GLFWwindow* mWindow);
 LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT]);
+// End
+void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera);
 // Input
+void releaseCursor(GLFWwindow* mWindow);
 //  Callback
 void scroll_callback(GLFWwindow* mWindow, double xoffset, double yoffset);
 void mouse_callback(GLFWwindow* mWindow, double xPos, double yPos);
@@ -152,8 +178,14 @@ std::vector<std::vector<float>> readEmotionArray(std::string filepath);
 glm::vec3 emotionArrayToVec3(std::vector<std::vector<float>> emotionArray);
 float emotionArrayToLength(std::vector<std::vector<float>> emotionArray);
 
+//Manage
+
+int findAShape(const ShapeProperties& shapeToDelete, const std::vector<ShapeProperties>& shapesBackToFront);
+bool deleteAShape(std::vector<ShapeProperties>& shapesBackToFront, std::deque<ShapeProperties>& cubeMatrices);
 
 glm::vec3 emotionArrayToColor(std::vector<std::vector<float>> emotionArray);
+std::string vec3ToString(glm::vec3 vec3);
+std::string vec4ToString(glm::vec4 vec4);
 
 // Externs
 extern float yaw;

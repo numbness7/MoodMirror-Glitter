@@ -3,7 +3,7 @@
 
 
 // Macros
-#define SMALL_FLOAT 0.00000001f
+#define SMALL_FLOAT 0.00001f
 
 glm::vec3 cameraFront(0.0f,0.0f,-1.0f);
 float yaw = -90.0f;
@@ -26,13 +26,6 @@ struct Material {
     float shininess;
 };
 
-enum SHAPE_TYPE { CUBE, PYRAMID};
-
-struct CubePair {
-    glm::mat4 model;
-    glm::vec4 color;
-    SHAPE_TYPE type;
-};
 
 std::random_device rd;
 std::mt19937 gen(rd());
@@ -95,6 +88,17 @@ void processInput(GLFWwindow* mWindow){
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(mWindow, true);
 }
+
+void releaseCursor(GLFWwindow* mWindow){
+    mouseCaptured = false;
+    glfwSetInputMode(mWindow, GLFW_CURSOR, mouseCaptured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+}
+
+void captureCursor(GLFWwindow* mWindow){
+    mouseCaptured = true;
+    glfwSetInputMode(mWindow, GLFW_CURSOR, mouseCaptured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+}
+
 void processInput(GLFWwindow* mWindow, Camera& camera, float deltatime){
 
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -123,8 +127,10 @@ void processInput(GLFWwindow* mWindow, Camera& camera, float deltatime){
     else if(debug_pressed){
         debug_pressed = false;
         mouseCaptured = !mouseCaptured;
-
-        glfwSetInputMode(mWindow, GLFW_CURSOR, mouseCaptured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+        if(mouseCaptured)
+            releaseCursor(mWindow);
+        else
+            captureCursor(mWindow);
     }
 }
 
@@ -329,11 +335,11 @@ void generate_texture(unsigned int &texture, std::string texture_filepath, std::
             for(int j = 0; j < width*3; j+=1){
                 for(int color = 0; color < 3; color++){
                     if(color == 0)
-                        data[i*width*3+j+color] = 0x01;
+                        data[i*width*3+j+color] = 0xFF;
                     if(color == 1)
-                        data[i*width*3+j+color] = 0x01;
+                        data[i*width*3+j+color] = 0xFF;
                     if(color == 2)
-                        data[i*width*3+j+color] = 0x01;
+                        data[i*width*3+j+color] = 0xFF;
                 }
             }
         }
@@ -359,8 +365,8 @@ void generate_texture(unsigned int &texture, std::string texture_filepath, std::
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     
     glBindTexture(GL_TEXTURE_2D, texture);
     
@@ -409,15 +415,15 @@ void create_texture(unsigned int &texture, std::string texture_filepath, std::st
     stbi_image_free(data);
 }
 
-GLFWwindow* initOpenGL(int& return_status, int width, int height){
+bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height){
     // Load GLFW and Create a Window
-    auto mWindow = loadGLFWCreateWindow(width, height);
+    mWindow = loadGLFWCreateWindow(width, height);
 
     // Check for Valid Context
     if (mWindow == nullptr) {
         fprintf(stderr, "Failed to Create OpenGL Context");
         return_status = EXIT_FAILURE;
-        return mWindow;
+        return false;
     }
 
     // Create Context and Load OpenGL Functions
@@ -428,8 +434,8 @@ GLFWwindow* initOpenGL(int& return_status, int width, int height){
     // Posted by Goz
     // Retrieved 2026-09-26, License - CC BY-SA 2.5
     
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable( GL_BLEND );
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
     
@@ -438,7 +444,14 @@ GLFWwindow* initOpenGL(int& return_status, int width, int height){
 
     glEnable(GL_DEPTH_TEST);
     return_status = EXIT_SUCCESS;
-    return mWindow;
+    return true;
+}
+
+int initOpenGL(GLFWwindow *&mWindow, int width, int height)
+{
+    int return_status;
+    initOpenGL(mWindow, return_status, width, height);
+    return return_status;
 }
 
 DeltaTimer::DeltaTimer(){
@@ -461,7 +474,8 @@ int mainGenerateTexturesCubes(int argc, char * argv[]){
     
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
-    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    GLFWwindow*  mWindow; 
+initOpenGL(mWindow, return_status, mWidth, mHeight);
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
@@ -558,7 +572,8 @@ int mainCubes(int argc, char * argv[]){
     
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
-    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    GLFWwindow*  mWindow; 
+initOpenGL(mWindow, return_status, mWidth, mHeight);
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
@@ -684,7 +699,8 @@ int mainLight(int argc, char * argv[]){
     
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
-    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    GLFWwindow*  mWindow; 
+initOpenGL(mWindow, return_status, mWidth, mHeight);
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
@@ -858,7 +874,8 @@ int mainModel(int argc, char * argv[]){
     
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
-    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    GLFWwindow*  mWindow; 
+initOpenGL(mWindow, return_status, mWidth, mHeight);
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
@@ -1029,7 +1046,8 @@ int mainTextureGenerate(int argc, char * argv[]){
     
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
-    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    GLFWwindow*  mWindow; 
+initOpenGL(mWindow, return_status, mWidth, mHeight);
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
@@ -1245,7 +1263,8 @@ int mainPathCube(int argc, char * argv[]){
     
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
-    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    GLFWwindow*  mWindow; 
+initOpenGL(mWindow, return_status, mWidth, mHeight);
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
@@ -1343,7 +1362,7 @@ int mainPathCube(int argc, char * argv[]){
 }
 
 void generateSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sampler_2d){
-
+    
     generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
     generate_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
     
@@ -1366,7 +1385,8 @@ void setupSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sa
 int mainTurning(int argc, char * argv[]){
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
-    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    GLFWwindow*  mWindow; 
+initOpenGL(mWindow, return_status, mWidth, mHeight);
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
@@ -1409,7 +1429,7 @@ int mainTurning(int argc, char * argv[]){
 
 
     
-    std::deque<CubePair> cubeMatrices{};
+    std::deque<ShapeProperties> cubeMatrices{};
     
 
     glm::mat4 rotatedModel(1.0f);
@@ -1459,7 +1479,7 @@ int mainTurning(int argc, char * argv[]){
         lightingEnvironment.model = glm::translate(lightingEnvironment.model, glm::vec3(length,0.0f,0.0f));
         lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.10f));
 
-        cubeMatrices.push_front(CubePair{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f)});
+        cubeMatrices.push_front(ShapeProperties{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f)});
         
         // Delete a cube
         if (cubeMatrices.size() > 10000){
@@ -1467,7 +1487,7 @@ int mainTurning(int argc, char * argv[]){
         }
 
         // Draw cubes
-        for( CubePair cubePair : cubeMatrices){
+        for( ShapeProperties cubePair : cubeMatrices){
             lightingEnvironment.object_shader.setUniform("model",cubePair.model);
             lightingEnvironment.object_shader.setUniform("aColor", cubePair.color);
             objectShape.draw(lightingEnvironment.object_shader);
@@ -1495,7 +1515,8 @@ int mainPathRectangle(int argc, char * argv[]){
     
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
-    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    GLFWwindow*  mWindow; 
+initOpenGL(mWindow, return_status, mWidth, mHeight);
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
@@ -1625,7 +1646,32 @@ glm::vec3 emotionArrayToColor(std::vector<std::vector<float>> emotionArray){
     return glm::vec3(red,green,blue);
     
 }
-glm::vec3 emotionArrayToVec3(std::vector<std::vector<float>> emotionArray){
+std::string vec3ToString(glm::vec3 vec3)
+{
+    std::string s;
+    s += "(";
+    for(int i = 0; i < 3; i++){
+        s += std::to_string(vec3[i]);        
+        s += ",";
+    }
+    s.pop_back();
+    s+= ")";
+    return s;
+}
+std::string vec4ToString(glm::vec4 vec4)
+{
+    std::string s;
+    s += "(";
+    for(int i = 0; i < 4; i++){
+        s += std::to_string(vec4[i]);        
+        s += ",";
+    }
+    s.pop_back();
+    s+= ")";
+    return s;
+}
+glm::vec3 emotionArrayToVec3(std::vector<std::vector<float>> emotionArray)
+{
     std::vector<float> array0 = emotionArray[0];
     float x = array0[3] - array0[0];
     float y = array0[4] - array0[1];
@@ -1740,14 +1786,20 @@ void OpenGLShape::draw(Shader shader){
     else
         drawShape(VAO, EBO, shader, vert_cnt);
 }
+
+bool cmpShape(const ShapeProperties& a, const ShapeProperties& b){
+    return a.coords.z < b.coords.z;
+}
+
 int mainCoords(int argc, char * argv[]){
     // Initialize OpenGL
-    int return_status = EXIT_SUCCESS;
-    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
-    if(return_status != EXIT_SUCCESS) return return_status;
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
-    Alarm alarm(0.1f);
+    Alarm alarm(SHAPE_INITIAL_SPAWN_TIME);
+    bool shapesFull = false;
     
     unsigned int diffuse_sampler_2d;
     unsigned int specular_sampler_2d;
@@ -1790,15 +1842,17 @@ int mainCoords(int argc, char * argv[]){
 
 
     
-    std::deque<CubePair> cubeMatrices{};
+    std::deque<ShapeProperties> cubeMatrices{};
     
 
+    std::vector<ShapeProperties> shapesBackToFront{};
 
     
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
 
+        deltaTimer.updateDeltaTime();
         // Background Fill Color
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1826,51 +1880,47 @@ int mainCoords(int argc, char * argv[]){
 
         
         lightingEnvironment.model = glm::mat4(1.0f);
-        float scaleCoords = 2.0f;
-        lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaleCoords*coords);
+        float coordsScale = 5.0f;
+        glm::vec3 scaledCoordinates = coords*coordsScale;
+        lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaledCoordinates);
+        
 
         
         // Create and delete cubes
         if(alarm.checkAndUpdate()){
-            cubeMatrices.push_front(CubePair{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f),type});
-            
-            // Delete a cube
-            if (cubeMatrices.size() > MAXIMUM_SHAPES){
-                cubeMatrices.pop_back();
+            for(int i = 0; i < SHAPES_IN_BATCH; i++){
+                ShapeProperties shape = ShapeProperties{lightingEnvironment.model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.5f, scaledCoordinates};
+                cubeMatrices.push_front(shape);
+                shapesBackToFront.push_back(shape);
+                std::sort(shapesBackToFront.begin(),shapesBackToFront.end(), &cmpShape);
+
+                
             }
+            if(!shapesFull) {
+                shapesFull = true;
+                alarm.setWaitTime(SHAPE_SPAWN_TIME);
+            }
+        }
+
+        // Delete cubes
+        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH){
+            assert(deleteAShape(shapesBackToFront, cubeMatrices));
         }
 
         // Draw cubes
-        for( CubePair cubePair : cubeMatrices){
-            lightingEnvironment.object_shader.setUniform("model",cubePair.model);
-            lightingEnvironment.object_shader.setUniform("aColor", cubePair.color);
-            switch (cubePair.type){
-                case CUBE:
-                    cubeShape.draw(lightingEnvironment.object_shader);
-                    break;
-                case PYRAMID:
-                    pyramidShape.draw(lightingEnvironment.object_shader);
-                    break;
-            }
-        }
-        
+        drawCubeMatrices(lightingEnvironment, shapesBackToFront, cubeShape, pyramidShape, deltaTimer);        
 
 
 
-        // Flip Buffers and Draw
-        glfwSwapBuffers(mWindow);
-        glfwPollEvents();
-        std::cout << "FPS: " << 1/deltaTimer.getDeltaTime() << std::endl;
-        processInput(mWindow, camera, deltaTimer.getDeltaTime());
-        deltaTimer.updateDeltaTime();
+        endRenderLoop(mWindow,deltaTimer,camera);
 
         
     }   glfwTerminate();
     return EXIT_SUCCESS;
     
     
-    
 }
+
 glm::vec3 randCoords(){
     glm::vec3 coords(0.0f);
     for (unsigned int i = 0; i < 3; i++){
@@ -1893,7 +1943,65 @@ bool Alarm::checkAndUpdate()
     time += timer.getDeltaTime(true);
     if (time >= waitTime) {
         time = 0.0f;
-        return true;
+        alarmSounded = true;
     }
-    else return false;
+    else alarmSounded = false;
+    return alarmSounded;
+}
+
+void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer){
+    // Draw cubes
+    for( ShapeProperties shape : cubeMatrices){
+
+
+        float fade = 0.0f;
+        glm::vec4 color = shape.color;
+        if (deltaTimer.timePassed(shape.creationTimeStamp) >= shape.fadeTime){
+            fade = (deltaTimer.timePassed(shape.creationTimeStamp) - shape.fadeTime)/(SHAPE_SPAWN_TIME*MAXIMUM_BATCHES - shape.fadeTime);
+            if (fade > SHAPE_MAX_FADE) fade = SHAPE_MAX_FADE;
+            color.a = shape.color.a * (1.0f - fade);
+            std::cout << "color: " << vec4ToString(color) << std::endl;
+        }
+        
+        glm::mat4 model = shape.model;
+        //float distance = fade;
+        //glm::vec3 normDir(0.0f,0.0f,-1.0f);
+        //model = glm::translate(model, (30-200*distance)*normDir);
+
+
+
+        lightingEnvironment.object_shader.setUniform("model", model);
+        lightingEnvironment.object_shader.setUniform("aColor", color);
+        switch (shape.type){
+            case CUBE:
+                cubeShape.draw(lightingEnvironment.object_shader);
+                break;
+            case PYRAMID:
+                pyramidShape.draw(lightingEnvironment.object_shader);
+                break;
+        }
+    }
+}
+void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera){
+    // Flip Buffers and Draw
+    glfwSwapBuffers(mWindow);
+    glfwPollEvents();
+    std::cout << "FPS: " << 1/deltaTimer.getDeltaTime() << std::endl;
+    processInput(mWindow, camera, deltaTimer.getDeltaTime());
+}
+int findAShape(const ShapeProperties& shapeToDelete, const std::vector<ShapeProperties>& shapesBackToFront){
+    for(int i = 0; i < shapesBackToFront.size(); i++){
+        ShapeProperties deleteCandidate = shapesBackToFront[i];
+        if (deleteCandidate.coords.z > shapeToDelete.coords.z - SMALL_FLOAT && deleteCandidate.coords.z < shapeToDelete.coords.z + SMALL_FLOAT){
+            return i;
+            break;
+        }
+    }
+    return -1;
+}
+bool deleteAShape(std::vector<ShapeProperties>& shapesBackToFront, std::deque<ShapeProperties>& cubeMatrices){
+    ShapeProperties shapeToDelete = cubeMatrices.back();
+    int deleteIndex = findAShape(shapeToDelete, shapesBackToFront);
+    if(deleteIndex < 0) return false;
+    else { cubeMatrices.pop_back(); return true; }
 }
