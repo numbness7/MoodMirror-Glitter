@@ -1743,6 +1743,7 @@ int mainCoords(int argc, char * argv[]){
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
+    Alarm alarm(0.1f);
     
     unsigned int diffuse_sampler_2d;
     unsigned int specular_sampler_2d;
@@ -1814,12 +1815,14 @@ int mainCoords(int argc, char * argv[]){
         lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaleCoords*coords);
 
         
-
-        cubeMatrices.push_front(CubePair{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f)});
-        
-        // Delete a cube
-        if (cubeMatrices.size() > 10000){
-            cubeMatrices.pop_back();
+        // Create and delete cubes
+        if(alarm.checkAndUpdate()){
+            cubeMatrices.push_front(CubePair{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f)});
+            
+            // Delete a cube
+            if (cubeMatrices.size() > MAXIMUM_SHAPES){
+                cubeMatrices.pop_back();
+            }
         }
 
         // Draw cubes
@@ -1852,4 +1855,23 @@ glm::vec3 randCoords(){
         coords[i] = rand_range_uniform(-1.0f,1.0f);
     }
     return coords;
+}
+
+Alarm::Alarm(float waitTime) : waitTime(waitTime)
+{
+}
+
+void Alarm::setWaitTime(float waitTime)
+{
+    this->waitTime = waitTime;
+}
+
+bool Alarm::checkAndUpdate()
+{
+    time += timer.getDeltaTime(true);
+    if (time >= waitTime) {
+        time = 0.0f;
+        return true;
+    }
+    else return false;
 }

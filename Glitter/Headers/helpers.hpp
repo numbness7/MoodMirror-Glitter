@@ -31,6 +31,7 @@
 
 // Header Macros
 #define POINT_LIGHT_COUNT 4
+#define MAXIMUM_SHAPES 10000
 
 // Classes
 class DeltaTimer{
@@ -43,6 +44,17 @@ class DeltaTimer{
         float elapsed_time = 0.0f;
         float lastframe_time = 0.0f;
         float deltatime = 0.0f;
+};
+
+class Alarm{
+    public:
+        Alarm( float waitTime);
+        void setWaitTime(float waitTime);
+        bool checkAndUpdate();
+    private:
+        float waitTime;
+        float time;
+        DeltaTimer timer{};
 };
 
 
@@ -85,6 +97,7 @@ int mainLight(int argc, char * argv[]);
 int mainTurning(int argc, char * argv[]);
 int mainCubes(int argc, char * argv[]);
 int mainGenerateTexturesCubes(int argc, char * argv[]);
+int mainCoords(int argc, char * argv[]);
 int mainTextureGenerate(int argc, char * argv[]);
 int mainPathCube(int argc, char * argv[]);
 int mainPathRectangle(int argc, char * argv[]);
@@ -111,7 +124,6 @@ void create_texture(unsigned int &texture, std::string texture_filepath, std::st
 void generate_texture(unsigned int &texture, std::string texture_filepath, std::string filetype);
 void generateSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sampler_2d);
 void setupSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sampler_2d, std::string diffuse_path, std::string diffuse_file_type, std::string specular_path, std::string specular_file_type);
-int mainCoords(int argc, char * argv[]);
 void create_lamp_and_light_object(unsigned int &VAO_O, unsigned int &VAO_T,unsigned int &VBO, unsigned int& EBO, 
     const float vert[], unsigned int vert_cnt, const unsigned int ind[], 
     unsigned int ind_cnt);
