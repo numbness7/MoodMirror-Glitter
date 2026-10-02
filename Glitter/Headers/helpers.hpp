@@ -29,6 +29,19 @@
 #include <deque>
 #include <json.hpp>
 
+// Header Macros
+#define POINT_LIGHT_COUNT 4
+
+// Structs
+
+struct LightingEnvironment {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 projection;
+    Shader object_shader;
+    Shader light_shader;
+};
+
 // Main Programs
 int mainLight(int argc, char * argv[]);
 int mainTurning(int argc, char * argv[]);
@@ -66,6 +79,8 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
 // Initialization
 GLFWwindow* loadGLFWCreateWindow(int width, int height);
 GLFWwindow* initOpenGL(int& return_status, int width, int height);
+void initMouse(GLFWwindow* mWindow);
+LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT]);
 // Input
 //  Callback
 void scroll_callback(GLFWwindow* mWindow, double xoffset, double yoffset);
@@ -91,6 +106,7 @@ extern float pitch;
 extern float lastX;
 extern float lastY;
 extern bool first_mouse;
+
 
 // Classes
 class DeltaTimer{

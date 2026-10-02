@@ -2,6 +2,7 @@
 #include <helpers.hpp>
 
 
+// Macros
 #define SMALL_FLOAT 0.00000001f
 
 glm::vec3 cameraFront(0.0f,0.0f,-1.0f);
@@ -17,6 +18,7 @@ bool debug_pressed = false;
 bool mouseCaptured = true;
 Camera camera(glm::vec3(0.0f,0.0f,9.0f), glm::vec3(0.0f,1.0f,0.0f), -90, 0);
 //Camera camera(glm::vec3(1.0f,1.3f,3.0f), glm::vec3(0.0f,1.0f,0.0f), -100, -20);
+
 
 struct Material {
     unsigned int diffuse;
@@ -1370,84 +1372,32 @@ int mainTurning(int argc, char * argv[]){
     
     
     
-
-    
-    glm::mat4 proj;
-    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-
-    glm::mat4 view(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
-
-    glm::mat4 model(1.0f);
-    glm::vec3 light_positions[4] = {
+    glm::vec3 light_positions[POINT_LIGHT_COUNT] = {
         glm::vec3(-10.2f,1.0f,2.0f),
         glm::vec3(0.0f,-10.0f,2.0f),
         glm::vec3(1.2f,0.0f,-10.0f),
         glm::vec3(1.2f,1.0f,2.0f),
     };
 
-    Shader object_shader("Glitter/Shaders/light-object-color.vs", "Glitter/Shaders/light-object-color.fs");
-    Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
-    object_shader.use();
-    object_shader.setUniform("projection", proj);
-    object_shader.setUniform("view", view);
-    object_shader.setUniform("model",model);
-    
-    Material material;
-    material.diffuse = 0;
-    material.specular = 1;
-    material.shininess  = 128.0f*0.25; 
-
-   object_shader.setUniform("material.diffuse",   material.diffuse);
-   object_shader.setUniform("material.specular",  material.specular);
-   object_shader.setUniform("material.shininess", material.shininess); 
-   object_shader.setUniform("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
-   object_shader.setUniform("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
-
-
-    object_shader.setUniform("dir_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniform("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
-    object_shader.setUniform("dir_light.specular", glm::vec3(0.2f)); 
-    object_shader.setUniform("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
-    
-    object_shader.setUniform("spot_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniform("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
-    object_shader.setUniform("spot_light.specular", glm::vec3(1.0f)); 
-    glm::vec3 diffuses[4] = {
+    glm::vec3 diffuses[POINT_LIGHT_COUNT] = {
         glm::vec3(1.0f,0.0f,0.0f),
         glm::vec3(0.0f,1.0f,0.0f),
         glm::vec3(0.0f,0.0f,1.0f),
         glm::vec3(0.3f,0.3f,0.3f),
     };
+    
+    LightingEnvironment lightingEnvironment = initLighting(light_positions, diffuses);
 
-    std::stringstream s ("");
-    for(int i = 0; i < 4; i ++){
-        s << "point_lights" << "[" << i << "]";
-        object_shader.setUniform(s.str() + ".ambient",  glm::vec3(0.1f));
-        object_shader.setUniform(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
-        object_shader.setUniform(s.str() + ".specular", diffuses[i]); 
-        object_shader.setUniform(s.str() + ".position", light_positions[i]);
-        object_shader.setUniform(s.str() + ".constant", 1.0f);
-        object_shader.setUniform(s.str() + ".linear", .09f);
-        object_shader.setUniform(s.str() + ".quadratic", .032f);
-        s.str("");
-        s.clear();
-    }
-    
-    light_shader.use();
-    
-    light_shader.setUniform("projection", proj);
-    light_shader.setUniform("view", view);
-    light_shader.setUniform("model",model);
-    light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
-
+    glm::mat4 model = lightingEnvironment.model;
+    glm::mat4 proj = lightingEnvironment.projection;
+    glm::mat4 view = lightingEnvironment.view;
+    Shader light_shader = lightingEnvironment.light_shader;
+    Shader object_shader = lightingEnvironment.object_shader;
     
     
     
     
-    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(mWindow, mouse_callback);
-    glfwSetScrollCallback(mWindow, scroll_callback);
+    initMouse(mWindow);
 
 
     
@@ -1469,8 +1419,6 @@ int mainTurning(int argc, char * argv[]){
         
 
         proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        
-
         view = camera.GetViewMatrix();
         
         
@@ -1480,7 +1428,7 @@ int mainTurning(int argc, char * argv[]){
         light_shader.setUniform("projection",proj);
         light_shader.setUniform("view",view);
 
-        for(int i = 0; i < 4; i++){
+        for(int i = 0; i < POINT_LIGHT_COUNT; i++){
             model = glm::mat4(1.0f);
             model = glm::translate(model, light_positions[i]);
             model = glm::scale(model, glm::vec3(0.2f));
@@ -1521,7 +1469,7 @@ int mainTurning(int argc, char * argv[]){
         model = glm::translate(model, glm::vec3(length,0.0f,0.0f));
         model = glm::scale(model, glm::vec3(0.10f));
         cubeMatrices.push_front(CubePair{model,glm::vec4(emotionRGB,0.5f)});
-        if (cubeMatrices.size() > 100000){
+        if (cubeMatrices.size() > 10000){
             cubeMatrices.pop_back();
         }
 
@@ -1692,4 +1640,68 @@ glm::vec3 emotionArrayToRotationAxis(std::vector<std::vector<float>> emotionArra
     float z = array0[5] - array0[2];
     return glm::vec3(x,y,z);
     
+}
+void initMouse(GLFWwindow* mWindow){
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
+}
+LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT]){
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+
+    Shader object_shader("Glitter/Shaders/light-object-color.vs", "Glitter/Shaders/light-object-color.fs");
+    Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
+    object_shader.use();
+    object_shader.setUniform("projection", proj);
+    object_shader.setUniform("view", view);
+    object_shader.setUniform("model",model);
+    
+    Material material;
+    material.diffuse = 0;
+    material.specular = 1;
+    material.shininess  = 128.0f*0.25; 
+
+   object_shader.setUniform("material.diffuse",   material.diffuse);
+   object_shader.setUniform("material.specular",  material.specular);
+   object_shader.setUniform("material.shininess", material.shininess); 
+   object_shader.setUniform("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
+   object_shader.setUniform("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
+
+
+    object_shader.setUniform("dir_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniform("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
+    object_shader.setUniform("dir_light.specular", glm::vec3(0.2f)); 
+    object_shader.setUniform("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
+    
+    object_shader.setUniform("spot_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniform("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
+    object_shader.setUniform("spot_light.specular", glm::vec3(1.0f)); 
+
+    std::stringstream s ("");
+    for(int i = 0; i < POINT_LIGHT_COUNT; i ++){
+        s << "point_lights" << "[" << i << "]";
+        object_shader.setUniform(s.str() + ".ambient",  glm::vec3(0.1f));
+        object_shader.setUniform(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
+        object_shader.setUniform(s.str() + ".specular", diffuses[i]); 
+        object_shader.setUniform(s.str() + ".position", light_positions[i]);
+        object_shader.setUniform(s.str() + ".constant", 1.0f);
+        object_shader.setUniform(s.str() + ".linear", .09f);
+        object_shader.setUniform(s.str() + ".quadratic", .032f);
+        s.str("");
+        s.clear();
+    }
+    
+    light_shader.use();
+    
+    light_shader.setUniform("projection", proj);
+    light_shader.setUniform("view", view);
+    light_shader.setUniform("model",model);
+    light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
+    return LightingEnvironment{model,view,proj,object_shader,light_shader};
 }
