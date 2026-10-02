@@ -111,6 +111,7 @@ void create_texture(unsigned int &texture, std::string texture_filepath, std::st
 void generate_texture(unsigned int &texture, std::string texture_filepath, std::string filetype);
 void generateSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sampler_2d);
 void setupSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sampler_2d, std::string diffuse_path, std::string diffuse_file_type, std::string specular_path, std::string specular_file_type);
+int mainCoords(int argc, char * argv[]);
 void create_lamp_and_light_object(unsigned int &VAO_O, unsigned int &VAO_T,unsigned int &VBO, unsigned int& EBO, 
     const float vert[], unsigned int vert_cnt, const unsigned int ind[], 
     unsigned int ind_cnt);
@@ -135,7 +136,7 @@ void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFro
 // Read
 nlohmann::json readjsonfile(std::string filepath);
 std::vector<std::vector<float>> readEmotionArray(std::string filepath);
-glm::vec3 emotionArrayToRotationAxis(std::vector<std::vector<float>> emotionArray);
+glm::vec3 emotionArrayToVec3(std::vector<std::vector<float>> emotionArray);
 float emotionArrayToLength(std::vector<std::vector<float>> emotionArray);
 
 

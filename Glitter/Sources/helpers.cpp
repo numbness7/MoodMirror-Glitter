@@ -1377,11 +1377,8 @@ int mainTurning(int argc, char * argv[]){
     
     std::vector<unsigned int> lightSizes{};
     lightSizes.push_back(3);
-    
     OpenGLShape lightShape((unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
-    
     std::vector<unsigned int> objectSizes{3,3,2};
-    
     OpenGLShape objectShape((unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
     
     
@@ -1627,13 +1624,12 @@ glm::vec3 emotionArrayToColor(std::vector<std::vector<float>> emotionArray){
     return glm::vec3(red,green,blue);
     
 }
-glm::vec3 emotionArrayToRotationAxis(std::vector<std::vector<float>> emotionArray){
+glm::vec3 emotionArrayToVec3(std::vector<std::vector<float>> emotionArray){
     std::vector<float> array0 = emotionArray[0];
     float x = array0[3] - array0[0];
     float y = array0[4] - array0[1];
     float z = array0[5] - array0[2];
     return glm::vec3(x,y,z);
-    
 }
 void initMouse(GLFWwindow* mWindow){
     glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -1739,4 +1735,113 @@ void OpenGLShape::draw(Shader shader){
         drawTexturedShape(VAO, EBO, shader, ind_cnt, texture);
     else
         drawShape(VAO, EBO, shader, ind_cnt);
+}
+int mainCoords(int argc, char * argv[]){
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    auto mWindow = initOpenGL(return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
+    unsigned int diffuse_sampler_2d;
+    unsigned int specular_sampler_2d;
+    generateSampler2Ds(diffuse_sampler_2d, specular_sampler_2d);
+
+
+    
+    
+    std::vector<unsigned int> lightSizes{};
+    lightSizes.push_back(3);
+    OpenGLShape lightShape((unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
+    std::vector<unsigned int> objectSizes{3,3,2};
+    OpenGLShape objectShape((unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
+    
+    
+    
+    
+    glm::vec3 light_positions[POINT_LIGHT_COUNT] = {
+        glm::vec3(-10.2f,1.0f,2.0f),
+        glm::vec3(0.0f,-10.0f,2.0f),
+        glm::vec3(1.2f,0.0f,-10.0f),
+        glm::vec3(1.2f,1.0f,2.0f),
+    };
+
+    glm::vec3 diffuses[POINT_LIGHT_COUNT] = {
+        glm::vec3(1.0f,0.0f,0.0f),
+        glm::vec3(0.0f,1.0f,0.0f),
+        glm::vec3(0.0f,0.0f,1.0f),
+        glm::vec3(0.3f,0.3f,0.3f),
+    };
+    
+    LightingEnvironment lightingEnvironment = initLighting(light_positions, diffuses);
+
+    
+    
+    
+    
+    initMouse(mWindow);
+
+
+    
+    std::deque<CubePair> cubeMatrices{};
+    
+
+
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        
+        setupLightingEnvironmentToDraw(lightingEnvironment, light_positions, diffuses, lightShape);
+
+
+
+        std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
+        
+        // Use emotion array to set properties of shapes
+        glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
+        glm::vec3 coords = emotionArrayToVec3(emotionArray);
+        
+        lightingEnvironment.model = glm::mat4(1.0f);
+        float scaleCoords = 2.0f;
+        lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaleCoords*coords);
+
+        
+
+        cubeMatrices.push_front(CubePair{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f)});
+        
+        // Delete a cube
+        if (cubeMatrices.size() > 10000){
+            cubeMatrices.pop_back();
+        }
+
+        // Draw cubes
+        for( CubePair cubePair : cubeMatrices){
+            lightingEnvironment.object_shader.setUniform("model",cubePair.model);
+            lightingEnvironment.object_shader.setUniform("aColor", cubePair.color);
+            objectShape.draw(lightingEnvironment.object_shader);
+        }
+        
+
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        std::cout << "FPS: " << 1/deltaTimer.getDeltaTime() << std::endl;
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        deltaTimer.updateDeltaTime();
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+    
+    
+    
 }

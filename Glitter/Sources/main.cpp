@@ -21,5 +21,5 @@
 
 
 int main(int argc, char * argv[]) {
-    mainTurning(argc, argv);
+    mainCoords(argc, argv);
 }
