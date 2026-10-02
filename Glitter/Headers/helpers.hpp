@@ -32,6 +32,44 @@
 // Header Macros
 #define POINT_LIGHT_COUNT 4
 
+// Classes
+class DeltaTimer{
+    public:
+        DeltaTimer();
+        float getDeltaTime(bool do_update = false);
+        float getElapsedTime(bool do_update = false) { if (do_update) updateDeltaTime(); return elapsed_time; }
+        void updateDeltaTime();
+    private:
+        float elapsed_time = 0.0f;
+        float lastframe_time = 0.0f;
+        float deltatime = 0.0f;
+};
+
+
+// Path consisting of just points
+class StraightPath{
+    public:
+        StraightPath( std::vector<glm::vec3> p, double prog) : points(p), progress(prog){};
+        glm::vec3 getPositionOnPath();
+        void setProgress(float prog, bool loop = false);
+    private:
+        std::vector<glm::vec3> points;
+        float progress; // Ranges from 0 to 1
+};
+
+class OpenGLShape {
+    public:
+        OpenGLShape(unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture);
+        void draw(Shader shader);
+    private:
+        bool hasTexture;
+        unsigned int VAO;
+        unsigned int VBO;
+        unsigned int EBO;
+        unsigned int ind_cnt;
+        unsigned int texture;
+};
+
 // Structs
 
 struct LightingEnvironment {
@@ -53,6 +91,7 @@ int mainPathRectangle(int argc, char * argv[]);
 
 
 // Draw
+void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture);
 void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2);
@@ -108,52 +147,5 @@ extern float lastY;
 extern bool first_mouse;
 
 
-// Classes
-class DeltaTimer{
-    public:
-        DeltaTimer();
-        float getDeltaTime(bool do_update = false);
-        float getElapsedTime(bool do_update = false) { if (do_update) updateDeltaTime(); return elapsed_time; }
-        void updateDeltaTime();
-    private:
-        float elapsed_time = 0.0f;
-        float lastframe_time = 0.0f;
-        float deltatime = 0.0f;
-};
-
-
-// Path consisting of just points
-class StraightPath{
-    public:
-        StraightPath( std::vector<glm::vec3> p, double prog) : points(p), progress(prog){};
-        glm::vec3 getPositionOnPath();
-        void setProgress(float prog, bool loop = false);
-    private:
-        std::vector<glm::vec3> points;
-        float progress; // Ranges from 0 to 1
-};
-
-class Shape {
-    public:
-        Shape(unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture){
-            this->ind_cnt = ind_cnt;
-            this->texture = texture;
-            this->hasTexture = hasTexture;
-            create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, &vertices[0], &indices[0], attributeSizes);
-        }
-        void draw(Shader shader){
-            if(hasTexture)
-                drawTexturedShape(VAO, EBO, shader, ind_cnt, texture);
-            else
-                drawShape(VAO, EBO, shader, ind_cnt);
-        }
-    private:
-        bool hasTexture;
-        unsigned int VAO;
-        unsigned int VBO;
-        unsigned int EBO;
-        unsigned int ind_cnt;
-        unsigned int texture;
-};
 
 #endif

@@ -1363,11 +1363,11 @@ int mainTurning(int argc, char * argv[]){
     std::vector<unsigned int> lightSizes{};
     lightSizes.push_back(3);
     
-    Shape lightShape((unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
+    OpenGLShape lightShape((unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
     
     std::vector<unsigned int> objectSizes{3,3,2};
     
-    Shape objectShape((unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
+    OpenGLShape objectShape((unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
     
     
     
@@ -1388,9 +1388,6 @@ int mainTurning(int argc, char * argv[]){
     
     LightingEnvironment lightingEnvironment = initLighting(light_positions, diffuses);
 
-    glm::mat4 model = lightingEnvironment.model;
-    glm::mat4 proj = lightingEnvironment.projection;
-    glm::mat4 view = lightingEnvironment.view;
     Shader light_shader = lightingEnvironment.light_shader;
     Shader object_shader = lightingEnvironment.object_shader;
     
@@ -1417,33 +1414,8 @@ int mainTurning(int argc, char * argv[]){
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         
+        setupLightingEnvironmentToDraw(lightingEnvironment, light_positions, diffuses, lightShape);
 
-        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        view = camera.GetViewMatrix();
-        
-        
-        
-
-        light_shader.use();
-        light_shader.setUniform("projection",proj);
-        light_shader.setUniform("view",view);
-
-        for(int i = 0; i < POINT_LIGHT_COUNT; i++){
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, light_positions[i]);
-            model = glm::scale(model, glm::vec3(0.2f));
-            light_shader.setUniform("model", model);
-            light_shader.setUniform("aColor", diffuses[i]);
-            lightShape.draw(light_shader);
-        }
-
-        object_shader.use();
-        object_shader.setUniform("view",view);
-        object_shader.setUniform("projection",proj);
-        object_shader.setUniform("view_pos", camera.Position);
-       object_shader.setUniform("spot_light.position", camera.Position);
-       object_shader.setUniform("spot_light.direction", camera.Front);
-       object_shader.setUniform("spot_light.is_on", (bool)flash_light);
 
         std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
         glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
@@ -1452,31 +1424,31 @@ int mainTurning(int argc, char * argv[]){
         std::cout << "rotation axis: " << "(" << rotationAxis.x << "," << rotationAxis.y << "," << rotationAxis.z << ")" << std::endl;
 
         
-        model = glm::mat4(1.0f);
-        model = glm::scale(model, glm::vec3(0.2f));
+        lightingEnvironment.model = glm::mat4(1.0f);
+        lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.2f));
         glm::vec4 color = glm::vec4(1.0f,1.0f,1.0f,1.0f);
-        object_shader.setUniform("model",model);
-        object_shader.setUniform("aColor", color);
-        objectShape.draw(object_shader);
-        model = glm::mat4(rotatedModel);
-        model = glm::translate(model, glm::vec3(length/2,0.0f,0.0f));
-        model = glm::scale(model, glm::vec3(length,0.1f,0.1f));
-        object_shader.setUniform("model",model);
-        object_shader.setUniform("aColor", color);
-        objectShape.draw(object_shader);
+        lightingEnvironment.object_shader.setUniform("model",lightingEnvironment.model);
+        lightingEnvironment.object_shader.setUniform("aColor", color);
+        objectShape.draw(lightingEnvironment.object_shader);
+        lightingEnvironment.model = glm::mat4(rotatedModel);
+        lightingEnvironment.model = glm::translate(lightingEnvironment.model, glm::vec3(length/2,0.0f,0.0f));
+        lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(length,0.1f,0.1f));
+        lightingEnvironment.object_shader.setUniform("model",lightingEnvironment.model);
+        lightingEnvironment.object_shader.setUniform("aColor", color);
+        objectShape.draw(lightingEnvironment.object_shader);
         
-        model = glm::mat4(rotatedModel);
-        model = glm::translate(model, glm::vec3(length,0.0f,0.0f));
-        model = glm::scale(model, glm::vec3(0.10f));
-        cubeMatrices.push_front(CubePair{model,glm::vec4(emotionRGB,0.5f)});
+        lightingEnvironment.model = glm::mat4(rotatedModel);
+        lightingEnvironment.model = glm::translate(lightingEnvironment.model, glm::vec3(length,0.0f,0.0f));
+        lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.10f));
+        cubeMatrices.push_front(CubePair{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f)});
         if (cubeMatrices.size() > 10000){
             cubeMatrices.pop_back();
         }
 
         for( CubePair cubePair : cubeMatrices){
-            object_shader.setUniform("model",cubePair.model);
-            object_shader.setUniform("aColor", cubePair.color);
-            objectShape.draw(object_shader);
+            lightingEnvironment.object_shader.setUniform("model",cubePair.model);
+            lightingEnvironment.object_shader.setUniform("aColor", cubePair.color);
+            objectShape.draw(lightingEnvironment.object_shader);
         }
         
 
@@ -1704,4 +1676,45 @@ LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], g
     light_shader.setUniform("model",model);
     light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
     return LightingEnvironment{model,view,proj,object_shader,light_shader};
+}
+void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape){
+
+    lightingEnvironment.projection = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+    lightingEnvironment.view = camera.GetViewMatrix();
+    
+    
+    
+
+    lightingEnvironment.light_shader.use();
+    lightingEnvironment.light_shader.setUniform("projection",lightingEnvironment.projection);
+    lightingEnvironment.light_shader.setUniform("view",lightingEnvironment.view);
+
+    for(int i = 0; i < POINT_LIGHT_COUNT; i++){
+        lightingEnvironment.model = glm::mat4(1.0f);
+        lightingEnvironment.model = glm::translate(lightingEnvironment.model, light_positions[i]);
+        lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.2f));
+        lightingEnvironment.light_shader.setUniform("model", lightingEnvironment.model);
+        lightingEnvironment.light_shader.setUniform("aColor", diffuses[i]);
+        lightShape.draw(lightingEnvironment.light_shader);
+    }
+
+    lightingEnvironment.object_shader.use();
+    lightingEnvironment.object_shader.setUniform("view",lightingEnvironment.view);
+    lightingEnvironment.object_shader.setUniform("projection",lightingEnvironment.projection);
+    lightingEnvironment.object_shader.setUniform("view_pos", camera.Position);
+   lightingEnvironment.object_shader.setUniform("spot_light.position", camera.Position);
+   lightingEnvironment.object_shader.setUniform("spot_light.direction", camera.Front);
+   lightingEnvironment.object_shader.setUniform("spot_light.is_on", (bool)flash_light);
+}
+OpenGLShape::OpenGLShape(unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture){
+    this->ind_cnt = ind_cnt;
+    this->texture = texture;
+    this->hasTexture = hasTexture;
+    create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, &vertices[0], &indices[0], attributeSizes);
+}
+void OpenGLShape::draw(Shader shader){
+    if(hasTexture)
+        drawTexturedShape(VAO, EBO, shader, ind_cnt, texture);
+    else
+        drawShape(VAO, EBO, shader, ind_cnt);
 }
