@@ -26,9 +26,12 @@ struct Material {
     float shininess;
 };
 
+enum SHAPE_TYPE { CUBE, PYRAMID};
+
 struct CubePair {
     glm::mat4 model;
     glm::vec4 color;
+    SHAPE_TYPE type;
 };
 
 std::random_device rd;
@@ -161,7 +164,7 @@ void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFro
         velocity = glm::normalize(velocity) * cameraSpeed;
     cameraPos += velocity;
 }
-void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, const unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes){
+void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, const unsigned int ind_cnt, const unsigned int vert_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes){
     unsigned int totalSize = 0;
     for(unsigned int count : attributeSizes){
         totalSize += count;
@@ -169,7 +172,7 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
 
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, totalSize*ind_cnt*sizeof(float), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, totalSize*vert_cnt*sizeof(float), vertices, GL_STATIC_DRAW);
     
     glGenBuffers(1,&EBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
@@ -1377,11 +1380,9 @@ int mainTurning(int argc, char * argv[]){
     
     std::vector<unsigned int> lightSizes{};
     lightSizes.push_back(3);
-    OpenGLShape lightShape((unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
+    OpenGLShape lightShape((unsigned int) 36, (unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
     std::vector<unsigned int> objectSizes{3,3,2};
-    OpenGLShape objectShape((unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
-    
-    
+    OpenGLShape objectShape((unsigned int) 36, (unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
     
     
     glm::vec3 light_positions[POINT_LIGHT_COUNT] = {
@@ -1695,7 +1696,7 @@ LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], g
     light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
     return LightingEnvironment{model,view,proj,object_shader,light_shader};
 }
-void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape){
+void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights){
 
     lightingEnvironment.projection = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
     lightingEnvironment.view = camera.GetViewMatrix();
@@ -1707,13 +1708,15 @@ void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, gl
     lightingEnvironment.light_shader.setUniform("projection",lightingEnvironment.projection);
     lightingEnvironment.light_shader.setUniform("view",lightingEnvironment.view);
 
-    for(int i = 0; i < POINT_LIGHT_COUNT; i++){
-        lightingEnvironment.model = glm::mat4(1.0f);
-        lightingEnvironment.model = glm::translate(lightingEnvironment.model, light_positions[i]);
-        lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.2f));
-        lightingEnvironment.light_shader.setUniform("model", lightingEnvironment.model);
-        lightingEnvironment.light_shader.setUniform("aColor", diffuses[i]);
-        lightShape.draw(lightingEnvironment.light_shader);
+    if (drawLights){
+        for(int i = 0; i < POINT_LIGHT_COUNT; i++){
+            lightingEnvironment.model = glm::mat4(1.0f);
+            lightingEnvironment.model = glm::translate(lightingEnvironment.model, light_positions[i]);
+            lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.2f));
+            lightingEnvironment.light_shader.setUniform("model", lightingEnvironment.model);
+            lightingEnvironment.light_shader.setUniform("aColor", diffuses[i]);
+            lightShape.draw(lightingEnvironment.light_shader);
+        }
     }
 
     lightingEnvironment.object_shader.use();
@@ -1724,17 +1727,18 @@ void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, gl
    lightingEnvironment.object_shader.setUniform("spot_light.direction", camera.Front);
    lightingEnvironment.object_shader.setUniform("spot_light.is_on", (bool)flash_light);
 }
-OpenGLShape::OpenGLShape(unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture){
+OpenGLShape::OpenGLShape(unsigned int vert_cnt, unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture){
     this->ind_cnt = ind_cnt;
+    this->vert_cnt = vert_cnt;
     this->texture = texture;
     this->hasTexture = hasTexture;
-    create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, &vertices[0], &indices[0], attributeSizes);
+    create_a_shape(this->VAO, this->VBO, this->EBO, this->vert_cnt, this->ind_cnt, &vertices[0], &indices[0], attributeSizes);
 }
 void OpenGLShape::draw(Shader shader){
     if(hasTexture)
-        drawTexturedShape(VAO, EBO, shader, ind_cnt, texture);
+        drawTexturedShape(VAO, EBO, shader, vert_cnt, texture);
     else
-        drawShape(VAO, EBO, shader, ind_cnt);
+        drawShape(VAO, EBO, shader, vert_cnt);
 }
 int mainCoords(int argc, char * argv[]){
     // Initialize OpenGL
@@ -1754,25 +1758,26 @@ int mainCoords(int argc, char * argv[]){
     
     std::vector<unsigned int> lightSizes{};
     lightSizes.push_back(3);
-    OpenGLShape lightShape((unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
+    OpenGLShape lightShape((unsigned int) 36, (unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
     std::vector<unsigned int> objectSizes{3,3,2};
-    OpenGLShape objectShape((unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
+    OpenGLShape cubeShape((unsigned int) 36, (unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
+    OpenGLShape pyramidShape((unsigned int) 12, (unsigned int)12, shapes::normal_textured_triangle_pyramid, shapes::textured_triangle_pyramid_ind, objectSizes, diffuse_sampler_2d, true);
     
     
     
     
     glm::vec3 light_positions[POINT_LIGHT_COUNT] = {
-        glm::vec3(-10.2f,1.0f,2.0f),
-        glm::vec3(0.0f,-10.0f,2.0f),
-        glm::vec3(1.2f,0.0f,-10.0f),
-        glm::vec3(1.2f,1.0f,2.0f),
+        glm::vec3(4.0f,0.0f,0.0f),
+        glm::vec3(0.0f,0.0f,4.0f),
+        glm::vec3(0.0f,0.0f,-4.0f),
+        glm::vec3(-4.0f,0.0f,0.0f),
     };
 
     glm::vec3 diffuses[POINT_LIGHT_COUNT] = {
-        glm::vec3(1.0f,0.0f,0.0f),
-        glm::vec3(0.0f,1.0f,0.0f),
-        glm::vec3(0.0f,0.0f,1.0f),
-        glm::vec3(0.3f,0.3f,0.3f),
+        glm::vec3(0.5f,0.5f,0.5f),
+        glm::vec3(0.5f,0.5f,0.5f),
+        glm::vec3(0.5f,0.5f,0.5f),
+        glm::vec3(0.5f,0.5f,0.5f),
     };
     
     LightingEnvironment lightingEnvironment = initLighting(light_positions, diffuses);
@@ -1799,7 +1804,7 @@ int mainCoords(int argc, char * argv[]){
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         
-        setupLightingEnvironmentToDraw(lightingEnvironment, light_positions, diffuses, lightShape);
+        setupLightingEnvironmentToDraw(lightingEnvironment, light_positions, diffuses, lightShape, false);
 
 
 
@@ -1808,6 +1813,16 @@ int mainCoords(int argc, char * argv[]){
         // Use emotion array to set properties of shapes
         glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
         glm::vec3 coords = randCoords();
+        unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 1);
+        SHAPE_TYPE type;
+        switch (typeNum){
+            case 0:
+                type = CUBE;
+                break;
+            case 1:
+                type = PYRAMID;
+                break;
+        }
 
         
         lightingEnvironment.model = glm::mat4(1.0f);
@@ -1817,7 +1832,7 @@ int mainCoords(int argc, char * argv[]){
         
         // Create and delete cubes
         if(alarm.checkAndUpdate()){
-            cubeMatrices.push_front(CubePair{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f)});
+            cubeMatrices.push_front(CubePair{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f),type});
             
             // Delete a cube
             if (cubeMatrices.size() > MAXIMUM_SHAPES){
@@ -1829,7 +1844,14 @@ int mainCoords(int argc, char * argv[]){
         for( CubePair cubePair : cubeMatrices){
             lightingEnvironment.object_shader.setUniform("model",cubePair.model);
             lightingEnvironment.object_shader.setUniform("aColor", cubePair.color);
-            objectShape.draw(lightingEnvironment.object_shader);
+            switch (cubePair.type){
+                case CUBE:
+                    cubeShape.draw(lightingEnvironment.object_shader);
+                    break;
+                case PYRAMID:
+                    pyramidShape.draw(lightingEnvironment.object_shader);
+                    break;
+            }
         }
         
 
