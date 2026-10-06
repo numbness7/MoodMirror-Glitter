@@ -6,6 +6,11 @@ in vec2 TexCoords;
 
 uniform vec3 view_pos;
 uniform vec4 aColor;
+uniform float creationDate;
+uniform float elapsedTime;
+uniform float SHAPE_SPAWN_TIME;
+uniform float MAXIMUM_BATCHES;
+uniform float SHAPE_MAX_FADE;
 
 struct Material {
     sampler2D diffuse;
@@ -56,6 +61,7 @@ uniform DirLight dir_light;
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 view_dir);
 vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 view_dir);
 vec3 calcPointLight(PointLight light, vec3 normal, vec3 view_dir);
+float calcFade(float elapsedTime, float creationDate);
 
 void main(){
     vec3 result = vec3(0.0f);
@@ -66,8 +72,21 @@ void main(){
     for(int i = 0; i < POINT_LIGHT_COUNT; i += 1){
         result += calcPointLight(point_lights[i], Normal, view_dir);
     }
+    float fade = calcFade(elapsedTime, creationDate);
+    vec4 newColor = aColor;
+    newColor.a = 1 - fade;
+
     
-    FragColor = aColor*vec4(result,1.0f);
+    FragColor = newColor*vec4(result,1.0f);
+}
+
+float calcFade(float elapsedTime, float creationDate){
+    float fade = 0.0f;
+    float timePassed = elapsedTime - creationDate;
+    fade = (timePassed)/(6*SHAPE_SPAWN_TIME*MAXIMUM_BATCHES);
+    if(fade > SHAPE_MAX_FADE) fade = SHAPE_MAX_FADE;
+    return fade;
+    
 }
 
 vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 view_dir){

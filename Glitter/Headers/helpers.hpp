@@ -45,7 +45,7 @@ class DeltaTimer{
         float getDeltaTime(bool do_update = false);
         float getElapsedTime(bool do_update = false) { if (do_update) updateDeltaTime(); return elapsed_time; }
         float timePassed(float timeStamp){return getElapsedTime() - timeStamp;}
-        void updateDeltaTime();
+        void  updateDeltaTime();
     private:
         float elapsed_time = 0.0f;
         float lastframe_time = 0.0f;

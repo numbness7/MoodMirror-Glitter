@@ -1829,6 +1829,10 @@ int mainCoords(int argc, char * argv[]){
     
     LightingEnvironment lightingEnvironment = initLighting(light_positions, diffuses);
 
+    lightingEnvironment.object_shader.use();
+    lightingEnvironment.object_shader.setUniform("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
+    lightingEnvironment.object_shader.setUniform("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
+    lightingEnvironment.object_shader.setUniform("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
     
     
     
@@ -1878,12 +1882,16 @@ int mainCoords(int argc, char * argv[]){
 
                 
                 lightingEnvironment.model = glm::mat4(1.0f);
-                float coordsScale = 20.0f;
-                glm::vec3 scaledCoordinates = coords*coordsScale;
+                float xScale = 25.0f;
+                float yScale = 20.0f;
+                glm::vec3 scaledCoordinates(1.0f);
                 float zScale = 50.0f;
+                float afterZScale = 4.0f;
+                scaledCoordinates.x = coords.x*xScale;
+                scaledCoordinates.y = coords.y*yScale;
                 scaledCoordinates.z = coords.z*zScale;
                 scaledCoordinates.z -= zScale+6.0f;
-                lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaledCoordinates/4.0f);
+                lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaledCoordinates/afterZScale);
                 // if ( scaledCoordinates.z < -100.0f)
                 //     lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(50.0f));
                 
@@ -1951,25 +1959,18 @@ bool Alarm::checkAndUpdate()
 }
 
 void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer){
+    lightingEnvironment.object_shader.setUniform("elapsedTime", (float)deltaTimer.getElapsedTime());
     // Draw cubes
     for( ShapeProperties shape : cubeMatrices){
-
-
-        float fade = 0.0f;
-        glm::vec4 color = shape.color;
-        fade = (deltaTimer.timePassed(shape.creationTimeStamp))/(6*SHAPE_SPAWN_TIME*MAXIMUM_BATCHES);
-        if (fade > SHAPE_MAX_FADE) fade = SHAPE_MAX_FADE;
-        color.a = shape.color.a * (1.0f - fade);
-        
-        glm::mat4 model = shape.model;
+        lightingEnvironment.object_shader.setUniform("creationDate", (float)shape.creationTimeStamp);
        // float distance = fade;
        // glm::vec3 normDir(1.0f,0.0f,0.0f);
        // model = glm::translate(model, ((10.0f*distance)*normDir)-10.0f*normDir);
 
 
 
-        lightingEnvironment.object_shader.setUniform("model", model);
-        lightingEnvironment.object_shader.setUniform("aColor", color);
+        lightingEnvironment.object_shader.setUniform("model", shape.model);
+        lightingEnvironment.object_shader.setUniform("aColor", shape.color);
         switch (shape.type){
             case CUBE:
                 cubeShape.draw(lightingEnvironment.object_shader);
