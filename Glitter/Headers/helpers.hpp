@@ -33,9 +33,9 @@
 // Header Macros
 #define POINT_LIGHT_COUNT 4
 #define MAXIMUM_BATCHES 100
-#define SHAPES_IN_BATCH 10
-#define SHAPE_INITIAL_SPAWN_TIME 0.02f
-#define SHAPE_SPAWN_TIME 0.02f
+#define SHAPES_IN_BATCH 100
+#define SHAPE_INITIAL_SPAWN_TIME 0.0166666f
+#define SHAPE_SPAWN_TIME 0.01666666f
 #define SHAPE_MAX_FADE 0.99f
 
 // Classes
@@ -126,7 +126,7 @@ int mainPathRectangle(int argc, char * argv[]);
 
 
 // Draw
-void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer);
+void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture);
@@ -175,7 +175,7 @@ void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFro
 // Read
 nlohmann::json readjsonfile(std::string filepath);
 std::vector<std::vector<float>> readEmotionArray(std::string filepath);
-glm::vec3 emotionArrayToVec3(std::vector<std::vector<float>> emotionArray);
+glm::vec3 emotionArrayToVec3(std::vector<float> emotionArray);
 float emotionArrayToLength(std::vector<std::vector<float>> emotionArray);
 
 //Manage
@@ -183,7 +183,7 @@ float emotionArrayToLength(std::vector<std::vector<float>> emotionArray);
 int findAShape(const ShapeProperties& shapeToDelete, const std::vector<ShapeProperties>& shapesBackToFront);
 bool deleteAShape(std::vector<ShapeProperties>& shapesBackToFront, std::deque<ShapeProperties>& cubeMatrices);
 
-glm::vec3 emotionArrayToColor(std::vector<std::vector<float>> emotionArray);
+glm::vec3 emotionArrayToColor(std::vector<float> array0);
 std::string vec3ToString(glm::vec3 vec3);
 std::string vec4ToString(glm::vec4 vec4);
 

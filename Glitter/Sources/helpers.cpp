@@ -1255,7 +1255,6 @@ glm::vec3 StraightPath::getPositionOnPath(){
     float left_over_point_progress = point_progress - (float) start_point_index;
     glm::vec3 change_vector = direction * distance * left_over_point_progress;
     glm::vec3 point_on_path = start_point + change_vector;
-    std::cout << "point_on_path: " << point_on_path.x << " " << point_on_path.y << " " << point_on_path.z << std::endl;
     return start_point + change_vector;
 }
 
@@ -1340,7 +1339,6 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
         if(timer > 1.0f) {
             timer = timer - 1.0f;
         }
-        std::cout << "timer: " << timer << std::endl;
         path.setProgress(timer);
 
         model = glm::mat4(1.0f);
@@ -1452,10 +1450,9 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
         std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
         
         // Use emotion array to set properties of shapes
-        glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
+        glm::vec3 emotionRGB = emotionArrayToColor(emotionArray[0]);
         glm::vec3 rotationAxis = glm::vec3(sin(deltaTimer.getElapsedTime()*1.0f + M_1_PI),-sin(deltaTimer.getElapsedTime()*1.0f/2.7865432f + M_1_PI/2),sin(deltaTimer.getElapsedTime()*1.0f/3.125105f + M_1_PI/3));
         rotatedModel = glm::rotate(glm::mat4(1.0f), (float)(1.0f*((float)(M_PI))), rotationAxis);
-        std::cout << "rotation axis: " << "(" << rotationAxis.x << "," << rotationAxis.y << "," << rotationAxis.z << ")" << std::endl;
 
         
         // Stationary Cube
@@ -1638,8 +1635,7 @@ float emotionArrayToLength(std::vector<std::vector<float>> emotionArray){
     return array0[0] + 0.1f;
 }
 
-glm::vec3 emotionArrayToColor(std::vector<std::vector<float>> emotionArray){
-    std::vector<float> array0 = emotionArray[0];
+glm::vec3 emotionArrayToColor(std::vector<float> array0){
     float red   =   0.5f + (array0[3] - array0[0])/2;
     float green =   0.5f + (array0[4] - array0[1])/2;
     float blue  =   0.5f + (array0[5] - array0[2])/2;
@@ -1670,9 +1666,8 @@ std::string vec4ToString(glm::vec4 vec4)
     s+= ")";
     return s;
 }
-glm::vec3 emotionArrayToVec3(std::vector<std::vector<float>> emotionArray)
+glm::vec3 emotionArrayToVec3(std::vector<float> array0)
 {
-    std::vector<float> array0 = emotionArray[0];
     float x = array0[3] - array0[0];
     float y = array0[4] - array0[1];
     float z = array0[5] - array0[2];
@@ -1845,7 +1840,6 @@ int mainCoords(int argc, char * argv[]){
     std::deque<ShapeProperties> cubeMatrices{};
     
 
-    std::vector<ShapeProperties> shapesBackToFront{};
 
     
     
@@ -1865,50 +1859,57 @@ int mainCoords(int argc, char * argv[]){
         std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
         
         // Use emotion array to set properties of shapes
-        glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
-        glm::vec3 coords = randCoords();
-        unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 1);
-        SHAPE_TYPE type;
-        switch (typeNum){
-            case 0:
-                type = CUBE;
-                break;
-            case 1:
-                type = PYRAMID;
-                break;
-        }
+        for(int i = 0; i < emotionArray.size(); i++){
+            std::vector<float> array = emotionArray[i];
+            glm::vec3 emotionRGB = emotionArrayToColor(array);
+            for (int j = 0; j < SHAPES_IN_BATCH; j++){
 
-        
-        lightingEnvironment.model = glm::mat4(1.0f);
-        float coordsScale = 5.0f;
-        glm::vec3 scaledCoordinates = coords*coordsScale;
-        lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaledCoordinates);
-        
-
-        
-        // Create and delete cubes
-        if(alarm.checkAndUpdate()){
-            for(int i = 0; i < SHAPES_IN_BATCH; i++){
-                ShapeProperties shape = ShapeProperties{lightingEnvironment.model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.5f, scaledCoordinates};
-                cubeMatrices.push_front(shape);
-                shapesBackToFront.push_back(shape);
-                std::sort(shapesBackToFront.begin(),shapesBackToFront.end(), &cmpShape);
+                glm::vec3 coords = randCoords();
+                unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 1);
+                SHAPE_TYPE type;
+                switch (typeNum){
+                    case 0:
+                        type = CUBE;
+                        break;
+                    case 1:
+                        type = PYRAMID;
+                        break;
+                }
 
                 
-            }
-            if(!shapesFull) {
-                shapesFull = true;
-                alarm.setWaitTime(SHAPE_SPAWN_TIME);
+                lightingEnvironment.model = glm::mat4(1.0f);
+                float coordsScale = 20.0f;
+                glm::vec3 scaledCoordinates = coords*coordsScale;
+                float zScale = 50.0f;
+                scaledCoordinates.z = coords.z*zScale;
+                scaledCoordinates.z -= zScale+6.0f;
+                lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaledCoordinates/4.0f);
+                // if ( scaledCoordinates.z < -100.0f)
+                //     lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(50.0f));
+                
+
+                
+                // Create and delete cubes
+                if(alarm.checkAndUpdate()){
+                    for(int i = 0; i < SHAPES_IN_BATCH; i++){
+                        ShapeProperties shape = ShapeProperties{lightingEnvironment.model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.0f, scaledCoordinates};
+                        cubeMatrices.push_front(shape);
+                    }
+                    if(!shapesFull) {
+                        shapesFull = true;
+                        alarm.setWaitTime(SHAPE_SPAWN_TIME);
+                    }
+                }
+
             }
         }
-
         // Delete cubes
-        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH){
-            assert(deleteAShape(shapesBackToFront, cubeMatrices));
+        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*6){
+            cubeMatrices.pop_back();
         }
 
         // Draw cubes
-        drawCubeMatrices(lightingEnvironment, shapesBackToFront, cubeShape, pyramidShape, deltaTimer);        
+        drawCubeMatrices(lightingEnvironment, cubeMatrices, cubeShape, pyramidShape, deltaTimer);        
 
 
 
@@ -1949,24 +1950,21 @@ bool Alarm::checkAndUpdate()
     return alarmSounded;
 }
 
-void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer){
+void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer){
     // Draw cubes
     for( ShapeProperties shape : cubeMatrices){
 
 
         float fade = 0.0f;
         glm::vec4 color = shape.color;
-        if (deltaTimer.timePassed(shape.creationTimeStamp) >= shape.fadeTime){
-            fade = (deltaTimer.timePassed(shape.creationTimeStamp) - shape.fadeTime)/(SHAPE_SPAWN_TIME*MAXIMUM_BATCHES - shape.fadeTime);
-            if (fade > SHAPE_MAX_FADE) fade = SHAPE_MAX_FADE;
-            color.a = shape.color.a * (1.0f - fade);
-            std::cout << "color: " << vec4ToString(color) << std::endl;
-        }
+        fade = (deltaTimer.timePassed(shape.creationTimeStamp))/(6*SHAPE_SPAWN_TIME*MAXIMUM_BATCHES);
+        if (fade > SHAPE_MAX_FADE) fade = SHAPE_MAX_FADE;
+        color.a = shape.color.a * (1.0f - fade);
         
         glm::mat4 model = shape.model;
-        //float distance = fade;
-        //glm::vec3 normDir(0.0f,0.0f,-1.0f);
-        //model = glm::translate(model, (30-200*distance)*normDir);
+       // float distance = fade;
+       // glm::vec3 normDir(1.0f,0.0f,0.0f);
+       // model = glm::translate(model, ((10.0f*distance)*normDir)-10.0f*normDir);
 
 
 
@@ -1988,20 +1986,4 @@ void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera){
     glfwPollEvents();
     std::cout << "FPS: " << 1/deltaTimer.getDeltaTime() << std::endl;
     processInput(mWindow, camera, deltaTimer.getDeltaTime());
-}
-int findAShape(const ShapeProperties& shapeToDelete, const std::vector<ShapeProperties>& shapesBackToFront){
-    for(int i = 0; i < shapesBackToFront.size(); i++){
-        ShapeProperties deleteCandidate = shapesBackToFront[i];
-        if (deleteCandidate.coords.z > shapeToDelete.coords.z - SMALL_FLOAT && deleteCandidate.coords.z < shapeToDelete.coords.z + SMALL_FLOAT){
-            return i;
-            break;
-        }
-    }
-    return -1;
-}
-bool deleteAShape(std::vector<ShapeProperties>& shapesBackToFront, std::deque<ShapeProperties>& cubeMatrices){
-    ShapeProperties shapeToDelete = cubeMatrices.back();
-    int deleteIndex = findAShape(shapeToDelete, shapesBackToFront);
-    if(deleteIndex < 0) return false;
-    else { cubeMatrices.pop_back(); return true; }
 }
