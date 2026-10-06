@@ -260,8 +260,9 @@ void create_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO,
 GLFWwindow* loadGLFWCreateWindow(int width, int height){
     // Load GLFW and Create a Window
     glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API); 
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
@@ -1384,7 +1385,7 @@ int mainTurning(int argc, char * argv[]){
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
     GLFWwindow*  mWindow; 
-initOpenGL(mWindow, return_status, mWidth, mHeight);
+    initOpenGL(mWindow, return_status, mWidth, mHeight);
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
