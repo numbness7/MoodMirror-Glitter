@@ -76,7 +76,7 @@ void main(){
     for(int i = 0; i < POINT_LIGHT_COUNT; i += 1){
         result += calcPointLight(point_lights[i], Normal, view_dir);
     }
-    float fade = calcFade(elapsedTime, creationDate, 0.8f, 0.2f, 1.0f);
+    float fade = calcFade(elapsedTime, creationDate, 0.5f, 0.5f, 1.0f);
     vec4 newColor = aColor;
     newColor.a = (1 - fade)*aColor.a;
 

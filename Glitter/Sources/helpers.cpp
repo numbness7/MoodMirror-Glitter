@@ -1871,7 +1871,7 @@ int mainCoords(int argc, char * argv[]){
             for (int j = 0; j < SHAPES_IN_BATCH; j++){
 
                 glm::vec3 coords = randCoords();
-                float maxScale = 5.0f;
+                float maxScale = 10.0f;
                 glm::vec3 rotAxis = randCoords();
                 float rotScale = rand_range_uniform(0.0f, 1.0f);
 
@@ -1900,7 +1900,7 @@ int mainCoords(int argc, char * argv[]){
                 scaledCoordinates.x = coords.x*xCoordScale;
                 scaledCoordinates.y = coords.y*yCoordScale;
                 scaledCoordinates.z = coords.z*zCoordScale;
-                scaledCoordinates.z += -zCoordScale+zCoordOffset;
+                scaledCoordinates.z += -zCoordScale+zCoordOffset-maxScale;
                 // lightingEnvironment.model = glm::rotate(lightingEnvironment.model, rotScale, rotAxis);
                 lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaledCoordinates);
                 lightingEnvironment.model = glm::scale(lightingEnvironment.model, scale);
