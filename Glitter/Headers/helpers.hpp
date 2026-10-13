@@ -33,10 +33,11 @@
 
 // Header Macros
 #define POINT_LIGHT_COUNT 4
-#define MAXIMUM_BATCHES 100
-#define SHAPES_IN_BATCH 10
-#define SHAPE_INITIAL_SPAWN_TIME 0.02516666666f
-#define SHAPE_SPAWN_TIME         0.02516666666f
+#define MAXIMUM_BATCHES 500
+#define SHAPES_IN_BATCH  10
+#define SHAPE_INITIAL_SPAWN_TIME 0.01216666666f
+#define SHAPE_SPAWN_TIME         0.01216666666f
+#define SORT_TIME 0.25f
 #define SHAPE_MAX_FADE 1.0f
 #define SMALL_FLOAT 0.00001f
 
@@ -188,6 +189,7 @@ int findAShape(const ShapeProperties& shapeToDelete, const std::vector<ShapeProp
 bool deleteAShape(std::vector<ShapeProperties>& shapesBackToFront, std::deque<ShapeProperties>& cubeMatrices);
 
 glm::vec3 emotionArrayToColor(std::vector<float> array0);
+SHAPE_TYPE emotionArrayToShapeType(std::vector<float> array0);
 std::string vec3ToString(glm::vec3 vec3);
 std::string vec4ToString(glm::vec4 vec4);
 

@@ -1637,11 +1637,36 @@ float emotionArrayToLength(std::vector<std::vector<float>> emotionArray){
 }
 
 glm::vec3 emotionArrayToColor(std::vector<float> array0){
-    float red   =   0.5f + (array0[3] - array0[0])/2;
-    float green =   0.5f + (array0[4] - array0[1])/2;
-    float blue  =   0.5f + (array0[5] - array0[2])/2;
+    float fear      = array0[0];
+    float anger     = array0[1];
+    float sadness   = array0[2];
+    float disgust   = array0[3];
+    float happiness = array0[4];
+    float surprise  = array0[5];
+    float red   =   0.5f + (disgust - fear)/2;
+    float green =   0.5f + (happiness - anger)/2;
+    float blue  =   0.5f + (surprise - sadness)/2;
     return glm::vec3(red,green,blue);
-    
+}
+SHAPE_TYPE emotionArrayToShapeType(std::vector<float> array0){
+    float fear      = array0[0];
+    float anger     = array0[1];
+    float sadness   = array0[2];
+    float disgust   = array0[3];
+    float happiness = array0[4];
+    float surprise  = array0[5];
+    float tri = anger + surprise;
+    float square = disgust + fear;
+    float circ = sadness + happiness;
+    if(circ > tri && circ > square){
+        return OCTAHEDRON;
+    }
+    else if(tri > circ && tri > square){
+        return PYRAMID;
+    }
+    else {
+        return CUBE;
+    }
 }
 std::string vec3ToString(glm::vec3 vec3)
 {
@@ -1669,9 +1694,15 @@ std::string vec4ToString(glm::vec4 vec4)
 }
 glm::vec3 emotionArrayToVec3(std::vector<float> array0)
 {
-    float x = array0[3] - array0[0];
-    float y = array0[4] - array0[1];
-    float z = array0[5] - array0[2];
+    float fear      = array0[0];
+    float anger     = array0[1];
+    float sadness   = array0[2];
+    float disgust   = array0[3];
+    float happiness = array0[4];
+    float surprise  = array0[5];
+    float x = disgust - fear;
+    float y = happiness - anger;
+    float z = surprise - sadness;
     return glm::vec3(x,y,z);
 }
 void initMouse(GLFWwindow* mWindow){
@@ -2228,6 +2259,150 @@ int mainCoordsBasic(int argc, char * argv[]){
     
     std::vector<ShapeProperties> frontToBack{};
 
+    Alarm sortAlarm(SORT_TIME);
+
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+        bool cubesChanged = false;
+        alarm.checkAndUpdate();
+        sortAlarm.checkAndUpdate();
+
+        deltaTimer.updateDeltaTime();
+        // Background Fill Color
+        glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        
+        setupMPVEnvironmentToDraw(lightingEnvironment);
+
+
+
+        std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
+        
+        // Use emotion array to set properties of shapes
+        for(int i = 0; i < emotionArray.size(); i++){
+            std::vector<float> array = emotionArray[i];
+            glm::vec3 emotionRGB = emotionArrayToColor(array);
+            glm::vec3 coords = emotionArrayToVec3(array);
+            glm::vec3 rotAxis = emotionArrayToVec3(array);
+            float rotScale = rand_range_uniform(0.0f, 1.0f);
+            SHAPE_TYPE type = emotionArrayToShapeType(array);
+            for (int j = 0; j < SHAPES_IN_BATCH; j++){
+
+                float maxScale = 2.0f;
+                coords += 0.1f*randCoords();
+                glm::vec3 scale = rand_range_uniform(1.0f,maxScale) * glm::vec3(1.0f);
+                scale = maxScale * glm::vec3(1.0f);
+
+
+                
+                model = glm::mat4(1.0f);
+                float xCoordScale = 50.0f;
+                float yCoordScale = 50.0f;
+                glm::vec3 scaledCoordinates(1.0f);
+                float zCoordScale = 50.0f;
+                float afterZScale = 4.0f;
+                float zCoordOffset = -6.0f; //- 8.0f*(scale.x*scale.y*scale.z)/(glm::pow(maxScale,2.0f));
+                scaledCoordinates.x = coords.x*xCoordScale;
+                scaledCoordinates.y = coords.y*yCoordScale;
+                scaledCoordinates.z = coords.z*zCoordScale;
+                scaledCoordinates.z += -zCoordScale+zCoordOffset-maxScale;
+                model = glm::translate(model, scaledCoordinates);
+                model = glm::scale(model, scale);
+                model = glm::rotate(model, rotScale, rotAxis);
+                
+
+                
+                // Create and delete cubes
+                if(alarm.check()){
+                        cubesChanged = true;
+                        ShapeProperties shape = ShapeProperties{model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.0f, scaledCoordinates};
+                        cubeMatrices.push_front(shape);
+                        frontToBack.push_back(shape);
+                    if(!shapesFull) {
+                        shapesFull = true;
+                        alarm.setWaitTime(SHAPE_SPAWN_TIME);
+                    }
+                }
+
+            }
+        }
+        // Delete cubes
+        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*6){
+            cubeMatrices.pop_back();
+        }
+
+        if (cubesChanged){
+            frontToBack = {};
+            for (ShapeProperties shape : cubeMatrices){
+                frontToBack.push_back(shape);
+            }
+            std::sort(frontToBack.begin(),frontToBack.end(),compareShapeForwardDistance);
+        }
+        // Draw cubes
+        drawCubeMatrices(lightingEnvironment, frontToBack, shapeTypes, deltaTimer);        
+
+
+
+        endRenderLoop(mWindow,deltaTimer,camera);
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+    
+    
+}
+int mainCoordsBasicStream(int argc, char * argv[]){
+    // Initialize OpenGL
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    Alarm alarm(SHAPE_INITIAL_SPAWN_TIME);
+    bool shapesFull = false;
+    
+    unsigned int diffuse_sampler_2d;
+    //create_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+    generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+
+
+    
+    
+    std::vector<unsigned int> objectSizes{3, 2};
+    OpenGLShape cubeShape((unsigned int) 36, (unsigned int)36, shapes::textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
+    OpenGLShape pyramidShape((unsigned int) 12, (unsigned int)12, shapes::textured_triangle_pyramid, shapes::triangle_pyramid_ind, objectSizes, diffuse_sampler_2d, true);
+    OpenGLShape octahedronShape((unsigned int) 24, (unsigned int)24, shapes::textured_octahedron, shapes::octahedron_ind, objectSizes, diffuse_sampler_2d, true);
+    
+    std::map<SHAPE_TYPE, OpenGLShape*> shapeTypes{{CUBE , &cubeShape}, {PYRAMID, &pyramidShape}, {OCTAHEDRON, &octahedronShape}};
+    
+    
+    
+    
+    
+    
+    LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+
+    lightingEnvironment.object_shader.use();
+    lightingEnvironment.object_shader.setUniform("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
+    lightingEnvironment.object_shader.setUniform("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
+    lightingEnvironment.object_shader.setUniform("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
+    lightingEnvironment.object_shader.setUniform("ourTexture1", (unsigned) 0);
+    glm::mat4 model(1.0f);
+    
+    
+    
+    
+    initMouse(mWindow);
+
+
+    
+    std::deque<ShapeProperties> cubeMatrices{};
+    
+    std::vector<ShapeProperties> frontToBack{};
+
 
     
     
@@ -2252,16 +2427,15 @@ int mainCoordsBasic(int argc, char * argv[]){
         for(int i = 0; i < emotionArray.size(); i++){
             std::vector<float> array = emotionArray[i];
             glm::vec3 emotionRGB = emotionArrayToColor(array);
+            glm::vec3 coords = emotionArrayToVec3(array);
+            glm::vec3 rotAxis = emotionArrayToVec3(array);
             for (int j = 0; j < SHAPES_IN_BATCH; j++){
 
-                glm::vec3 coords = randCoords();
                 float maxScale = 10.0f;
-                glm::vec3 rotAxis = randCoords();
                 float rotScale = rand_range_uniform(0.0f, 1.0f);
 
 
                 // glm::vec3 scale = randScale(1.0f,maxScale);
-                glm::vec3 scale = rand_range_uniform(1.0f, maxScale)*glm::vec3(1.0f);
                 //scale = glm::vec3(1.0f);
                 unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 2);
                 SHAPE_TYPE type;
@@ -2291,7 +2465,6 @@ int mainCoordsBasic(int argc, char * argv[]){
                 scaledCoordinates.z += -zCoordScale+zCoordOffset-maxScale;
                 model = glm::rotate(model, rotScale, rotAxis);
                 model = glm::translate(model, scaledCoordinates);
-                model = glm::scale(model, scale);
                 
 
                 
