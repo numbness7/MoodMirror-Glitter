@@ -3,7 +3,6 @@
 
 
 // Macros
-#define SMALL_FLOAT 0.00001f
 
 glm::vec3 cameraFront(0.0f,0.0f,-1.0f);
 float yaw = -90.0f;
@@ -1384,7 +1383,7 @@ int mainTurning(int argc, char * argv[]){
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
     GLFWwindow*  mWindow; 
-initOpenGL(mWindow, return_status, mWidth, mHeight);
+    initOpenGL(mWindow, return_status, mWidth, mHeight);
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
@@ -1702,13 +1701,13 @@ LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], g
    object_shader.setUniform("material.diffuse",   material.diffuse);
    object_shader.setUniform("material.specular",  material.specular);
    object_shader.setUniform("material.shininess", material.shininess); 
-   object_shader.setUniform("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
-   object_shader.setUniform("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
+   object_shader.setUniform("spot_light.cut_off", glm::cos(glm::radians(100.5f)));
+   object_shader.setUniform("spot_light.outer_cut_off", glm::cos(glm::radians(200.0f)));
 
 
     object_shader.setUniform("dir_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniform("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
-    object_shader.setUniform("dir_light.specular", glm::vec3(0.2f)); 
+    object_shader.setUniform("dir_light.diffuse",  glm::vec3(0.1f)); // darken diffuse light a bit
+    object_shader.setUniform("dir_light.specular", glm::vec3(0.1f)); 
     object_shader.setUniform("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
     
     object_shader.setUniform("spot_light.ambient",  glm::vec3(0.1f));
@@ -1843,16 +1842,19 @@ int mainCoords(int argc, char * argv[]){
     
     std::deque<ShapeProperties> cubeMatrices{};
     
+    std::vector<ShapeProperties> frontToBack{};
 
 
     
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
+        bool cubesChanged = false;
+        alarm.checkAndUpdate();
 
         deltaTimer.updateDeltaTime();
         // Background Fill Color
-        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClearColor(0.50f, 0.50f, 0.50f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         
@@ -1869,6 +1871,13 @@ int mainCoords(int argc, char * argv[]){
             for (int j = 0; j < SHAPES_IN_BATCH; j++){
 
                 glm::vec3 coords = randCoords();
+                float maxScale = 5.0f;
+                glm::vec3 rotAxis = randCoords();
+                float rotScale = rand_range_uniform(0.0f, 1.0f);
+
+
+                // glm::vec3 scale = randScale(1.0f,maxScale);
+                glm::vec3 scale = rand_range_uniform(1.0f, maxScale)*glm::vec3(1.0f);
                 unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 1);
                 SHAPE_TYPE type;
                 switch (typeNum){
@@ -1882,27 +1891,27 @@ int mainCoords(int argc, char * argv[]){
 
                 
                 lightingEnvironment.model = glm::mat4(1.0f);
-                float xScale = 25.0f;
-                float yScale = 20.0f;
+                float xCoordScale = 50.0f;
+                float yCoordScale = 50.0f;
                 glm::vec3 scaledCoordinates(1.0f);
-                float zScale = 50.0f;
+                float zCoordScale = 50.0f;
                 float afterZScale = 4.0f;
-                scaledCoordinates.x = coords.x*xScale;
-                scaledCoordinates.y = coords.y*yScale;
-                scaledCoordinates.z = coords.z*zScale;
-                scaledCoordinates.z -= zScale+6.0f;
-                lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaledCoordinates/afterZScale);
-                // if ( scaledCoordinates.z < -100.0f)
-                //     lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(50.0f));
+                float zCoordOffset = -6.0f; //- 8.0f*(scale.x*scale.y*scale.z)/(glm::pow(maxScale,2.0f));
+                scaledCoordinates.x = coords.x*xCoordScale;
+                scaledCoordinates.y = coords.y*yCoordScale;
+                scaledCoordinates.z = coords.z*zCoordScale;
+                scaledCoordinates.z += -zCoordScale+zCoordOffset;
+                // lightingEnvironment.model = glm::rotate(lightingEnvironment.model, rotScale, rotAxis);
+                lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaledCoordinates);
+                lightingEnvironment.model = glm::scale(lightingEnvironment.model, scale);
                 
 
                 
                 // Create and delete cubes
-                if(alarm.checkAndUpdate()){
-                    for(int i = 0; i < SHAPES_IN_BATCH; i++){
+                if(alarm.check()){
+                        cubesChanged = true;
                         ShapeProperties shape = ShapeProperties{lightingEnvironment.model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.0f, scaledCoordinates};
                         cubeMatrices.push_front(shape);
-                    }
                     if(!shapesFull) {
                         shapesFull = true;
                         alarm.setWaitTime(SHAPE_SPAWN_TIME);
@@ -1916,8 +1925,17 @@ int mainCoords(int argc, char * argv[]){
             cubeMatrices.pop_back();
         }
 
+        if (cubesChanged){
+            frontToBack = {};
+            for (ShapeProperties shape : cubeMatrices){
+                frontToBack.push_back(shape);
+            }
+            std::sort(frontToBack.begin(),frontToBack.end(),compareShapeForwardDistance);
+
+
+        }
         // Draw cubes
-        drawCubeMatrices(lightingEnvironment, cubeMatrices, cubeShape, pyramidShape, deltaTimer);        
+        drawCubeMatrices(lightingEnvironment, frontToBack, cubeShape, pyramidShape, deltaTimer);        
 
 
 
@@ -1930,6 +1948,13 @@ int mainCoords(int argc, char * argv[]){
     
 }
 
+glm::vec3 randScale(float min, float max){
+    glm::vec3 coords(0.0f);
+    for (unsigned int i = 0; i < 3; i++){
+        coords[i] = rand_range_uniform(min,max);
+    }
+    return coords;
+}
 glm::vec3 randCoords(){
     glm::vec3 coords(0.0f);
     for (unsigned int i = 0; i < 3; i++){
@@ -1958,9 +1983,57 @@ bool Alarm::checkAndUpdate()
     return alarmSounded;
 }
 
-void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer){
+std::vector<float> vec3ToVector(glm::vec3 a){
+    return std::vector<float>{a.x,a.y,a.z};
+}
+
+glm::vec3 vectorToVec3(std::vector<float> a){
+    return glm::vec3(a[0],a[1],a[2]);
+}
+
+
+glm::vec3 getViewCoordinates(const glm::vec3 coords){
+    glm::vec3 f = camera.Front;
+    glm::vec3 r = camera.Right;
+    glm::vec3 u = camera.Up;
+    glm::vec3 p = camera.Position;
+    std::vector<std::vector<float>> coefficients {
+        std::vector{ r.x, u.x, f.x,},
+        std::vector{ r.y, u.y, f.y,},
+        std::vector{ r.z, u.z, f.z,},
+    };
+    std::vector<float> constants = vec3ToVector(coords - p);
+    return vectorToVec3(solve(coefficients, constants));
+}
+
+float forwardDistance(const glm::vec3& coords){
+
+    glm::vec3 f = camera.Front;
+    glm::vec3 r = camera.Right;
+    glm::vec3 u = camera.Up;
+    glm::vec3 p = camera.Position;
+    glm::vec3 o = coords - p;
+
+    return -(o.x*r.y*u.z - o.x*r.z*u.y - o.y*r.x*u.z + o.y*r.z*u.x + o.z*r.x*u.y - o.z*r.y*u.x)/(f.x*r.y*u.z - f.x*r.z*u.y - f.y*r.x*u.z + f.y*r.z*u.x + f.z*r.x*u.y - f.z*r.y*u.x);
+}
+
+bool compareZDistance(const ShapeProperties& a, const ShapeProperties& b){
+    return a.coords.z - camera.Position.z < b.coords.z - camera.Position.z;
+}
+
+bool compareVec3ForwardDistance(const glm::vec3& a, const glm::vec3& b){
+    return getViewCoordinates(a).z < getViewCoordinates(b).z;
+}
+
+bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties& b){
+    return forwardDistance(a.coords) < forwardDistance(b.coords);
+}
+
+void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer){
+
     lightingEnvironment.object_shader.setUniform("elapsedTime", (float)deltaTimer.getElapsedTime());
     // Draw cubes
+    glDepthMask(false);
     for( ShapeProperties shape : cubeMatrices){
         lightingEnvironment.object_shader.setUniform("creationDate", (float)shape.creationTimeStamp);
        // float distance = fade;
@@ -1980,6 +2053,7 @@ void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::deque<ShapeP
                 break;
         }
     }
+    glDepthMask(true);
 }
 void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera){
     // Flip Buffers and Draw
@@ -1987,4 +2061,94 @@ void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera){
     glfwPollEvents();
     std::cout << "FPS: " << 1/deltaTimer.getDeltaTime() << std::endl;
     processInput(mWindow, camera, deltaTimer.getDeltaTime());
+}
+
+std::string to_string(std::vector<std::vector<float>> coefficients){
+	std::string s = "[\n";
+	for(int row = 0; row < coefficients.size(); row++){
+		s+= "[";
+
+		for (int col = 0; col < coefficients[0].size(); col++){
+			s += std::to_string(coefficients[row][col]) + ", ";
+		}
+		s.pop_back();
+		s += "]\n";
+	}
+	s += "]";
+	return s;
+}
+std::string to_string(std::vector<float> coefficients){
+	std::string s = "[";
+		for (int col = 0; col < coefficients.size(); col++){
+			s += std::to_string(coefficients[col]) + ", ";
+		}
+		s.pop_back();
+		s += "]";
+	return s;
+}
+
+void swap(float& a, float&b){
+	float temp = a;
+	a = b;
+	b = temp;
+}
+
+
+std::vector<float> solve(std::vector<std::vector<float>> coefficients, std::vector<float> constants, const float& smallFloat){
+	int rows = coefficients.size();
+	int columns = coefficients[0].size();
+	assert(constants.size() == rows);
+	assert(rows == columns);
+	assert(rows > 0);
+
+	for(int rowTop = 0; rowTop < rows; rowTop++){
+		int colLeft = rowTop;
+		int rowNotZeroIndex = -1;
+		for(int row = rowTop; row < rows; row++){
+			if (coefficients[row][colLeft] != 0){
+				rowNotZeroIndex = row;
+				break;
+			}
+		}
+
+
+		if(rowNotZeroIndex >= 0){ // Only bother with column with one of its values are not zero
+			coefficients[rowTop].swap(coefficients[rowNotZeroIndex]);
+			swap(constants[rowTop], constants[rowNotZeroIndex]);
+			for(int row = rowTop; row < rows; row++){ // Set leftmost column to 1
+				float divisor = coefficients[row][colLeft];
+				if(divisor > smallFloat || divisor < -smallFloat){
+					constants[row] /= divisor;
+					for(int col = colLeft; col < columns; col++){
+						coefficients[row][col] /= divisor;
+					}
+				}
+			}
+			if(rowTop < rows - 1){ // Set rows below row top leftmost column to 0
+				for(int row = rowTop+1; row < rows; row++){
+					if(coefficients[row][colLeft] > smallFloat || coefficients[row][colLeft] < -smallFloat){ // Don't subtract row already in correct form
+						constants[row] -= constants[rowTop];
+						for(int col = colLeft; col < columns; col++){
+							coefficients[row][col] -= coefficients[rowTop][col];
+						}
+					}
+				}
+			}
+		}
+	}
+	
+
+	
+
+	for(int rowBottom = 1; rowBottom < rows; rowBottom++){
+		int colLeft = rowBottom;
+		for(int row = rowBottom - 1; row >= 0; row--){
+			float multiplicand = coefficients[row][colLeft];
+			constants[row] -= multiplicand*constants[rowBottom];
+			for(int col = colLeft; col < columns; col++){
+				coefficients[row][col] -= multiplicand*coefficients[rowBottom][col];
+			}
+		}
+	}
+	return constants;
 }

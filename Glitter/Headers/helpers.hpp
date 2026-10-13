@@ -33,10 +33,11 @@
 // Header Macros
 #define POINT_LIGHT_COUNT 4
 #define MAXIMUM_BATCHES 100
-#define SHAPES_IN_BATCH 100
-#define SHAPE_INITIAL_SPAWN_TIME 0.0166666f
-#define SHAPE_SPAWN_TIME 0.01666666f
-#define SHAPE_MAX_FADE 0.99f
+#define SHAPES_IN_BATCH 10
+#define SHAPE_INITIAL_SPAWN_TIME 0.116666666f
+#define SHAPE_SPAWN_TIME         0.116666666f
+#define SHAPE_MAX_FADE 1.0f
+#define SMALL_FLOAT 0.00001f
 
 // Classes
 class DeltaTimer{
@@ -126,7 +127,7 @@ int mainPathRectangle(int argc, char * argv[]);
 
 
 // Draw
-void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer);
+void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture);
@@ -195,7 +196,17 @@ extern float lastY;
 extern bool first_mouse;
 
 // Random
+glm::vec3 randScale(float min=0.0f, float max=1.0f);
 glm::vec3 randCoords();
 
 
+std::string to_string(std::vector<std::vector<float>> coefficients);
+std::string to_string(std::vector<float> coefficients);
+std::vector<float> solve(std::vector<std::vector<float>> coefficients, std::vector<float> constants, const float& smallFloat=SMALL_FLOAT);
+void swap(float& a, float&b);
+glm::vec3 vectorToVec3(std::vector<float> a);
+std::vector<float> vec3ToVector(glm::vec3 a);
+
+bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties& b);
+bool compareZDistance(const ShapeProperties& a, const ShapeProperties& b);
 #endif
