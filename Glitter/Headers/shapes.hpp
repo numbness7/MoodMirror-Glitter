@@ -1,3 +1,5 @@
+#ifndef SHAPES
+#define SHAPES
 #include <glm/vec3.hpp>
 
 namespace shapes {
@@ -17,6 +19,11 @@ namespace shapes {
     extern const float normal_textured_triangle_pyramid[];
     extern const unsigned int normal_triangle_pyramid_ind[];
     extern const float normal_triangle_pyramid[];
-    extern const unsigned int textured_triangle_pyramid_ind[];
+    extern const unsigned int triangle_pyramid_ind[];
     extern const float textured_triangle_pyramid[];
+    extern const float triangle_pyramid[];
+    extern const unsigned int octahedron_ind[];
+    extern const float octahedron[];
+    extern const float textured_octahedron[];
 };
+#endif

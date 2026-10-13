@@ -170,47 +170,47 @@ const float normal_textured_cube[] = {
     -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
 };
     const float textured_cube[] = {
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
 
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
 
-    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
 
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
 
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
 
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
     };
 
     const unsigned int cube_ind[] = {
@@ -260,6 +260,24 @@ const float normal_triangle_pyramid[] = {
      0.0f,  0.5f,  0.0f,   1.0f,  0.25f, 0.5f,   0.5f, 1.0f, // Bottom back-ward
 
 };
+const float triangle_pyramid[] = {
+    -0.5f, -0.5f, -0.5f, // Bottom left
+     0.5f, -0.5f, -0.5f, // Bottom right
+     0.0f, -0.5f,  0.5f, // Bottom back-ward
+                                              
+    -0.5f, -0.5f, -0.5f, // Bottom left
+     0.5f, -0.5f, -0.5f, // Bottom right
+     0.0f,  0.5f,  0.0f, // Bottom back-ward
+                                              
+    -0.5f, -0.5f, -0.5f,  // Bottom left
+     0.0f, -0.5f,  0.5f,  // Bottom right
+     0.0f,  0.5f,  0.0f,  // Bottom back-ward
+                                              
+     0.5f, -0.5f, -0.5f, // Bottom left
+     0.0f, -0.5f,  0.5f, // Bottom right
+     0.0f,  0.5f,  0.0f, // Bottom back-ward
+
+};
 
 const unsigned int normal_triangle_pyramid_ind[] = {
     0, 1, 2,
@@ -278,17 +296,96 @@ const float textured_triangle_pyramid[] = {
      0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // Bottom right
      0.0f,  0.5f,  0.0f,  0.5f, 1.0f, // Bottom back-ward
 
-    -0.5f, -0.5f, -0.5f,   0.0f, 0.0f, // Bottom left
-     0.0f, -0.5f,  0.5f,   1.0f, 0.0f, // Bottom right
-     0.0f,  0.5f,  0.0f,   0.5f, 1.0f, // Bottom back-ward
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // Bottom left
+     0.0f, -0.5f,  0.5f,  1.0f, 0.0f, // Bottom right
+     0.0f,  0.5f,  0.0f,  0.5f, 1.0f, // Bottom back-ward
     
      0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // Bottom left
      0.0f, -0.5f,  0.5f,  1.0f, 0.0f, // Bottom right
      0.0f,  0.5f,  0.0f,  0.5f, 1.0f, // Bottom back-ward
 
+
+};
+const float textured_octahedron[] = {
+    0.0f,  0.5f,  0.0f, 0.0f, 0.0f,/* Top */
+   -0.5f,  0.0f,  0.5f, 1.0f, 0.0f,/* Middle Left Back */
+    0.5f,  0.0f,  0.5f, 0.5f, 1.0f,/* Middle Right Back */
+
+    0.0f,  0.5f,  0.0f, 0.0f, 0.0f,/* Top */
+   -0.5f,  0.0f, -0.5f, 1.0f, 0.0f,/* Middle Left Forward */
+   -0.5f,  0.0f,  0.5f, 0.5f, 1.0f,/* Middle Left Back */
+    
+    0.0f,  0.5f,  0.0f, 0.0f, 0.0f,/* Top */
+   -0.5f,  0.0f, -0.5f, 1.0f, 0.0f,/* Middle Left Forward */
+    0.5f,  0.0f, -0.5f, 0.5f, 1.0f,/* Middle Right Forward */
+
+    0.0f,  0.5f,  0.0f, 0.0f, 0.0f,/* Top */
+    0.5f,  0.0f, -0.5f, 1.0f, 0.0f,/* Middle Right Forward */
+    0.5f,  0.0f,  0.5f, 0.5f, 1.0f,/* Middle Right Back */
+
+    0.0f, -0.5f,  0.0f, 0.0f, 0.0f,/* Bottom */
+   -0.5f,  0.0f,  0.5f, 1.0f, 0.0f,/* Middle Left Back */
+    0.5f,  0.0f,  0.5f, 0.5f, 1.0f,/* Middle Right Back */
+
+    0.0f, -0.5f,  0.0f, 0.0f, 0.0f,/* Bottom */
+   -0.5f,  0.0f, -0.5f, 1.0f, 0.0f,/* Middle Left Forward */
+   -0.5f,  0.0f,  0.5f, 0.5f, 1.0f,/* Middle Left Back */
+    
+    0.0f, -0.5f,  0.0f, 0.0f, 0.0f,/* Bottom */
+   -0.5f,  0.0f, -0.5f, 1.0f, 0.0f,/* Middle Left Forward */
+    0.5f,  0.0f, -0.5f, 0.5f, 1.0f,/* Middle Right Forward */
+
+    0.0f, -0.5f,  0.0f, 0.0f, 0.0f,/* Bottom */
+    0.5f,  0.0f, -0.5f, 1.0f, 0.0f,/* Middle Right Forward */
+    0.5f,  0.0f,  0.5f, 0.5f, 1.0f,/* Middle Right Back */
 };
 
-const unsigned int textured_triangle_pyramid_ind[] = {
+const float octahedron[] = {
+    0.0f,  0.5f,  0.0f, /* Top */
+   -0.5f,  0.0f,  0.5f, /* Middle Left Back */
+    0.5f,  0.0f,  0.5f, /* Middle Right Back */
+
+    0.0f,  0.5f,  0.0f, /* Top */
+   -0.5f,  0.0f, -0.5f, /* Middle Left Forward */
+   -0.5f,  0.0f,  0.5f, /* Middle Left Back */
+    
+    0.0f,  0.5f,  0.0f, /* Top */
+   -0.5f,  0.0f, -0.5f, /* Middle Left Forward */
+    0.5f,  0.0f, -0.5f, /* Middle Right Forward */
+
+    0.0f,  0.5f,  0.0f, /* Top */
+    0.5f,  0.0f, -0.5f, /* Middle Right Forward */
+    0.5f,  0.0f,  0.5f, /* Middle Right Back */
+
+    0.0f, -0.5f,  0.0f, /* Bottom */
+   -0.5f,  0.0f,  0.5f, /* Middle Left Back */
+    0.5f,  0.0f,  0.5f, /* Middle Right Back */
+
+    0.0f, -0.5f,  0.0f, /* Bottom */
+   -0.5f,  0.0f, -0.5f, /* Middle Left Forward */
+   -0.5f,  0.0f,  0.5f, /* Middle Left Back */
+    
+    0.0f, -0.5f,  0.0f, /* Bottom */
+   -0.5f,  0.0f, -0.5f, /* Middle Left Forward */
+    0.5f,  0.0f, -0.5f, /* Middle Right Forward */
+
+    0.0f, -0.5f,  0.0f, /* Bottom */
+    0.5f,  0.0f, -0.5f, /* Middle Right Forward */
+    0.5f,  0.0f,  0.5f, /* Middle Right Back */
+};
+
+const unsigned int octahedron_ind[] = {
+     0,  1,  2,
+     3,  4,  5,
+     6,  7,  8,
+     9, 10, 11,
+    12, 13, 14,
+    15, 16, 17,
+    18, 19, 20,
+    21, 22, 23,
+};
+
+const unsigned int triangle_pyramid_ind[] = {
     0, 1, 2,
     3, 4, 5,
     6, 7, 8,

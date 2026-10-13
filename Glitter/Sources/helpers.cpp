@@ -193,6 +193,7 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
         glVertexAttribPointer(attributeNumber, size, GL_FLOAT, GL_FALSE, totalSize * sizeof(float), (void*) + (previousCount * sizeof(float)));
         glEnableVertexAttribArray(attributeNumber);
         attributeNumber++;
+        previousCount += size;
     }
 
 }
@@ -434,6 +435,7 @@ bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height)
     // Retrieved 2026-09-26, License - CC BY-SA 2.5
     
     glEnable( GL_BLEND );
+    glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
@@ -579,26 +581,23 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
     
 
     
-    unsigned int texture1;
-    create_texture(texture1, "Glitter/Textures/container.jpg", "jpg");
     unsigned int texture2;
     create_texture(texture2, "Glitter/Textures/awesomeface.png", "png");
 
 
-    Shader shaderDoubleTextureMVP("Glitter/Shaders/double-texture-mvp.vs", "Glitter/Shaders/double-texture.fs");
-    
-    unsigned int VBO_T, VAO_T, EBO_T;
+    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
     
     
     
     
-    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_cube, 5*36, shapes::cube_ind, 36);
+    OpenGLShape cube(36,36,shapes::textured_cube,shapes::cube_ind,std::vector<unsigned>{3,2},texture2,true);
+
+    
     
     
 
-    shaderDoubleTextureMVP.use();
-    shaderDoubleTextureMVP.setUniform("ourTexture1",(unsigned int)0);
-    shaderDoubleTextureMVP.setUniform("ourTexture2",(unsigned int)1);
+    shaderTextureMVP.use();
+    shaderTextureMVP.setUniform("ourTexture1",(unsigned int)0);
     
     glm::mat4 proj;
     proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
@@ -608,9 +607,10 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
 
     glm::mat4 model(1.0f);
 
-    shaderDoubleTextureMVP.setUniform("projection", proj);
-    shaderDoubleTextureMVP.setUniform("view", view);
-    shaderDoubleTextureMVP.setUniform("model",model);
+    shaderTextureMVP.setUniform("projection", proj);
+    shaderTextureMVP.setUniform("view", view);
+    shaderTextureMVP.setUniform("model",model);
+    shaderTextureMVP.setUniform("aColor", glm::vec4(0.6));
     
     
     glm::vec3 cameraPos(0.0f,0.0f,3.0f);
@@ -635,22 +635,23 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
         // Background Fill Color
         glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        deltaTimer.updateDeltaTime();
         
 
         proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        shaderDoubleTextureMVP.setUniform("projection",proj);
+        shaderTextureMVP.setUniform("projection",proj);
         
 
         view = camera.GetViewMatrix();
-        shaderDoubleTextureMVP.setUniform("view",view);
+        shaderTextureMVP.setUniform("view",view);
 
 
         for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
             model = glm::mat4(1.0f);
             model = glm::translate(model, shapes::cubePositions[i]);
             model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
-            shaderDoubleTextureMVP.setUniform("model",model);
-            drawDoubleTexturedShape(VAO_T, EBO_T, shaderDoubleTextureMVP, 36, texture1, texture2);
+            shaderTextureMVP.setUniform("model",model);
+            cube.draw(shaderTextureMVP);
         }
         
 
@@ -816,6 +817,7 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
         // Background Fill Color
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        deltaTimer.updateDeltaTime();
         
 
         proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
@@ -1281,7 +1283,7 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
     
     
     
-    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_triangle_pyramid, 5*36, shapes::textured_triangle_pyramid_ind, 36);
+    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_triangle_pyramid, 5*36, shapes::triangle_pyramid_ind, 36);
     
     
 
@@ -1677,6 +1679,22 @@ void initMouse(GLFWwindow* mWindow){
     glfwSetCursorPosCallback(mWindow, mouse_callback);
     glfwSetScrollCallback(mWindow, scroll_callback);
 }
+LightingEnvironment initMPV(std::string vertexShaderPath, std::string fragmentShaderPath){
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+    glm::mat4 model(1.0f);
+
+    Shader object_shader(vertexShaderPath, fragmentShaderPath);
+    Shader light_shader(vertexShaderPath, fragmentShaderPath);
+    object_shader.use();
+    object_shader.setUniform("projection", proj);
+    object_shader.setUniform("view", view);
+    object_shader.setUniform("model",model);
+    LightingEnvironment lightingEnvironment{model,view,proj,object_shader,light_shader};
+    return lightingEnvironment;
+}
 LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT]){
     glm::mat4 proj;
     proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
@@ -1735,6 +1753,15 @@ LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], g
     light_shader.setUniform("model",model);
     light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
     return LightingEnvironment{model,view,proj,object_shader,light_shader};
+}
+void setupMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment){
+
+    lightingEnvironment.projection = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+    lightingEnvironment.view = camera.GetViewMatrix();
+
+    lightingEnvironment.object_shader.use();
+    lightingEnvironment.object_shader.setUniform("view",lightingEnvironment.view);
+    lightingEnvironment.object_shader.setUniform("projection",lightingEnvironment.projection);
 }
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights){
 
@@ -1807,9 +1834,11 @@ int mainCoords(int argc, char * argv[]){
     OpenGLShape lightShape((unsigned int) 36, (unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
     std::vector<unsigned int> objectSizes{3,3,2};
     OpenGLShape cubeShape((unsigned int) 36, (unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
-    OpenGLShape pyramidShape((unsigned int) 12, (unsigned int)12, shapes::normal_textured_triangle_pyramid, shapes::textured_triangle_pyramid_ind, objectSizes, diffuse_sampler_2d, true);
+    OpenGLShape pyramidShape((unsigned int) 12, (unsigned int)12, shapes::normal_textured_triangle_pyramid, shapes::triangle_pyramid_ind, objectSizes, diffuse_sampler_2d, true);
+    OpenGLShape octahedronShape((unsigned int) 24, (unsigned int)24, shapes::octahedron, shapes::octahedron_ind, objectSizes, diffuse_sampler_2d, false);
     
     
+    std::map<SHAPE_TYPE, OpenGLShape*> shapeTypes{{CUBE , &cubeShape}, {PYRAMID, &pyramidShape}, {OCTAHEDRON, &octahedronShape}};
     
     
     glm::vec3 light_positions[POINT_LIGHT_COUNT] = {
@@ -1832,6 +1861,7 @@ int mainCoords(int argc, char * argv[]){
     lightingEnvironment.object_shader.setUniform("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
     lightingEnvironment.object_shader.setUniform("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
     lightingEnvironment.object_shader.setUniform("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
+    glm::mat4 model(1.0f);
     
     
     
@@ -1878,7 +1908,7 @@ int mainCoords(int argc, char * argv[]){
 
                 // glm::vec3 scale = randScale(1.0f,maxScale);
                 glm::vec3 scale = rand_range_uniform(1.0f, maxScale)*glm::vec3(1.0f);
-                unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 1);
+                unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 2);
                 SHAPE_TYPE type;
                 switch (typeNum){
                     case 0:
@@ -1887,10 +1917,13 @@ int mainCoords(int argc, char * argv[]){
                     case 1:
                         type = PYRAMID;
                         break;
+                    case 2:
+                        type = OCTAHEDRON;
+                        break;
                 }
 
                 
-                lightingEnvironment.model = glm::mat4(1.0f);
+                model = glm::mat4(1.0f);
                 float xCoordScale = 50.0f;
                 float yCoordScale = 50.0f;
                 glm::vec3 scaledCoordinates(1.0f);
@@ -1901,16 +1934,16 @@ int mainCoords(int argc, char * argv[]){
                 scaledCoordinates.y = coords.y*yCoordScale;
                 scaledCoordinates.z = coords.z*zCoordScale;
                 scaledCoordinates.z += -zCoordScale+zCoordOffset-maxScale;
-                // lightingEnvironment.model = glm::rotate(lightingEnvironment.model, rotScale, rotAxis);
-                lightingEnvironment.model = glm::translate(lightingEnvironment.model, scaledCoordinates);
-                lightingEnvironment.model = glm::scale(lightingEnvironment.model, scale);
+                // model = glm::rotate(model, rotScale, rotAxis);
+                model = glm::translate(model, scaledCoordinates);
+                model = glm::scale(model, scale);
                 
 
                 
                 // Create and delete cubes
                 if(alarm.check()){
                         cubesChanged = true;
-                        ShapeProperties shape = ShapeProperties{lightingEnvironment.model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.0f, scaledCoordinates};
+                        ShapeProperties shape = ShapeProperties{model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.0f, scaledCoordinates};
                         cubeMatrices.push_front(shape);
                     if(!shapesFull) {
                         shapesFull = true;
@@ -1935,7 +1968,7 @@ int mainCoords(int argc, char * argv[]){
 
         }
         // Draw cubes
-        drawCubeMatrices(lightingEnvironment, frontToBack, cubeShape, pyramidShape, deltaTimer);        
+        drawCubeMatrices(lightingEnvironment, frontToBack, shapeTypes, deltaTimer);        
 
 
 
@@ -2029,7 +2062,7 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
     return forwardDistance(a.coords) < forwardDistance(b.coords);
 }
 
-void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer){
+void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
 
     lightingEnvironment.object_shader.setUniform("elapsedTime", (float)deltaTimer.getElapsedTime());
     // Draw cubes
@@ -2044,14 +2077,7 @@ void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<Shape
 
         lightingEnvironment.object_shader.setUniform("model", shape.model);
         lightingEnvironment.object_shader.setUniform("aColor", shape.color);
-        switch (shape.type){
-            case CUBE:
-                cubeShape.draw(lightingEnvironment.object_shader);
-                break;
-            case PYRAMID:
-                pyramidShape.draw(lightingEnvironment.object_shader);
-                break;
-        }
+        shapes[shape.type]->draw(lightingEnvironment.object_shader);
     }
     glDepthMask(true);
 }
@@ -2151,4 +2177,159 @@ std::vector<float> solve(std::vector<std::vector<float>> coefficients, std::vect
 		}
 	}
 	return constants;
+}
+
+int mainCoordsBasic(int argc, char * argv[]){
+    // Initialize OpenGL
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    Alarm alarm(SHAPE_INITIAL_SPAWN_TIME);
+    bool shapesFull = false;
+    
+    unsigned int diffuse_sampler_2d;
+    //create_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+    generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+
+
+    
+    
+    std::vector<unsigned int> objectSizes{3, 2};
+    OpenGLShape cubeShape((unsigned int) 36, (unsigned int)36, shapes::textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
+    OpenGLShape pyramidShape((unsigned int) 12, (unsigned int)12, shapes::textured_triangle_pyramid, shapes::triangle_pyramid_ind, objectSizes, diffuse_sampler_2d, true);
+    OpenGLShape octahedronShape((unsigned int) 24, (unsigned int)24, shapes::textured_octahedron, shapes::octahedron_ind, objectSizes, diffuse_sampler_2d, true);
+    
+    std::map<SHAPE_TYPE, OpenGLShape*> shapeTypes{{CUBE , &cubeShape}, {PYRAMID, &pyramidShape}, {OCTAHEDRON, &octahedronShape}};
+    
+    
+    
+    
+    
+    
+    LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+
+    lightingEnvironment.object_shader.use();
+    lightingEnvironment.object_shader.setUniform("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
+    lightingEnvironment.object_shader.setUniform("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
+    lightingEnvironment.object_shader.setUniform("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
+    lightingEnvironment.object_shader.setUniform("ourTexture1", (unsigned) 0);
+    glm::mat4 model(1.0f);
+    
+    
+    
+    
+    initMouse(mWindow);
+
+
+    
+    std::deque<ShapeProperties> cubeMatrices{};
+    
+    std::vector<ShapeProperties> frontToBack{};
+
+
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+        bool cubesChanged = false;
+        alarm.checkAndUpdate();
+
+        deltaTimer.updateDeltaTime();
+        // Background Fill Color
+        glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        
+        setupMPVEnvironmentToDraw(lightingEnvironment);
+
+
+
+        std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
+        
+        // Use emotion array to set properties of shapes
+        for(int i = 0; i < emotionArray.size(); i++){
+            std::vector<float> array = emotionArray[i];
+            glm::vec3 emotionRGB = emotionArrayToColor(array);
+            for (int j = 0; j < SHAPES_IN_BATCH; j++){
+
+                glm::vec3 coords = randCoords();
+                float maxScale = 10.0f;
+                glm::vec3 rotAxis = randCoords();
+                float rotScale = rand_range_uniform(0.0f, 1.0f);
+
+
+                // glm::vec3 scale = randScale(1.0f,maxScale);
+                glm::vec3 scale = rand_range_uniform(1.0f, maxScale)*glm::vec3(1.0f);
+                //scale = glm::vec3(1.0f);
+                unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 2);
+                SHAPE_TYPE type;
+                switch (typeNum){
+                    case 0:
+                        type = CUBE;
+                        break;
+                    case 1:
+                        type = PYRAMID;
+                        break;
+                    case 2:
+                        type = OCTAHEDRON;
+                        break;
+                }
+
+                
+                model = glm::mat4(1.0f);
+                float xCoordScale = 50.0f;
+                float yCoordScale = 50.0f;
+                glm::vec3 scaledCoordinates(1.0f);
+                float zCoordScale = 50.0f;
+                float afterZScale = 4.0f;
+                float zCoordOffset = -6.0f; //- 8.0f*(scale.x*scale.y*scale.z)/(glm::pow(maxScale,2.0f));
+                scaledCoordinates.x = coords.x*xCoordScale;
+                scaledCoordinates.y = coords.y*yCoordScale;
+                scaledCoordinates.z = coords.z*zCoordScale;
+                scaledCoordinates.z += -zCoordScale+zCoordOffset-maxScale;
+                model = glm::rotate(model, rotScale, rotAxis);
+                model = glm::translate(model, scaledCoordinates);
+                model = glm::scale(model, scale);
+                
+
+                
+                // Create and delete cubes
+                if(alarm.check()){
+                        cubesChanged = true;
+                        ShapeProperties shape = ShapeProperties{model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.0f, scaledCoordinates};
+                        cubeMatrices.push_front(shape);
+                    if(!shapesFull) {
+                        shapesFull = true;
+                        alarm.setWaitTime(SHAPE_SPAWN_TIME);
+                    }
+                }
+
+            }
+        }
+        // Delete cubes
+        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*6){
+            cubeMatrices.pop_back();
+        }
+
+        if (cubesChanged || true){
+            frontToBack = {};
+            for (ShapeProperties shape : cubeMatrices){
+                frontToBack.push_back(shape);
+            }
+            std::sort(frontToBack.begin(),frontToBack.end(),compareShapeForwardDistance);
+        }
+        // Draw cubes
+        drawCubeMatrices(lightingEnvironment, frontToBack, shapeTypes, deltaTimer);        
+
+
+
+        endRenderLoop(mWindow,deltaTimer,camera);
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+    
+    
 }

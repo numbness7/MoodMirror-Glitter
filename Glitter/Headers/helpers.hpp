@@ -12,6 +12,7 @@
 #include <model.hpp>
 #include <vector>
 #include <random>
+#include <tuple>
 
 
 // System Headers
@@ -34,8 +35,8 @@
 #define POINT_LIGHT_COUNT 4
 #define MAXIMUM_BATCHES 100
 #define SHAPES_IN_BATCH 10
-#define SHAPE_INITIAL_SPAWN_TIME 0.0216666666f
-#define SHAPE_SPAWN_TIME         0.0216666666f
+#define SHAPE_INITIAL_SPAWN_TIME 0.02516666666f
+#define SHAPE_SPAWN_TIME         0.02516666666f
 #define SHAPE_MAX_FADE 1.0f
 #define SMALL_FLOAT 0.00001f
 
@@ -94,7 +95,7 @@ class OpenGLShape {
 };
 
 // Enums
-enum SHAPE_TYPE { CUBE, PYRAMID};
+enum SHAPE_TYPE { CUBE, PYRAMID, OCTAHEDRON};
 
 // Structs
 
@@ -117,6 +118,7 @@ struct LightingEnvironment {
 
 // Main Programs
 int mainCoords(int argc, char * argv[]);
+int mainCoordsBasic(int argc, char * argv[]);
 int mainLight(int argc, char * argv[]);
 int mainTurning(int argc, char * argv[]);
 int mainCubes(int argc, char * argv[]);
@@ -127,7 +129,7 @@ int mainPathRectangle(int argc, char * argv[]);
 
 
 // Draw
-void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, OpenGLShape cubeShape, OpenGLShape pyramidShape, DeltaTimer deltaTimer);
+void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture);
@@ -155,6 +157,7 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
 
 
 // Initialization
+LightingEnvironment initMPV(std::string vertexShaderPath, std::string fragmentShaderPath);
 GLFWwindow* loadGLFWCreateWindow(int width, int height);
 bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height);
 int initOpenGL(GLFWwindow*& mWindow, int width, int height);
