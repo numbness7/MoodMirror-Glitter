@@ -66,20 +66,20 @@ void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader
     glBindVertexArray(0);
 }
 
-void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture){
+void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, unsigned int texture){
     shader.use();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture);
     glBindVertexArray(VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glDrawElements(GL_TRIANGLES, vert_cnt, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
-void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt){
+void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt){
     shader.use();
     glBindVertexArray(VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glDrawElements(GL_TRIANGLES, vert_cnt, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
 
@@ -98,6 +98,14 @@ void captureCursor(GLFWwindow* mWindow){
     glfwSetInputMode(mWindow, GLFW_CURSOR, mouseCaptured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
 }
 
+void processInputStatic(GLFWwindow* mWindow){
+    if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(mWindow, true);
+}
+void processInputViewStatic(GLFWwindow* mWindow, float deltatime){
+    if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(mWindow, true);
+}
 void processInput(GLFWwindow* mWindow, Camera& camera, float deltatime){
 
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -476,7 +484,7 @@ int mainGenerateTexturesCubes(int argc, char * argv[]){
     // Initialize OpenGL
     int return_status = EXIT_SUCCESS;
     GLFWwindow*  mWindow; 
-initOpenGL(mWindow, return_status, mWidth, mHeight);
+    initOpenGL(mWindow, return_status, mWidth, mHeight);
     if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
@@ -1648,7 +1656,27 @@ glm::vec3 emotionArrayToColor(std::vector<float> array0){
     float blue  =   0.5f + (surprise - sadness)/2;
     return glm::vec3(red,green,blue);
 }
-SHAPE_TYPE emotionArrayToShapeType(std::vector<float> array0){
+SHAPE_TYPE_2D emotionArrayToShapeType2D(std::vector<float> array0){
+    float fear      = array0[0];
+    float anger     = array0[1];
+    float sadness   = array0[2];
+    float disgust   = array0[3];
+    float happiness = array0[4];
+    float surprise  = array0[5];
+    float tri = anger + surprise;
+    float square = disgust + fear;
+    float circ = sadness + happiness;
+    if(circ > tri && circ > square){
+        return CIRCLE;
+    }
+    else if(tri > circ && tri > square){
+        return TRIANGLE;
+    }
+    else {
+        return SQUARE;
+    }
+}
+SHAPE_TYPE_3D emotionArrayToShapeType3D(std::vector<float> array0){
     float fear      = array0[0];
     float anger     = array0[1];
     float sadness   = array0[2];
@@ -1704,6 +1732,18 @@ glm::vec3 emotionArrayToVec3(std::vector<float> array0)
     float y = happiness - anger;
     float z = surprise - sadness;
     return glm::vec3(x,y,z);
+}
+glm::vec2 emotionArrayToVec2(std::vector<float> array0)
+{
+    float fear      = array0[0];
+    float anger     = array0[1];
+    float sadness   = array0[2];
+    float disgust   = array0[3];
+    float happiness = array0[4];
+    float surprise  = array0[5];
+    float x = disgust + happiness - surprise - fear;
+    float y = sadness - anger;
+    return glm::vec2(x,y);
 }
 void initMouse(GLFWwindow* mWindow){
     glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -1830,13 +1870,13 @@ OpenGLShape::OpenGLShape(unsigned int vert_cnt, unsigned int ind_cnt, const floa
     this->vert_cnt = vert_cnt;
     this->texture = texture;
     this->hasTexture = hasTexture;
-    create_a_shape(this->VAO, this->VBO, this->EBO, this->vert_cnt, this->ind_cnt, &vertices[0], &indices[0], attributeSizes);
+    create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, this->vert_cnt, &vertices[0], &indices[0], attributeSizes);
 }
 void OpenGLShape::draw(Shader shader){
     if(hasTexture)
-        drawTexturedShape(VAO, EBO, shader, vert_cnt, texture);
+        drawTexturedShape(VAO, EBO, shader, ind_cnt, texture);
     else
-        drawShape(VAO, EBO, shader, vert_cnt);
+        drawShape(VAO, EBO, shader, ind_cnt);
 }
 
 bool cmpShape(const ShapeProperties& a, const ShapeProperties& b){
@@ -1869,7 +1909,7 @@ int mainCoords(int argc, char * argv[]){
     OpenGLShape octahedronShape((unsigned int) 24, (unsigned int)24, shapes::octahedron, shapes::octahedron_ind, objectSizes, diffuse_sampler_2d, false);
     
     
-    std::map<SHAPE_TYPE, OpenGLShape*> shapeTypes{{CUBE , &cubeShape}, {PYRAMID, &pyramidShape}, {OCTAHEDRON, &octahedronShape}};
+    std::map<SHAPE_TYPE_3D, OpenGLShape*> shapeTypes{{CUBE , &cubeShape}, {PYRAMID, &pyramidShape}, {OCTAHEDRON, &octahedronShape}};
     
     
     glm::vec3 light_positions[POINT_LIGHT_COUNT] = {
@@ -1940,7 +1980,7 @@ int mainCoords(int argc, char * argv[]){
                 // glm::vec3 scale = randScale(1.0f,maxScale);
                 glm::vec3 scale = rand_range_uniform(1.0f, maxScale)*glm::vec3(1.0f);
                 unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 2);
-                SHAPE_TYPE type;
+                SHAPE_TYPE_3D type;
                 switch (typeNum){
                     case 0:
                         type = CUBE;
@@ -2093,7 +2133,41 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
     return forwardDistance(a.coords) < forwardDistance(b.coords);
 }
 
-void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
+void drawCubeMatrices2D(LightingEnvironment lightingEnvironment, std::queue<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
+
+    glDepthMask(false);
+    lightingEnvironment.object_shader.setUniform("elapsedTime", (float)deltaTimer.getElapsedTime());
+    std::stack<ShapeProperties2D> shapePropsStack{};
+    std::queue<ShapeProperties2D> shapePropsQueue{};
+    while (!cubeMatrices.empty()){
+        ShapeProperties2D shape = cubeMatrices.front();
+        shapePropsStack.push(shape);
+        shapePropsQueue.push(shape);
+        cubeMatrices.pop();
+    }
+    // Draw cubes
+    while( !shapePropsStack.empty()){
+        ShapeProperties2D shape = shapePropsStack.top();
+        lightingEnvironment.object_shader.setUniform("creationDate", (float)shape.creationTimeStamp);
+       // float distance = fade;
+       // glm::vec3 normDir(1.0f,0.0f,0.0f);
+       // model = glm::translate(model, ((10.0f*distance)*normDir)-10.0f*normDir);
+
+
+
+        lightingEnvironment.object_shader.setUniform("model", shape.model);
+        lightingEnvironment.object_shader.setUniform("aColor", shape.color);
+        shapes[shape.type]->draw(lightingEnvironment.object_shader);
+        shapePropsStack.pop();
+    }
+    while (!shapePropsQueue.empty()){
+        ShapeProperties2D shape = shapePropsQueue.front();
+        cubeMatrices.push(shape);
+        shapePropsQueue.pop();
+    }
+    glDepthMask(true);
+}
+void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
 
     lightingEnvironment.object_shader.setUniform("elapsedTime", (float)deltaTimer.getElapsedTime());
     // Draw cubes
@@ -2118,6 +2192,16 @@ void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera){
     glfwPollEvents();
     std::cout << "FPS: " << 1/deltaTimer.getDeltaTime() << std::endl;
     processInput(mWindow, camera, deltaTimer.getDeltaTime());
+}
+void endRenderLoopViewStatic(GLFWwindow*& mWindow, DeltaTimer deltaTimer){
+    glfwSwapBuffers(mWindow);
+    glfwPollEvents();
+    processInputViewStatic(mWindow, deltaTimer.getDeltaTime());
+}
+void endRenderLoopStatic(GLFWwindow*& mWindow){
+    glfwSwapBuffers(mWindow);
+    glfwPollEvents();
+    processInputStatic(mWindow);
 }
 
 std::string to_string(std::vector<std::vector<float>> coefficients){
@@ -2232,7 +2316,7 @@ int mainCoordsBasic(int argc, char * argv[]){
     OpenGLShape pyramidShape((unsigned int) 12, (unsigned int)12, shapes::textured_triangle_pyramid, shapes::triangle_pyramid_ind, objectSizes, diffuse_sampler_2d, true);
     OpenGLShape octahedronShape((unsigned int) 24, (unsigned int)24, shapes::textured_octahedron, shapes::octahedron_ind, objectSizes, diffuse_sampler_2d, true);
     
-    std::map<SHAPE_TYPE, OpenGLShape*> shapeTypes{{CUBE , &cubeShape}, {PYRAMID, &pyramidShape}, {OCTAHEDRON, &octahedronShape}};
+    std::map<SHAPE_TYPE_3D, OpenGLShape*> shapeTypes{{CUBE , &cubeShape}, {PYRAMID, &pyramidShape}, {OCTAHEDRON, &octahedronShape}};
     
     
     
@@ -2288,7 +2372,7 @@ int mainCoordsBasic(int argc, char * argv[]){
             glm::vec3 coords = emotionArrayToVec3(array);
             glm::vec3 rotAxis = emotionArrayToVec3(array);
             float rotScale = rand_range_uniform(0.0f, 1.0f);
-            SHAPE_TYPE type = emotionArrayToShapeType(array);
+            SHAPE_TYPE_3D type = emotionArrayToShapeType3D(array);
             for (int j = 0; j < SHAPES_IN_BATCH; j++){
 
                 float maxScale = 2.0f;
@@ -2376,7 +2460,7 @@ int mainCoordsBasicStream(int argc, char * argv[]){
     OpenGLShape pyramidShape((unsigned int) 12, (unsigned int)12, shapes::textured_triangle_pyramid, shapes::triangle_pyramid_ind, objectSizes, diffuse_sampler_2d, true);
     OpenGLShape octahedronShape((unsigned int) 24, (unsigned int)24, shapes::textured_octahedron, shapes::octahedron_ind, objectSizes, diffuse_sampler_2d, true);
     
-    std::map<SHAPE_TYPE, OpenGLShape*> shapeTypes{{CUBE , &cubeShape}, {PYRAMID, &pyramidShape}, {OCTAHEDRON, &octahedronShape}};
+    std::map<SHAPE_TYPE_3D, OpenGLShape*> shapeTypes{{CUBE , &cubeShape}, {PYRAMID, &pyramidShape}, {OCTAHEDRON, &octahedronShape}};
     
     
     
@@ -2438,7 +2522,7 @@ int mainCoordsBasicStream(int argc, char * argv[]){
                 // glm::vec3 scale = randScale(1.0f,maxScale);
                 //scale = glm::vec3(1.0f);
                 unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 2);
-                SHAPE_TYPE type;
+                SHAPE_TYPE_3D type;
                 switch (typeNum){
                     case 0:
                         type = CUBE;
@@ -2505,4 +2589,202 @@ int mainCoordsBasicStream(int argc, char * argv[]){
     return EXIT_SUCCESS;
     
     
+}
+int mainCoordsBasic2D(int argc, char * argv[]){
+    // Initialize OpenGL
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    Alarm alarm(SHAPE_INITIAL_SPAWN_TIME);
+    bool shapesFull = false;
+    
+    unsigned int diffuse_sampler_2d;
+    //create_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+    generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+
+
+    
+    
+    std::vector<unsigned int> objectSizes{3};
+    OpenGLShape square((unsigned int) 4, (unsigned int)6, shapes::rect, shapes::rect_ind, objectSizes, diffuse_sampler_2d, false);
+    OpenGLShape triangle((unsigned int) 3, (unsigned int)3, shapes::r_tri, shapes::r_tri_ind, objectSizes, diffuse_sampler_2d, false);
+    OpenGLShape circle = create_circle(16);
+    
+    std::map<SHAPE_TYPE_2D, OpenGLShape*> shapeTypes{{SQUARE , &square}, {TRIANGLE, &triangle}, {CIRCLE, &circle}};
+    
+    
+    
+    
+    
+    
+    LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/mvp-color.vs", "Glitter/Shaders/mvp-color.fs");
+
+    lightingEnvironment.object_shader.use();
+    lightingEnvironment.object_shader.setUniform("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
+    lightingEnvironment.object_shader.setUniform("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
+    lightingEnvironment.object_shader.setUniform("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
+    //lightingEnvironment.object_shader.setUniform("ourTexture1", (unsigned) 0);
+    glm::mat4 model(1.0f);
+    
+    
+    
+    
+    // initMouse(mWindow);
+
+
+    
+    std::queue<ShapeProperties2D> cubeMatrices{};
+    
+
+
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+        bool cubesChanged = false;
+        alarm.checkAndUpdate();
+
+        deltaTimer.updateDeltaTime();
+        // Background Fill Color
+        glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        
+        setupMPVEnvironmentToDraw(lightingEnvironment);
+
+
+
+        std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
+        
+        // Use emotion array to set properties of shapes
+        for(int i = 0; i < emotionArray.size(); i++){
+            std::vector<float> array = emotionArray[i];
+            glm::vec3 emotionRGB = emotionArrayToColor(array);
+            glm::vec2 coords2D = emotionArrayToVec2(array);
+            glm::vec3 coords = glm::vec3(coords2D.x, coords2D.y, 0.0f);
+            glm::vec3 rotAxis = glm::vec3(0.0f,0.0f,-1.0f);
+            float rotScale = rand_range_uniform(0.0f, 1.0f);
+            SHAPE_TYPE_2D type = emotionArrayToShapeType2D(array);
+            for (int j = 0; j < SHAPES_IN_BATCH; j++){
+
+                float maxScale = 1.0f;
+                glm::vec3 scale = rand_range_uniform(1.0f,maxScale) * glm::vec3(1.0f);
+                scale = maxScale * glm::vec3(1.0f);
+                
+                coords += 0.25f*randCoords();
+                coords = randCoords();
+                coords.z = 0.0f;
+
+
+                
+                model = glm::mat4(1.0f);
+                float xCoordScale = 2.0f;
+                float yCoordScale = 2.0f;
+                glm::vec3 scaledCoordinates(1.0f);
+                scaledCoordinates.x = coords.x*xCoordScale;
+                scaledCoordinates.y = coords.y*yCoordScale;
+                model = glm::translate(model, scaledCoordinates);
+                model = glm::scale(model, scale);
+                model = glm::rotate(model, rotScale, rotAxis);
+                
+
+                
+                // Create and delete cubes
+                if(alarm.check()){
+                        cubesChanged = true;
+                        ShapeProperties2D shape = ShapeProperties2D{model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.0f, scaledCoordinates};
+                        cubeMatrices.push(shape);
+                    if(!shapesFull) {
+                        shapesFull = true;
+                        alarm.setWaitTime(SHAPE_SPAWN_TIME);
+                    }
+                }
+
+            }
+        }
+        // Delete cubes
+        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*6){
+            cubeMatrices.pop();
+        }
+
+        // Draw cubes
+        drawCubeMatrices2D(lightingEnvironment, cubeMatrices, shapeTypes, deltaTimer);
+
+
+
+        endRenderLoop(mWindow,deltaTimer,camera);
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+    
+    
+}
+
+int mainDrawRectangle(int argc, char* argv[]){
+    
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    Shader colorShader("Glitter/Shaders/color.vs", "Glitter/Shaders/color.fs");
+    colorShader.use();
+    colorShader.setUniform("aColor", glm::vec4(1.0f,0.0f,0.0f,0.7f));
+    OpenGLShape rectangle((unsigned) 4, (unsigned) 6, shapes::rect, shapes::rect_ind, std::vector<unsigned> {3}, 0, false);
+    DeltaTimer deltaTimer{};
+    
+    
+    while(!glfwWindowShouldClose(mWindow)){
+        glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        deltaTimer.updateDeltaTime();
+        colorShader.setUniform("aColor", glm::vec4(glm::sin(deltaTimer.getElapsedTime()),glm::sin(deltaTimer.getElapsedTime()*2.0f),glm::sin(deltaTimer.getElapsedTime()*3.0f),0.7f));
+        rectangle.draw(colorShader);
+        endRenderLoopViewStatic(mWindow, deltaTimer);
+    
+    } glfwTerminate();
+    
+    return EXIT_SUCCESS;
+    
+}
+OpenGLShape create_circle(unsigned int tri_cnt){
+
+
+    std::vector<float> circle{};
+    std::vector<unsigned> ind{};
+    unsigned int index = 0;
+
+    for(unsigned int tri = 0; tri < tri_cnt; tri++){
+       
+        
+        for(int vi = 0; vi<3;vi++){
+
+            glm::vec3 vert;
+            if(vi > 0){
+                glm::mat4 transform(1.0f);
+                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
+                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
+                glm::vec3 radius_vec(0.5f,0.0f,0.0f);
+                glm::vec4 radius_vec4(radius_vec,1.0f);
+                radius_vec4 = transform * radius_vec4;
+                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
+            }
+            else{
+                vert = glm::vec3(0.0f,0.0f,0.0f);
+            }
+            circle.push_back(vert.x);
+            circle.push_back(vert.y);
+            circle.push_back(vert.z);
+            
+            for(unsigned int i = 0; i<3; i++){
+                ind.push_back(index);
+                index++;
+            }
+        }
+    }
+    
+    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3}, (unsigned) 0, false);
+    
+
 }

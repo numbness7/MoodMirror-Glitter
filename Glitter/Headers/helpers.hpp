@@ -13,6 +13,8 @@
 #include <vector>
 #include <random>
 #include <tuple>
+#include <queue>
+#include <stack>
 
 
 // System Headers
@@ -33,10 +35,10 @@
 
 // Header Macros
 #define POINT_LIGHT_COUNT 4
-#define MAXIMUM_BATCHES 500
+#define MAXIMUM_BATCHES 100
 #define SHAPES_IN_BATCH  10
-#define SHAPE_INITIAL_SPAWN_TIME 0.01216666666f
-#define SHAPE_SPAWN_TIME         0.01216666666f
+#define SHAPE_INITIAL_SPAWN_TIME 0.1216666666f
+#define SHAPE_SPAWN_TIME         0.1216666666f
 #define SORT_TIME 0.25f
 #define SHAPE_MAX_FADE 1.0f
 #define SMALL_FLOAT 0.00001f
@@ -96,14 +98,23 @@ class OpenGLShape {
 };
 
 // Enums
-enum SHAPE_TYPE { CUBE, PYRAMID, OCTAHEDRON};
+enum SHAPE_TYPE_3D { CUBE, PYRAMID, OCTAHEDRON};
+enum SHAPE_TYPE_2D { TRIANGLE, SQUARE, CIRCLE};
 
 // Structs
 
 struct ShapeProperties {
     glm::mat4 model;
     glm::vec4 color;
-    SHAPE_TYPE type;
+    SHAPE_TYPE_3D type;
+    float creationTimeStamp;
+    float fadeTime;
+    glm::vec3 coords;
+};
+struct ShapeProperties2D {
+    glm::mat4 model;
+    glm::vec4 color;
+    SHAPE_TYPE_2D type;
     float creationTimeStamp;
     float fadeTime;
     glm::vec3 coords;
@@ -118,8 +129,11 @@ struct LightingEnvironment {
 };
 
 // Main Programs
+int mainDrawRectangle(int argc, char* argv[]);
 int mainCoords(int argc, char * argv[]);
 int mainCoordsBasic(int argc, char * argv[]);
+int mainCoordsBasic2D(int argc, char * argv[]);
+int mainCoordsBasicStream(int argc, char * argv[]);
 int mainLight(int argc, char * argv[]);
 int mainTurning(int argc, char * argv[]);
 int mainCubes(int argc, char * argv[]);
@@ -130,12 +144,12 @@ int mainPathRectangle(int argc, char * argv[]);
 
 
 // Draw
-void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
+void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
-void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt);
-void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture);
+void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt);
+void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, unsigned int texture);
 void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2);
-
+void drawCubeMatrices2D(LightingEnvironment lightingEnvironment, std::queue<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 
 // Create
 void create_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
@@ -189,7 +203,8 @@ int findAShape(const ShapeProperties& shapeToDelete, const std::vector<ShapeProp
 bool deleteAShape(std::vector<ShapeProperties>& shapesBackToFront, std::deque<ShapeProperties>& cubeMatrices);
 
 glm::vec3 emotionArrayToColor(std::vector<float> array0);
-SHAPE_TYPE emotionArrayToShapeType(std::vector<float> array0);
+SHAPE_TYPE_3D emotionArrayToShapeType3D(std::vector<float> array0);
+SHAPE_TYPE_2D emotionArrayToShapeType2D(std::vector<float> array0);
 std::string vec3ToString(glm::vec3 vec3);
 std::string vec4ToString(glm::vec4 vec4);
 
@@ -214,4 +229,7 @@ std::vector<float> vec3ToVector(glm::vec3 a);
 
 bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties& b);
 bool compareZDistance(const ShapeProperties& a, const ShapeProperties& b);
+void endRenderLoopStatic(GLFWwindow*& mWindow);
+void endRenderLoopViewStatic(GLFWwindow*& mWindow, DeltaTimer deltaTimer);
+OpenGLShape create_circle(unsigned int tri_cnt);
 #endif
