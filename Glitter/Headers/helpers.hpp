@@ -14,7 +14,8 @@
 #include <tuple>
 #include <queue>
 #include <stack>
-
+#include <numbers>
+#include <color.hpp>
 
 // System Headers
 #include <glad/glad.h>
@@ -34,18 +35,29 @@
 
 // Header Macros
 #define POINT_LIGHT_COUNT 4
-#define MAXIMUM_BATCHES 250
-#define SHAPES_IN_BATCH  15
-#define MID_LAYER 10
+#define MAXIMUM_BATCHES 100
+#define SHAPES_IN_BATCH  25
+#define MID_LAYER 25   
 #define SHAPE_INITIAL_SPAWN_TIME 0.001f
 #define SHAPE_SPAWN_TIME         0.01f
 #define BATCHES_SHARE_EMOTION 1
-#define DESTRUCTION_TIME  0.10f
+#define DESTRUCTION_TIME  0.1f
 #define SORT_TIME 0.25f
 #define SHAPE_MAX_FADE 1.0f
 #define SHAPE_MIN_FADE 0.0f
 #define SMALL_FLOAT 0.00001f
 #define DO_SCALE true
+#define MAX_SCALE 100.0f
+#define MIN_SCALE 0.00f
+#define AVE_SCALE 0.25f
+#define DEV_SCALE 0.25f
+#define AVE_ALPHA 1.0f
+#define DEV_ALPHA 0.5f
+#define MIN_ALPHA 0.5f
+#define MAX_ALPHA 0.5f
+#define SCATTER_TO_EMOTION_COORD_RATIO 1.0f
+#define SCATTER_COORD_SCALE 1.00f
+#define EMOTION_COORD_SCALE 1.00f
 
 // Classes
 class DeltaTimer{
@@ -93,6 +105,7 @@ class OpenGLShape {
     public:
         OpenGLShape(unsigned int vert_cnt, unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture);
         void draw(Shader shader);
+        void setTexture(unsigned const int texture){ this->texture = texture; }
     private:
         bool hasTexture;
         unsigned int VAO;
@@ -150,13 +163,13 @@ int mainPathRectangle(int argc, char * argv[]);
 
 
 // Draw
+void drawCubeMatrices2DScale(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
+void drawCubeMatrices2DFade(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
 void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, unsigned int texture);
 void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2);
-void drawCubeMatrices2DScale(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
-void drawCubeMatrices2DFade(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
 
 // Create
 void create_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
@@ -185,6 +198,9 @@ bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height)
 int initOpenGL(GLFWwindow*& mWindow, int width, int height);
 void initMouse(GLFWwindow* mWindow);
 LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT]);
+// Start
+void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment);
+void minimumStartRenderLoop(DeltaTimer& deltaTimer);
 // End
 void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera);
 // Input
@@ -242,4 +258,15 @@ OpenGLShape create_circle(unsigned int tri_cnt);
 
 float clamp(const float x, const float min, const float max);
 float calcFade(float destructionTimePassed, float destructionTime, int maxLayer, int layer);
+float emotionArrayToRotation(std::vector<float> array0);
+unsigned int create_texture(std::string texture_filepath, std::string filetype);
+unsigned char* initializePNGTextureData(int width, int height, int nrChannels);
+void freePNGTextureData(unsigned char* data);
+unsigned int generateTextureSpecified(int width, int height, int nrChannels, std::string filetype);
+void generatePNGData(unsigned char* data, int width, int height, int nrChannels);
+unsigned int useTextureDataToCreateTexture(unsigned char* data, int width, int height, std::string filetype);
+bool isOnBorder(int width, int height, int row, int col, int hThickness, int vThickness);
+unsigned char getBorderCheckColor(int width, int height, int row, int col, int hThickness, int vThickness);
+void generatePNGBorder(unsigned char* data, int width, int height, int nrChannels, int hThickness, int vThickness);
+unsigned int obtainPNGBorder(int width, int height, int nrChannels, int hThickness, int vThickness);
 #endif

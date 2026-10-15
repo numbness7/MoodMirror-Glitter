@@ -50,9 +50,11 @@ add_executable(${PROJECT_NAME}
     Glitter/Headers/shader.hpp
     Glitter/Sources/stb_image.cpp
     Glitter/Headers/shapes.hpp
-    Glitter/Sources/shapes.cpp)
+    Glitter/Sources/shapes.cpp
+    Glitter/Headers/color.hpp
+    Glitter/Sources/color.cpp)
 
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W4>

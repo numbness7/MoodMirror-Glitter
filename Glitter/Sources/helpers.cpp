@@ -333,41 +333,189 @@ void create_colored_textued_shape(unsigned int &VAO, unsigned int &VBO, unsigned
         glEnableVertexAttribArray(2);
     }
 
+unsigned int generate_texture(std::string texture_filepath, std::string filetype){
+    unsigned int texture;
+    generate_texture(texture, texture_filepath, filetype);
+    return texture;
+}
+unsigned char* initializePNGTextureData(int width, int height, int nrChannels){
+    unsigned char* data = (unsigned char*)malloc(sizeof(unsigned char)*width*height*nrChannels);
+    return data;
+}
+void freePNGTextureData(unsigned char* data){
+    free(data);
+}
+unsigned int generateTextureSpecified(int width, int height, int nrChannels, std::string filetype){
+    unsigned char* data = initializePNGTextureData(width, height, nrChannels);
+    generatePNGData(data, width, height, nrChannels);
+    unsigned int texture = useTextureDataToCreateTexture(data, width, height, filetype);
+    freePNGTextureData(data);
+    return texture;
+}
+bool isOnBorder(int width, int height, int row, int col, int hThickness, int vThickness){
+    return col < hThickness || col > width - (hThickness + 1) || row < vThickness || row > height - (vThickness + 1);
+}
+unsigned char getBorderCheckColor(int width, int height, int row, int col, int hThickness, int vThickness){
+    if (isOnBorder(width, height, row, col, hThickness, vThickness)) return cdata::FULL_COLOR;
+    else return cdata::EMPTY_COLOR; 
+
+}
+class PngDataIterator{
+    public:
+        PngDataIterator(int width, int height, int nrChannels) : width{width},  height{height}, nrChannels{nrChannels} {
+            row = 0;
+            col = 0;
+            channel = 0;
+        }
+        void iterate(){
+            if(channel < nrChannels) channel++;
+            else{
+                channel = 0;
+                if(col < width) col++;
+                else {
+                    col = 0;
+                    if(row < height) row++;
+                }
+            }
+        }
+        bool isNotDone(){
+            return row < height;
+        }
+        int index(){
+            return row*width*nrChannels+col*nrChannels+channel;
+        }
+        void setChannelByte(const int channel, const unsigned char& sourceByte, unsigned char& destinationByte){
+            if(channel == this->channel) destinationByte = sourceByte;
+        }
+        static const int redChannel = 0;
+        static const int blueChannel = 1;
+        static const int greenChannel = 2;
+        static const int alphaChannel = 3;
+        const int width;
+        const int height;
+        const int nrChannels;
+        bool done = false;
+        int row;
+        int col;
+        int channel;
+};
+void generatePNGBorder(unsigned char* data, int width, int height, int nrChannels, int hThickness, int vThickness){
+    for(PngDataIterator pDI(width, height, nrChannels); pDI.isNotDone(); pDI.iterate()){
+        pDI.setChannelByte( PngDataIterator::redChannel, getBorderCheckColor(width, height, pDI.row, pDI.col, hThickness, vThickness), data[pDI.index()]);
+        pDI.setChannelByte( PngDataIterator::alphaChannel, getBorderCheckColor(width, height, pDI.row, pDI.col, hThickness, vThickness), data[pDI.index()]);
+    }
+}
+unsigned int obtainPNGBorder(int width, int height, int nrChannels, int hThickness, int vThickness){
+    auto data = initializePNGTextureData(width, height, nrChannels);
+    generatePNGBorder(data, width, height, nrChannels, hThickness, vThickness);
+    unsigned texture = useTextureDataToCreateTexture(data, width, height, "png");
+    freePNGTextureData(data);
+    return texture;
+}
+void generatePNGData(unsigned char* data, int width, int height, int nrChannels){
+    std::cout << "W: " << width << ", H: " << height << ", N: " << nrChannels << std::endl;
+    static const unsigned int size = 0xFF;
+    std::cout << "S: " << size << std::endl;
+
+    unsigned int stepsToIncrementRed;
+    if (height % size != 0)
+        stepsToIncrementRed = height/(size) + 1;
+    else
+        stepsToIncrementRed = height/(size);
+    std::cout << "STIR: " << stepsToIncrementRed << std::endl;
+    unsigned int stepsToIncrementAlpha;
+    if (width % size != 0)
+        stepsToIncrementAlpha = width/(size) + 1;
+    else
+        stepsToIncrementAlpha = width/(size);
+    unsigned char red = 0;
+    unsigned int other = 0;
+    
+    for(int row = 0; row < height; row+=1){
+        if (row % stepsToIncrementRed == 0) red++;
+        if (row % stepsToIncrementRed == 0) other++;
+        unsigned char alpha = 0;
+        for(int col = 0; col < width*nrChannels; col+=nrChannels){
+            if(col % stepsToIncrementAlpha == 0) alpha++;
+
+            for(int channel = 0; channel < nrChannels; channel++){
+                if(channel == 0) // Red
+                    data[row*width*nrChannels+col+channel] = red;
+                if(channel == 1) // Green
+                    data[row*width*nrChannels+col+channel] = red;
+                if(channel == 2) // Blue
+                    data[row*width*nrChannels+col+channel] = red;
+                if(channel == 3) // Don't know
+                    data[row*width*nrChannels+col+channel] = alpha;
+            }
+        }
+    }
+    std::cout << "O: " << other << std::endl;
+}
+unsigned int useTextureDataToCreateTexture(unsigned char* data, int width, int height, std::string filetype){
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    
+    glBindTexture(GL_TEXTURE_2D, texture);
+    
+    if (data){
+        if(filetype == "png")
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        else {
+            throw std::runtime_error("Bad file type: " + filetype);
+        }
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    return texture;
+}
 void generate_texture(unsigned int &texture, std::string texture_filepath, std::string filetype){
     int width, height, nrChannels;
 
     stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
-    if(filetype=="jpg"){
-        for(int i = 0; i < height; i+=1){
-            for(int j = 0; j < width*3; j+=1){
-                for(int color = 0; color < 3; color++){
-                    if(color == 0)
-                        data[i*width*3+j+color] = 0xFF;
-                    if(color == 1)
-                        data[i*width*3+j+color] = 0xFF;
-                    if(color == 2)
-                        data[i*width*3+j+color] = 0xFF;
-                }
+    std::cout << "W: " << width << ", H: " << height << ", N: " << nrChannels << std::endl;
+    static const unsigned int size = 0xFF;
+    std::cout << "S: " << size << std::endl;
+
+    unsigned int stepsToIncrementRed;
+    if (height % size != 0)
+        stepsToIncrementRed = height/(size) + 1;
+    else
+        stepsToIncrementRed = height/(size);
+    std::cout << "STIR: " << stepsToIncrementRed << std::endl;
+    unsigned int stepsToIncrementAlpha;
+    if (width % size != 0)
+        stepsToIncrementAlpha = width/(size) + 1;
+    else
+        stepsToIncrementAlpha = width/(size);
+    unsigned char red = 0;
+    unsigned int other = 0;
+    
+    for(int row = 0; row < height; row+=1){
+        if (row % stepsToIncrementRed == 0) red++;
+        if (row % stepsToIncrementRed == 0) other++;
+        unsigned char alpha = 0;
+        for(int col = 0; col < width*nrChannels; col+=nrChannels){
+            if(col % stepsToIncrementAlpha == 0) alpha++;
+
+            for(int channel = 0; channel < nrChannels; channel++){
+                if(channel == 0) // Red
+                    data[row*width*nrChannels+col+channel] = red;
+                if(channel == 1) // Green
+                    data[row*width*nrChannels+col+channel] = red;
+                if(channel == 2) // Blue
+                    data[row*width*nrChannels+col+channel] = red;
+                if(channel == 3) // Don't know
+                    data[row*width*nrChannels+col+channel] = alpha;
             }
         }
     }
-    else if(filetype=="png"){
-        for(int i = 0; i < height; i+=1){
-            for(int j = 0; j < width*4; j+=4){
-                for(int color = 0; color < 4; color++){
-                    if(color == 0) // Red
-                        data[i*width*4+j+color] = 0xFF;
-                    if(color == 1) // Green
-                        data[i*width*4+j+color] = 0xFF;
-                    if(color == 2) // Blue
-                        data[i*width*4+j+color] = 0xFF;
-                    if(color == 3) // Don't know
-                        data[i*width*4+j+color] = 0xFF;
-                }
-            }
-        }
-    }
+    std::cout << "O: " << other << std::endl;
 
     glGenTextures(1, &texture);
     
@@ -379,10 +527,8 @@ void generate_texture(unsigned int &texture, std::string texture_filepath, std::
     glBindTexture(GL_TEXTURE_2D, texture);
     
     if (data){
-        if(filetype == "jpg")
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-        else if(filetype == "png")
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        if(filetype == "png")
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
         else {
             throw std::runtime_error("Bad file type: " + filetype);
         }
@@ -392,6 +538,11 @@ void generate_texture(unsigned int &texture, std::string texture_filepath, std::
         throw std::runtime_error("Failed to load texture: " + std::string(texture_filepath));
     }
     stbi_image_free(data);
+}
+unsigned int create_texture(std::string texture_filepath, std::string filetype){
+    unsigned int texture;
+    create_texture(texture, texture_filepath, filetype);
+    return texture;
 }
 
 void create_texture(unsigned int &texture, std::string texture_filepath, std::string filetype){
@@ -411,7 +562,7 @@ void create_texture(unsigned int &texture, std::string texture_filepath, std::st
         if(filetype == "jpg")
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
         else if(filetype == "png")
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
         else {
             throw std::runtime_error("Bad file type: " + filetype);
         }
@@ -1573,9 +1724,19 @@ glm::vec2 emotionArrayToVec2(std::vector<float> array0)
     float disgust   = array0[3];
     float happiness = array0[4];
     float surprise  = array0[5];
-    float x = disgust + happiness - surprise - fear;
-    float y = sadness - anger;
+    float x = ((surprise + anger + happiness) - (disgust + fear + sadness))/3.0f;
+    float y = ((surprise + disgust + happiness) - (anger + fear + sadness))/3.0f;
     return glm::vec2(x,y);
+}
+float emotionArrayToRotation(std::vector<float> array0)
+{
+    float fear      = array0[0];
+    float anger     = array0[1];
+    float sadness   = array0[2];
+    float disgust   = array0[3];
+    float happiness = array0[4];
+    float surprise  = array0[5];
+    return (anger + sadness + fear + happiness + surprise + disgust)/6.0f;
 }
 void initMouse(GLFWwindow* mWindow){
     glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -1986,8 +2147,19 @@ void drawCubeMatrices2DScale(LightingEnvironment lightingEnvironment, std::deque
         //float fade = calcFade(destructionAlarm.getPassedTime(),destructionAlarm.getWaitTime(),maxLayer,layer);
         lightingEnvironment.object_shader.setUniformI("layer", layer);
         glm::mat4 model(1.0f);
-        model = glm::translate(model, shape.coords);
         float fade = calcFade(destructionAlarm.getPassedTime(), destructionAlarm.getWaitTime(), maxLayer, layer);
+        //glm::vec4 UP(0.0f, 1.0f, 0.0f, 0.0f);
+        //glm::mat4 rotationMat(1.0f);
+        //rotationMat = glm::rotate(rotationMat, shape.rotation, glm::vec3(0.0f,0.0f,1.0f));
+        //glm::vec3 direction3 =UP*rotationMat;
+        ////std::cout << "ROT: " << glm::degrees(shape.rotation) << std::endl;
+        ////std::cout << "D3: ( " << direction3.x << ", " << direction3.y << ", " << direction3.z << ")" << std::endl;
+        //direction3 /= direction3.length();
+        //const float speed = 10.0f;
+
+        //model = glm::translate(model, speed*fade*direction3);
+
+        model = glm::translate(model, shape.coords);
         model = glm::scale(model, (1.0f-fade)*shape.scale);
         model = glm::rotate(model, shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
         lightingEnvironment.object_shader.setUniformM4("model", model);
@@ -2483,16 +2655,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
-        bool cubesChanged = false;
+        startMPVLoop(deltaTimer, lightingEnvironment);
         creationAlarm.checkAndUpdate();
-
-        deltaTimer.updateDeltaTime();
-        // Background Fill Color
-        glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-        
-        setupMPVEnvironmentToDraw(lightingEnvironment);
 
 
 
@@ -2508,26 +2672,26 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         for(int i = 0; i < emotionArray.size(); i++){
             std::vector<float> array = emotionArray[i];
             glm::vec3 emotionRGB = emotionArrayToColor(array);
-            glm::vec2 coords2D = emotionArrayToVec2(array);
-            glm::vec3 coords = glm::vec3(coords2D.x, coords2D.y, 0.0f);
+            glm::vec2 emotionCoords2D = emotionArrayToVec2(array);
+            glm::vec3 emotionCoords3D = glm::vec3(emotionCoords2D.x, emotionCoords2D.y, 0.0f);
+            glm::vec3 coords;
             glm::vec3 rotAxis = glm::vec3(0.0f,0.0f,-1.0f);
-            float rotScale = 0.0f;
-            //rotScale = rand_range_uniform(0.0f, 1.0f);
+            float pi = std::numbers::pi;
+            float rotScale = 2*pi*emotionArrayToRotation(array);
             SHAPE_TYPE_2D type = emotionArrayToShapeType2D(array);
             float alphaScale = 1.0f;
-            //alphaScale = clamp(rand_range_normal(0.25f, 0.1f), 0.0f, 1.0f);
+            alphaScale = clamp(rand_range_normal(AVE_ALPHA, DEV_ALPHA), MIN_ALPHA, MAX_ALPHA);
 
             for (int j = 0; j < SHAPES_IN_BATCH; j++){
 
-                float maxScale = 1.0f;
-                float minScale = 0.001f;
-                float aveScale = 0.5f;
-                float devScale = 0.2f;
+                float maxScale = MAX_SCALE;
+                float minScale = MIN_SCALE;
+                float aveScale = AVE_SCALE;
+                float devScale = DEV_SCALE;
                 glm::vec3 scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale) * glm::vec3(1.0f);
 
                 
-                coords += 0.25f*randCoords();
-                coords = randCoords();
+                coords = SCATTER_TO_EMOTION_COORD_RATIO* SCATTER_COORD_SCALE * randCoords()+(1-SCATTER_TO_EMOTION_COORD_RATIO)*EMOTION_COORD_SCALE*emotionCoords3D;
                 coords.z = 0.0f;
 
 
@@ -2546,7 +2710,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                 
                 // Create and delete cubes
                 if(creationAlarm.check()){
-                        cubesChanged = true;
                         ShapeProperties2D shape = ShapeProperties2D{model,glm::vec4(emotionRGB,alphaScale),type, scaledCoordinates, rotScale, scale};
                         cubeMatrices.push_front(shape);
                 }
@@ -2585,21 +2748,31 @@ int mainDrawRectangle(int argc, char* argv[]){
     int return_status;
     GLFWwindow*  mWindow; 
     if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
-    Shader colorShader("Glitter/Shaders/color.vs", "Glitter/Shaders/color.fs");
+    Shader colorShader("Glitter/Shaders/texture-color.vs", "Glitter/Shaders/texture-color.fs");
     colorShader.use();
-    colorShader.setUniformV4("aColor", glm::vec4(1.0f,0.0f,0.0f,0.7f));
-    OpenGLShape rectangle((unsigned) 4, (unsigned) 6, shapes::rect, shapes::rect_ind, std::vector<unsigned> {3}, 0, false);
+    colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
+    //unsigned int texture = create_texture("Glitter/Textures/container2.png", "png");
+    
+    unsigned int texture1 = obtainPNGBorder(255, 255, 4, 10, 10);
+    unsigned int texture2 = create_texture("Glitter/Textures/container2.png", "png");
+    
+    colorShader.setUniformI("ourTexture", 0);
+
+    OpenGLShape rectangle((unsigned) 4, (unsigned) 6, shapes::rect_t, shapes::rect_ind, std::vector<unsigned> {3,2}, texture1, true);
     DeltaTimer deltaTimer{};
     
     
     while(!glfwWindowShouldClose(mWindow)){
-        glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        deltaTimer.updateDeltaTime();
-        colorShader.setUniformV4("aColor", glm::vec4(glm::sin(deltaTimer.getElapsedTime()),glm::sin(deltaTimer.getElapsedTime()*2.0f),glm::sin(deltaTimer.getElapsedTime()*3.0f),0.7f));
+        minimumStartRenderLoop(deltaTimer);
+        glDepthMask(false);
+        colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
+        rectangle.setTexture(texture2);
         rectangle.draw(colorShader);
+        colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
+        rectangle.setTexture(texture1);
+        rectangle.draw(colorShader);
+        glDepthMask(true);
         endRenderLoopViewStatic(mWindow, deltaTimer);
-    
     } glfwTerminate();
     
     return EXIT_SUCCESS;
@@ -2711,4 +2884,15 @@ void drawCubeMatrices2DFade(LightingEnvironment lightingEnvironment, std::deque<
         i++;
     }
     glDepthMask(true);
+}
+
+void minimumStartRenderLoop(DeltaTimer& deltaTimer){
+    deltaTimer.updateDeltaTime();
+    // Background Fill Color
+    glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment){
+    minimumStartRenderLoop(deltaTimer);
+    setupMPVEnvironmentToDraw(lightingEnvironment);
 }
