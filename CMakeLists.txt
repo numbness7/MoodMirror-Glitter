@@ -9,12 +9,12 @@ add_subdirectory(Glitter/Vendor/glfw)
 
 
 # Vendor: Assimp
-set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-add_subdirectory(Glitter/Vendor/assimp)
- 
 # NONEED STR
+#set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
+#set(ASSIMP_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+#set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+#add_subdirectory(Glitter/Vendor/assimp)
+# 
 # # Vendor: Bullet
 # set(BUILD_BULLET2_DEMOS OFF CACHE BOOL "" FORCE)
 # set(BUILD_CPU_DEMOS OFF CACHE BOOL "" FORCE)
@@ -50,11 +50,7 @@ add_executable(${PROJECT_NAME}
     Glitter/Headers/shader.hpp
     Glitter/Sources/stb_image.cpp
     Glitter/Headers/shapes.hpp
-    Glitter/Sources/shapes.cpp
-    Glitter/Headers/mesh.hpp
-    Glitter/Sources/mesh.cpp
-    Glitter/Headers/model.hpp
-    Glitter/Sources/model.cpp)
+    Glitter/Sources/shapes.cpp)
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 
@@ -68,8 +64,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     Glitter/Headers/
-    Glitter/Vendor/assimp/include/
 # NONEED STR
+#    Glitter/Vendor/assimp/include/
 #    Glitter/Vendor/bullet/src/
 # NONEED END
     Glitter/Vendor/glm/
@@ -83,8 +79,8 @@ endif()
 target_link_libraries(${PROJECT_NAME} PRIVATE
     glfw
     glad
-    assimp
 # NONEED STR
+#    assimp
 #    BulletDynamics
 #    BulletCollision
 #    LinearMath

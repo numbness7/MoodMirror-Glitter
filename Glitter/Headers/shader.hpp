@@ -18,14 +18,15 @@ class Shader {
     public:
         Shader(std::string vertex_shader_filepath, std::string fragment_shader_filepath) ;
         void use() { glUseProgram(shaderProgram); }
-        void setUniform(std::string name, const glm::vec4 vec4);
-        void setUniform(std::string name, const glm::vec4 vec4[], const int size);
-        void setUniform(std::string name, const glm::vec3 vec3);
-        void setUniform(std::string name, const unsigned int integer);
-        void setUniform(std::string name, const float floating);
-        void setUniform(std::string name, const glm::mat4 mat4);
+        void setUniformV4(std::string name, const glm::vec4 vec4);
+        void setUniformAV4(std::string name, const glm::vec4 vec4[], const int size);
+        void setUniformV3(std::string name, const glm::vec3 vec3);
+        void setUniformI(std::string name, const unsigned int integer);
+        void setUniformF(std::string name, const float floating);
+        void setUniformM4(std::string name, const glm::mat4 mat4);
         void setVec3(std::string name, const float x,const float y,const float z);
-        void setUniform(std::string name, const bool truth);
+        void setUniformB(std::string name, const bool truth);
+        void setUniformV2(std::string name, const glm::vec2 vec2);
 
     
     private:

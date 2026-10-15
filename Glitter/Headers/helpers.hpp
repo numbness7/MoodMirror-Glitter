@@ -9,7 +9,6 @@
 #include <shader.hpp>
 #include <camera.hpp>
 #include <shapes.hpp>
-#include <model.hpp>
 #include <vector>
 #include <random>
 #include <tuple>
@@ -35,13 +34,18 @@
 
 // Header Macros
 #define POINT_LIGHT_COUNT 4
-#define MAXIMUM_BATCHES 100
-#define SHAPES_IN_BATCH  10
-#define SHAPE_INITIAL_SPAWN_TIME 0.1216666666f
-#define SHAPE_SPAWN_TIME         0.1216666666f
+#define MAXIMUM_BATCHES 250
+#define SHAPES_IN_BATCH  15
+#define MID_LAYER 10
+#define SHAPE_INITIAL_SPAWN_TIME 0.001f
+#define SHAPE_SPAWN_TIME         0.01f
+#define BATCHES_SHARE_EMOTION 1
+#define DESTRUCTION_TIME  0.10f
 #define SORT_TIME 0.25f
 #define SHAPE_MAX_FADE 1.0f
+#define SHAPE_MIN_FADE 0.0f
 #define SMALL_FLOAT 0.00001f
+#define DO_SCALE true
 
 // Classes
 class DeltaTimer{
@@ -62,6 +66,8 @@ class Alarm{
         Alarm( float waitTime);
         void setWaitTime(float waitTime);
         float getWaitTime(){return waitTime;}
+        float getPassedTime() { return time; }
+        float getTimeLeft() { return waitTime - time; }
         bool checkAndUpdate();
         bool check(){ return alarmSounded; }
     private:
@@ -115,9 +121,9 @@ struct ShapeProperties2D {
     glm::mat4 model;
     glm::vec4 color;
     SHAPE_TYPE_2D type;
-    float creationTimeStamp;
-    float fadeTime;
     glm::vec3 coords;
+    float rotation;
+    glm::vec3 scale;
 };
 
 struct LightingEnvironment {
@@ -129,10 +135,10 @@ struct LightingEnvironment {
 };
 
 // Main Programs
+int mainCoordsBasic2D(int argc, char * argv[]);
 int mainDrawRectangle(int argc, char* argv[]);
 int mainCoords(int argc, char * argv[]);
 int mainCoordsBasic(int argc, char * argv[]);
-int mainCoordsBasic2D(int argc, char * argv[]);
 int mainCoordsBasicStream(int argc, char * argv[]);
 int mainLight(int argc, char * argv[]);
 int mainTurning(int argc, char * argv[]);
@@ -149,7 +155,8 @@ void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, gl
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, unsigned int texture);
 void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2);
-void drawCubeMatrices2D(LightingEnvironment lightingEnvironment, std::queue<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
+void drawCubeMatrices2DScale(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
+void drawCubeMatrices2DFade(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
 
 // Create
 void create_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
@@ -232,4 +239,7 @@ bool compareZDistance(const ShapeProperties& a, const ShapeProperties& b);
 void endRenderLoopStatic(GLFWwindow*& mWindow);
 void endRenderLoopViewStatic(GLFWwindow*& mWindow, DeltaTimer deltaTimer);
 OpenGLShape create_circle(unsigned int tri_cnt);
+
+float clamp(const float x, const float min, const float max);
+float calcFade(float destructionTimePassed, float destructionTime, int maxLayer, int layer);
 #endif

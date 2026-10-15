@@ -13,13 +13,13 @@ uniform float SHAPE_MAX_FADE;
 float calcFade(float elapsedTime, float creationDate, float blendPointPre, float blendPointPost, float blendPointEnd, float minFade, float maxFade);
 
 void main(){
-    float fade = calcFade(elapsedTime, creationDate, 0.3f, 0.5f, 0.7f, 0.0f, 1.0f);
+    float fade = calcFade(elapsedTime, creationDate, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f);
     vec4 newColor = aColor;
     newColor.a = (1 - fade)*aColor.a;
     FragColor = newColor*texture(ourTexture1, ourTexCoord);
 }
 
-float calcFade(float elapsedTime, float creationDate, float blendPointPre, float blendPointPost, float minFade, float maxFade){
+float calcFade(float elapsedTime, float creationDate, float blendPointPre, float blendPointPost, float blendPointEnd, float minFade, float maxFade){
     float fade = 0.0f;
     float timePassed = elapsedTime - creationDate;
     float normalizer = 1.0f/(SHAPE_SPAWN_TIME*MAXIMUM_BATCHES);

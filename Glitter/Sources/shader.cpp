@@ -68,38 +68,56 @@ void Shader::compileShader(const char vertex_shader_source[], const char fragmen
     glDeleteShader(fragment_shader);
 }
 
-void Shader::setUniform(std::string name, const bool truth){
-    unsigned int uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+void uniformError(std::string name, GLint uniform_loc){
+    
+    if(uniform_loc == -1){
+        //std::cout << "Error: Uniform: " << name << " does not exist!" << std::endl;
+    }
+}
+
+void Shader::setUniformB(std::string name, const bool truth){
+    GLint uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+    uniformError(name, uniform_loc);
     glUniform1i(uniform_loc, truth);
 }
-void Shader::setUniform(std::string name, const glm::vec3 vec3){
-    unsigned int uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+void Shader::setUniformV3(std::string name, const glm::vec3 vec3){
+    GLint uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+    uniformError(name, uniform_loc);
     glUniform3f(uniform_loc, vec3.x, vec3.y, vec3.z);
 }
-void Shader::setUniform(std::string name, const unsigned int integer){
-    unsigned int uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+void Shader::setUniformI(std::string name, const unsigned int integer){
+    GLint uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+    uniformError(name, uniform_loc);
     glUniform1i(uniform_loc, integer);
 }
-void Shader::setUniform(std::string name, const float floating){
-    unsigned int uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+void Shader::setUniformF(std::string name, const float floating){
+    GLint uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+    uniformError(name, uniform_loc);
     glUniform1f(uniform_loc, floating);
 }
-void Shader::setUniform(std::string name, const glm::mat4 mat4){
-    unsigned int uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+void Shader::setUniformM4(std::string name, const glm::mat4 mat4){
+    GLint uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+    uniformError(name, uniform_loc);
     glUniformMatrix4fv(uniform_loc, 1, GL_FALSE, glm::value_ptr(mat4));
 }
 void Shader::setVec3(std::string name, const float x,const float y,const float z){
-    setUniform(name, glm::vec3(x,y,z));
+    setUniformV3(name, glm::vec3(x,y,z));
 }
 
+void Shader::setUniformV2(std::string name, const glm::vec2 vec2){;
+    GLint uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+    uniformError(name, uniform_loc);
+    glUniform2fv(uniform_loc, 1, glm::value_ptr(vec2));
+}
 
-void Shader::setUniform(std::string name, const glm::vec4 vec4){;
-    unsigned int uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+void Shader::setUniformV4(std::string name, const glm::vec4 vec4){;
+    GLint uniform_loc = glGetUniformLocation(shaderProgram, name.c_str());
+    uniformError(name, uniform_loc);
     glUniform4fv(uniform_loc, 1, glm::value_ptr(vec4));
 }
-void Shader::setUniform(std::string name, const glm::vec4 vec4[], const int size){
+void Shader::setUniformAV4(std::string name, const glm::vec4 vec4[], const int size){
     for (int i = 0; i < size; i++){
         std::string partName = name + "[" + std::to_string(i) + "]";
-        setUniform(partName, vec4[i]);
+        setUniformV4(partName, vec4[i]);
     }
 }

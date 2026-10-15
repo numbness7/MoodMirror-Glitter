@@ -15,7 +15,7 @@ bool flash_light = true;
 bool flash_light_pressed = false;
 bool debug_pressed = false;
 bool mouseCaptured = true;
-Camera camera(glm::vec3(0.0f,0.0f,9.0f), glm::vec3(0.0f,1.0f,0.0f), -90, 0);
+Camera camera(glm::vec3(0.0f,0.0f,6.2f), glm::vec3(0.0f,1.0f,0.0f), -90, 0);
 //Camera camera(glm::vec3(1.0f,1.3f,3.0f), glm::vec3(0.0f,1.0f,0.0f), -100, -20);
 
 
@@ -477,6 +477,7 @@ void DeltaTimer::updateDeltaTime(){
     lastframe_time = elapsed_time;
 }
 
+
 // learnopgl start
 
 int mainGenerateTexturesCubes(int argc, char * argv[]){
@@ -508,8 +509,8 @@ int mainGenerateTexturesCubes(int argc, char * argv[]){
     
 
     shaderTextureMVP.use();
-    shaderTextureMVP.setUniform("ourTexture1",(unsigned int)0);
-    shaderTextureMVP.setUniform("ourTexture2",(unsigned int)1);
+    shaderTextureMVP.setUniformI("ourTexture1",(unsigned int)0);
+    shaderTextureMVP.setUniformI("ourTexture2",(unsigned int)1);
     
     glm::mat4 proj;
     proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
@@ -519,9 +520,9 @@ int mainGenerateTexturesCubes(int argc, char * argv[]){
 
     glm::mat4 model(1.0f);
 
-    shaderTextureMVP.setUniform("projection", proj);
-    shaderTextureMVP.setUniform("view", view);
-    shaderTextureMVP.setUniform("model",model);
+    shaderTextureMVP.setUniformM4("projection", proj);
+    shaderTextureMVP.setUniformM4("view", view);
+    shaderTextureMVP.setUniformM4("model",model);
     
     
     glm::vec3 cameraPos(0.0f,0.0f,3.0f);
@@ -549,18 +550,18 @@ int mainGenerateTexturesCubes(int argc, char * argv[]){
         
 
         proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        shaderTextureMVP.setUniform("projection",proj);
+        shaderTextureMVP.setUniformM4("projection",proj);
         
 
         view = camera.GetViewMatrix();
-        shaderTextureMVP.setUniform("view",view);
+        shaderTextureMVP.setUniformM4("view",view);
 
 
         for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
             model = glm::mat4(1.0f);
             model = glm::translate(model, shapes::cubePositions[i]);
             model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
-            shaderTextureMVP.setUniform("model",model);
+            shaderTextureMVP.setUniformM4("model",model);
             drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
 
         }
@@ -605,7 +606,7 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
     
 
     shaderTextureMVP.use();
-    shaderTextureMVP.setUniform("ourTexture1",(unsigned int)0);
+    shaderTextureMVP.setUniformI("ourTexture1",(unsigned int)0);
     
     glm::mat4 proj;
     proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
@@ -615,10 +616,10 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
 
     glm::mat4 model(1.0f);
 
-    shaderTextureMVP.setUniform("projection", proj);
-    shaderTextureMVP.setUniform("view", view);
-    shaderTextureMVP.setUniform("model",model);
-    shaderTextureMVP.setUniform("aColor", glm::vec4(0.6));
+    shaderTextureMVP.setUniformM4("projection", proj);
+    shaderTextureMVP.setUniformM4("view", view);
+    shaderTextureMVP.setUniformM4("model",model);
+    shaderTextureMVP.setUniformV4("aColor", glm::vec4(0.6));
     
     
     glm::vec3 cameraPos(0.0f,0.0f,3.0f);
@@ -647,18 +648,18 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
         
 
         proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        shaderTextureMVP.setUniform("projection",proj);
+        shaderTextureMVP.setUniformM4("projection",proj);
         
 
         view = camera.GetViewMatrix();
-        shaderTextureMVP.setUniform("view",view);
+        shaderTextureMVP.setUniformM4("view",view);
 
 
         for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
             model = glm::mat4(1.0f);
             model = glm::translate(model, shapes::cubePositions[i]);
             model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
-            shaderTextureMVP.setUniform("model",model);
+            shaderTextureMVP.setUniformM4("model",model);
             cube.draw(shaderTextureMVP);
         }
         
@@ -756,30 +757,30 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
     Shader object_shader("Glitter/Shaders/light-object.vs", "Glitter/Shaders/light-object.fs");
     Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
     object_shader.use();
-    object_shader.setUniform("projection", proj);
-    object_shader.setUniform("view", view);
-    object_shader.setUniform("model",model);
+    object_shader.setUniformM4("projection", proj);
+    object_shader.setUniformM4("view", view);
+    object_shader.setUniformM4("model",model);
     
     Material material;
     material.diffuse = 0;
     material.specular = 1;
     material.shininess  = 128.0f*0.25; 
 
-   object_shader.setUniform("material.diffuse",   material.diffuse);
-   object_shader.setUniform("material.specular",  material.specular);
-   object_shader.setUniform("material.shininess", material.shininess); 
-   object_shader.setUniform("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
-   object_shader.setUniform("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
+   object_shader.setUniformI("material.diffuse",   material.diffuse);
+   object_shader.setUniformI("material.specular",  material.specular);
+   object_shader.setUniformF("material.shininess", material.shininess); 
+   object_shader.setUniformF("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
+   object_shader.setUniformF("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
 
 
-    object_shader.setUniform("dir_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniform("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
-    object_shader.setUniform("dir_light.specular", glm::vec3(0.2f)); 
-    object_shader.setUniform("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
+    object_shader.setUniformV3("dir_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniformV3("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
+    object_shader.setUniformV3("dir_light.specular", glm::vec3(0.2f)); 
+    object_shader.setUniformV3("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
     
-    object_shader.setUniform("spot_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniform("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
-    object_shader.setUniform("spot_light.specular", glm::vec3(1.0f)); 
+    object_shader.setUniformV3("spot_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniformV3("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
+    object_shader.setUniformV3("spot_light.specular", glm::vec3(1.0f)); 
     glm::vec3 diffuses[4] = {
         glm::vec3(1.0f,0.0f,0.0f),
         glm::vec3(0.0f,1.0f,0.0f),
@@ -790,23 +791,23 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
     std::stringstream s ("");
     for(int i = 0; i < 4; i ++){
         s << "point_lights" << "[" << i << "]";
-        object_shader.setUniform(s.str() + ".ambient",  glm::vec3(0.1f));
-        object_shader.setUniform(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
-        object_shader.setUniform(s.str() + ".specular", diffuses[i]); 
-        object_shader.setUniform(s.str() + ".position", light_positions[i]);
-        object_shader.setUniform(s.str() + ".constant", 1.0f);
-        object_shader.setUniform(s.str() + ".linear", .09f);
-        object_shader.setUniform(s.str() + ".quadratic", .032f);
+        object_shader.setUniformV3(s.str() + ".ambient",  glm::vec3(0.1f));
+        object_shader.setUniformV3(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
+        object_shader.setUniformV3(s.str() + ".specular", diffuses[i]); 
+        object_shader.setUniformV3(s.str() + ".position", light_positions[i]);
+        object_shader.setUniformF(s.str() + ".constant", 1.0f);
+        object_shader.setUniformF(s.str() + ".linear", .09f);
+        object_shader.setUniformF(s.str() + ".quadratic", .032f);
         s.str("");
         s.clear();
     }
     
     light_shader.use();
     
-    light_shader.setUniform("projection", proj);
-    light_shader.setUniform("view", view);
-    light_shader.setUniform("model",model);
-    light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
+    light_shader.setUniformM4("projection", proj);
+    light_shader.setUniformM4("view", view);
+    light_shader.setUniformM4("model",model);
+    light_shader.setUniformV3("aColor",glm::vec3(0.0f,1.0f,0.0f));
 
     
     
@@ -837,204 +838,34 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
         
 
         light_shader.use();
-        light_shader.setUniform("projection",proj);
-        light_shader.setUniform("view",view);
+        light_shader.setUniformM4("projection",proj);
+        light_shader.setUniformM4("view",view);
 
         for(int i = 0; i < 4; i++){
             model = glm::mat4(1.0f);
             model = glm::translate(model, light_positions[i]);
             model = glm::scale(model, glm::vec3(0.2f));
-            light_shader.setUniform("model", model);
-            light_shader.setUniform("aColor", diffuses[i]);
+            light_shader.setUniformM4("model", model);
+            light_shader.setUniformV3("aColor", diffuses[i]);
             drawShape(VAO_T, EBO_O, light_shader, 36);
         }
 
         object_shader.use();
-        object_shader.setUniform("view",view);
-        object_shader.setUniform("projection",proj);
-        object_shader.setUniform("view_pos", camera.Position);
-       object_shader.setUniform("spot_light.position", camera.Position);
-       object_shader.setUniform("spot_light.direction", camera.Front);
-       object_shader.setUniform("spot_light.is_on", (bool)flash_light);
+        object_shader.setUniformM4("view",view);
+        object_shader.setUniformM4("projection",proj);
+        object_shader.setUniformV3("view_pos", camera.Position);
+       object_shader.setUniformV3("spot_light.position", camera.Position);
+       object_shader.setUniformV3("spot_light.direction", camera.Front);
+       object_shader.setUniformB("spot_light.is_on", (bool)flash_light);
 
         for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
             model = glm::mat4(1.0f);
             model = glm::translate(model, shapes::cubePositions[i]);
             //model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
-            object_shader.setUniform("model", model);
+            object_shader.setUniformM4("model", model);
             drawTexturedShape(VAO_O, EBO_O, object_shader, 36, diffuse_sampler_2d);
         }
         
-        
-
-
-
-        // Flip Buffers and Draw
-        glfwSwapBuffers(mWindow);
-        glfwPollEvents();
-        processInput(mWindow, camera, deltaTimer.getDeltaTime());
-        
-
-        
-    }   glfwTerminate();
-    return EXIT_SUCCESS;
-}
-int mainModel(int argc, char * argv[]){
-    
-    // Initialize OpenGL
-    int return_status = EXIT_SUCCESS;
-    GLFWwindow*  mWindow; 
-initOpenGL(mWindow, return_status, mWidth, mHeight);
-    if(return_status != EXIT_SUCCESS) return return_status;
-    
-    DeltaTimer deltaTimer{};
-    
-
-    
-
-
-    
-    unsigned int VBO_O, VAO_O, EBO_O;
-    unsigned int VAO_T;
-    unsigned int diffuse_sampler_2d;
-    unsigned int specular_sampler_2d;
-    create_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
-    create_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
-    create_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
-    
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
-
-
-    Model backpack("Glitter/Models/backpack/backpack.obj");
-    
-    
-    
-    
-    
-
-    
-    glm::mat4 proj;
-    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-
-    glm::mat4 view(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
-
-    glm::mat4 model(1.0f);
-    glm::vec3 light_positions[4] = {
-        glm::vec3(-10.2f,1.0f,2.0f),
-        glm::vec3(0.0f,-10.0f,2.0f),
-        glm::vec3(1.2f,0.0f,-10.0f),
-        glm::vec3(1.2f,1.0f,2.0f),
-    };
-
-    Shader object_shader("Glitter/Shaders/mesh.vs", "Glitter/Shaders/mesh.fs");
-    Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
-    object_shader.use();
-    object_shader.setUniform("projection", proj);
-    object_shader.setUniform("view", view);
-    object_shader.setUniform("model",model);
-    
-    Material material;
-    material.diffuse = 0;
-    material.specular = 1;
-    material.shininess  = 128.0f*0.25; 
-
-   object_shader.setUniform("material.diffuse",   material.diffuse);
-   object_shader.setUniform("material.specular",  material.specular);
-   object_shader.setUniform("material.shininess", material.shininess); 
-   object_shader.setUniform("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
-   object_shader.setUniform("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
-
-
-    object_shader.setUniform("dir_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniform("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
-    object_shader.setUniform("dir_light.specular", glm::vec3(0.2f)); 
-    object_shader.setUniform("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
-    
-    object_shader.setUniform("spot_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniform("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
-    object_shader.setUniform("spot_light.specular", glm::vec3(1.0f)); 
-    glm::vec3 diffuses[4] = {
-        glm::vec3(1.0f,0.0f,0.0f),
-        glm::vec3(0.0f,1.0f,0.0f),
-        glm::vec3(0.0f,0.0f,1.0f),
-        glm::vec3(0.3f,0.3f,0.3f),
-    };
-
-    std::stringstream s ("");
-    for(int i = 0; i < 4; i ++){
-        s << "point_lights" << "[" << i << "]";
-        object_shader.setUniform(s.str() + ".ambient",  glm::vec3(0.1f));
-        object_shader.setUniform(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
-        object_shader.setUniform(s.str() + ".specular", diffuses[i]); 
-        object_shader.setUniform(s.str() + ".position", light_positions[i]);
-        object_shader.setUniform(s.str() + ".constant", 1.0f);
-        object_shader.setUniform(s.str() + ".linear", .09f);
-        object_shader.setUniform(s.str() + ".quadratic", .032f);
-        s.str("");
-        s.clear();
-    }
-    
-    light_shader.use();
-    
-    light_shader.setUniform("projection", proj);
-    light_shader.setUniform("view", view);
-    light_shader.setUniform("model",model);
-    light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
-
-    
-    
-    
-    
-    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(mWindow, mouse_callback);
-    glfwSetScrollCallback(mWindow, scroll_callback);
-
-
-    
-    
-    // Rendering Loop
-    while (!glfwWindowShouldClose(mWindow)) {
-
-        // Background Fill Color
-        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-
-        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        
-
-        view = camera.GetViewMatrix();
-        
-        
-        
-
-        light_shader.use();
-        light_shader.setUniform("projection",proj);
-        light_shader.setUniform("view",view);
-
-        for(int i = 0; i < 4; i++){
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, light_positions[i]);
-            model = glm::scale(model, glm::vec3(0.2f));
-            light_shader.setUniform("model", model);
-            light_shader.setUniform("aColor", diffuses[i]);
-            drawShape(VAO_T, EBO_O, light_shader, 36);
-        }
-
-        object_shader.use();
-        object_shader.setUniform("view",view);
-        object_shader.setUniform("projection",proj);
-        object_shader.setUniform("view_pos", camera.Position);
-       object_shader.setUniform("spot_light.position", camera.Position);
-       object_shader.setUniform("spot_light.direction", camera.Front);
-       object_shader.setUniform("spot_light.is_on", (bool)flash_light);
-
-        
-       backpack.Draw(object_shader);
         
 
 
@@ -1104,30 +935,30 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
     Shader object_shader("Glitter/Shaders/light-object.vs", "Glitter/Shaders/light-object.fs");
     Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
     object_shader.use();
-    object_shader.setUniform("projection", proj);
-    object_shader.setUniform("view", view);
-    object_shader.setUniform("model",model);
+    object_shader.setUniformM4("projection", proj);
+    object_shader.setUniformM4("view", view);
+    object_shader.setUniformM4("model",model);
     
     Material material;
     material.diffuse = 0;
     material.specular = 1;
     material.shininess  = 128.0f*0.25; 
 
-   object_shader.setUniform("material.diffuse",   material.diffuse);
-   object_shader.setUniform("material.specular",  material.specular);
-   object_shader.setUniform("material.shininess", material.shininess); 
-   object_shader.setUniform("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
-   object_shader.setUniform("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
+   object_shader.setUniformI("material.diffuse",   material.diffuse);
+   object_shader.setUniformI("material.specular",  material.specular);
+   object_shader.setUniformF("material.shininess", material.shininess); 
+   object_shader.setUniformF("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
+   object_shader.setUniformF("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
 
 
-    object_shader.setUniform("dir_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniform("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
-    object_shader.setUniform("dir_light.specular", glm::vec3(0.2f)); 
-    object_shader.setUniform("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
+    object_shader.setUniformV3("dir_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniformV3("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
+    object_shader.setUniformV3("dir_light.specular", glm::vec3(0.2f)); 
+    object_shader.setUniformV3("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
     
-    object_shader.setUniform("spot_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniform("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
-    object_shader.setUniform("spot_light.specular", glm::vec3(1.0f)); 
+    object_shader.setUniformV3("spot_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniformV3("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
+    object_shader.setUniformV3("spot_light.specular", glm::vec3(1.0f)); 
     glm::vec3 diffuses[4] = {
         glm::vec3(1.0f,0.0f,0.0f),
         glm::vec3(0.0f,1.0f,0.0f),
@@ -1138,23 +969,23 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
     std::stringstream s ("");
     for(int i = 0; i < 4; i ++){
         s << "point_lights" << "[" << i << "]";
-        object_shader.setUniform(s.str() + ".ambient",  glm::vec3(0.1f));
-        object_shader.setUniform(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
-        object_shader.setUniform(s.str() + ".specular", diffuses[i]); 
-        object_shader.setUniform(s.str() + ".position", light_positions[i]);
-        object_shader.setUniform(s.str() + ".constant", 1.0f);
-        object_shader.setUniform(s.str() + ".linear", .09f);
-        object_shader.setUniform(s.str() + ".quadratic", .032f);
+        object_shader.setUniformV3(s.str() + ".ambient",  glm::vec3(0.1f));
+        object_shader.setUniformV3(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
+        object_shader.setUniformV3(s.str() + ".specular", diffuses[i]); 
+        object_shader.setUniformV3(s.str() + ".position", light_positions[i]);
+        object_shader.setUniformF(s.str() + ".constant", 1.0f);
+        object_shader.setUniformF(s.str() + ".linear", .09f);
+        object_shader.setUniformF(s.str() + ".quadratic", .032f);
         s.str("");
         s.clear();
     }
     
     light_shader.use();
     
-    light_shader.setUniform("projection", proj);
-    light_shader.setUniform("view", view);
-    light_shader.setUniform("model",model);
-    light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
+    light_shader.setUniformM4("projection", proj);
+    light_shader.setUniformM4("view", view);
+    light_shader.setUniformM4("model",model);
+    light_shader.setUniformV3("aColor",glm::vec3(0.0f,1.0f,0.0f));
 
     
     
@@ -1184,31 +1015,31 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
         
 
         light_shader.use();
-        light_shader.setUniform("projection",proj);
-        light_shader.setUniform("view",view);
+        light_shader.setUniformM4("projection",proj);
+        light_shader.setUniformM4("view",view);
 
         for(int i = 0; i < 4; i++){
             model = glm::mat4(1.0f);
             model = glm::translate(model, light_positions[i]);
             model = glm::scale(model, glm::vec3(0.2f));
-            light_shader.setUniform("model", model);
-            light_shader.setUniform("aColor", diffuses[i]);
+            light_shader.setUniformM4("model", model);
+            light_shader.setUniformV3("aColor", diffuses[i]);
             drawShape(VAO_T, EBO_O, light_shader, 36);
         }
 
         object_shader.use();
-        object_shader.setUniform("view",view);
-        object_shader.setUniform("projection",proj);
-        object_shader.setUniform("view_pos", camera.Position);
-       object_shader.setUniform("spot_light.position", camera.Position);
-       object_shader.setUniform("spot_light.direction", camera.Front);
-       object_shader.setUniform("spot_light.is_on", (bool)flash_light);
+        object_shader.setUniformM4("view",view);
+        object_shader.setUniformM4("projection",proj);
+        object_shader.setUniformV3("view_pos", camera.Position);
+       object_shader.setUniformV3("spot_light.position", camera.Position);
+       object_shader.setUniformV3("spot_light.direction", camera.Front);
+       object_shader.setUniformB("spot_light.is_on", (bool)flash_light);
 
         for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
             model = glm::mat4(1.0f);
             model = glm::translate(model, shapes::cubePositions[i]);
             model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
-            object_shader.setUniform("model", model);
+            object_shader.setUniformM4("model", model);
             drawTexturedShape(VAO_O, EBO_O, object_shader, 36, diffuse_sampler_2d);
         }
         
@@ -1296,7 +1127,7 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
     
 
     shaderTextureMVP.use();
-    shaderTextureMVP.setUniform("ourTexture",(unsigned int)0);
+    shaderTextureMVP.setUniformI("ourTexture",(unsigned int)0);
     
     glm::mat4 proj;
     proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
@@ -1306,9 +1137,9 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
 
     glm::mat4 model(1.0f);
 
-    shaderTextureMVP.setUniform("projection", proj);
-    shaderTextureMVP.setUniform("view", view);
-    shaderTextureMVP.setUniform("model",model);
+    shaderTextureMVP.setUniformM4("projection", proj);
+    shaderTextureMVP.setUniformM4("view", view);
+    shaderTextureMVP.setUniformM4("model",model);
     
     
     glm::vec3 cameraPos(0.0f,0.0f,3.0f);
@@ -1339,11 +1170,11 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
         
 
         proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        shaderTextureMVP.setUniform("projection",proj);
+        shaderTextureMVP.setUniformM4("projection",proj);
         
 
         view = camera.GetViewMatrix();
-        shaderTextureMVP.setUniform("view",view);
+        shaderTextureMVP.setUniformM4("view",view);
         timer += delta_timer.getDeltaTime();
         if(timer > 1.0f) {
             timer = timer - 1.0f;
@@ -1352,7 +1183,7 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
 
         model = glm::mat4(1.0f);
         model = glm::translate(model, path.getPositionOnPath());
-        shaderTextureMVP.setUniform("model",model);
+        shaderTextureMVP.setUniformM4("model",model);
         drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
         
 
@@ -1470,14 +1301,14 @@ int mainTurning(int argc, char * argv[]){
         
         // Rotating Rod
         glm::vec4 color = glm::vec4(1.0f,1.0f,1.0f,1.0f);
-        lightingEnvironment.object_shader.setUniform("model",lightingEnvironment.model);
-        lightingEnvironment.object_shader.setUniform("aColor", color);
+        lightingEnvironment.object_shader.setUniformM4("model",lightingEnvironment.model);
+        lightingEnvironment.object_shader.setUniformV4("aColor", color);
         objectShape.draw(lightingEnvironment.object_shader);
         lightingEnvironment.model = glm::mat4(rotatedModel);
         lightingEnvironment.model = glm::translate(lightingEnvironment.model, glm::vec3(length/2,0.0f,0.0f));
         lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(length,0.1f,0.1f));
-        lightingEnvironment.object_shader.setUniform("model",lightingEnvironment.model);
-        lightingEnvironment.object_shader.setUniform("aColor", color);
+        lightingEnvironment.object_shader.setUniformM4("model",lightingEnvironment.model);
+        lightingEnvironment.object_shader.setUniformV4("aColor", color);
         objectShape.draw(lightingEnvironment.object_shader);
         
         // Create cube at location rod is pointing to
@@ -1494,8 +1325,8 @@ int mainTurning(int argc, char * argv[]){
 
         // Draw cubes
         for( ShapeProperties cubePair : cubeMatrices){
-            lightingEnvironment.object_shader.setUniform("model",cubePair.model);
-            lightingEnvironment.object_shader.setUniform("aColor", cubePair.color);
+            lightingEnvironment.object_shader.setUniformM4("model",cubePair.model);
+            lightingEnvironment.object_shader.setUniformV4("aColor", cubePair.color);
             objectShape.draw(lightingEnvironment.object_shader);
         }
         
@@ -1546,7 +1377,7 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
     
 
     shaderTextureMVP.use();
-    shaderTextureMVP.setUniform("ourTexture",(unsigned int)0);
+    shaderTextureMVP.setUniformI("ourTexture",(unsigned int)0);
     
     glm::mat4 proj;
     proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
@@ -1556,9 +1387,9 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
 
     glm::mat4 model(1.0f);
 
-    shaderTextureMVP.setUniform("projection", proj);
-    shaderTextureMVP.setUniform("view", view);
-    shaderTextureMVP.setUniform("model",model);
+    shaderTextureMVP.setUniformM4("projection", proj);
+    shaderTextureMVP.setUniformM4("view", view);
+    shaderTextureMVP.setUniformM4("model",model);
     
     
     glm::vec3 cameraPos(0.0f,0.0f,3.0f);
@@ -1589,11 +1420,11 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
         
 
         proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        shaderTextureMVP.setUniform("projection",proj);
+        shaderTextureMVP.setUniformM4("projection",proj);
         
 
         view = camera.GetViewMatrix();
-        shaderTextureMVP.setUniform("view",view);
+        shaderTextureMVP.setUniformM4("view",view);
         timer += delta_timer.getDeltaTime();
         if(timer > 1.0f) {
             timer = timer - 1.0f;
@@ -1603,7 +1434,7 @@ initOpenGL(mWindow, return_status, mWidth, mHeight);
 
         model = glm::mat4(1.0f);
         model = glm::translate(model, path.getPositionOnPath());
-        shaderTextureMVP.setUniform("model",model);
+        shaderTextureMVP.setUniformM4("model",model);
         drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
         
 
@@ -1628,7 +1459,8 @@ nlohmann::json readjsonfile(std::string filepath){
             return data;
         }
         catch(std::exception e){
-            std::cout << e.what() << std::endl;
+            // TODO: LOG THIS
+            //std::cerr << e.what() << std::endl;
                 
         }
     }
@@ -1752,7 +1584,7 @@ void initMouse(GLFWwindow* mWindow){
 }
 LightingEnvironment initMPV(std::string vertexShaderPath, std::string fragmentShaderPath){
     glm::mat4 proj;
-    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100000.0f);
     glm::mat4 view(1.0f);
     view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
     glm::mat4 model(1.0f);
@@ -1760,9 +1592,9 @@ LightingEnvironment initMPV(std::string vertexShaderPath, std::string fragmentSh
     Shader object_shader(vertexShaderPath, fragmentShaderPath);
     Shader light_shader(vertexShaderPath, fragmentShaderPath);
     object_shader.use();
-    object_shader.setUniform("projection", proj);
-    object_shader.setUniform("view", view);
-    object_shader.setUniform("model",model);
+    object_shader.setUniformM4("projection", proj);
+    object_shader.setUniformM4("view", view);
+    object_shader.setUniformM4("model",model);
     LightingEnvironment lightingEnvironment{model,view,proj,object_shader,light_shader};
     return lightingEnvironment;
 }
@@ -1778,61 +1610,61 @@ LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], g
     Shader object_shader("Glitter/Shaders/light-object-color.vs", "Glitter/Shaders/light-object-color.fs");
     Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
     object_shader.use();
-    object_shader.setUniform("projection", proj);
-    object_shader.setUniform("view", view);
-    object_shader.setUniform("model",model);
+    object_shader.setUniformM4("projection", proj);
+    object_shader.setUniformM4("view", view);
+    object_shader.setUniformM4("model",model);
     
     Material material;
     material.diffuse = 0;
     material.specular = 1;
     material.shininess  = 128.0f*0.25; 
 
-   object_shader.setUniform("material.diffuse",   material.diffuse);
-   object_shader.setUniform("material.specular",  material.specular);
-   object_shader.setUniform("material.shininess", material.shininess); 
-   object_shader.setUniform("spot_light.cut_off", glm::cos(glm::radians(100.5f)));
-   object_shader.setUniform("spot_light.outer_cut_off", glm::cos(glm::radians(200.0f)));
+   object_shader.setUniformI("material.diffuse",   material.diffuse);
+   object_shader.setUniformI("material.specular",  material.specular);
+   object_shader.setUniformF("material.shininess", material.shininess); 
+   object_shader.setUniformF("spot_light.cut_off", glm::cos(glm::radians(100.5f)));
+   object_shader.setUniformF("spot_light.outer_cut_off", glm::cos(glm::radians(200.0f)));
 
 
-    object_shader.setUniform("dir_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniform("dir_light.diffuse",  glm::vec3(0.1f)); // darken diffuse light a bit
-    object_shader.setUniform("dir_light.specular", glm::vec3(0.1f)); 
-    object_shader.setUniform("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
+    object_shader.setUniformV3("dir_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniformV3("dir_light.diffuse",  glm::vec3(0.1f)); // darken diffuse light a bit
+    object_shader.setUniformV3("dir_light.specular", glm::vec3(0.1f)); 
+    object_shader.setUniformV3("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
     
-    object_shader.setUniform("spot_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniform("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
-    object_shader.setUniform("spot_light.specular", glm::vec3(1.0f)); 
+    object_shader.setUniformV3("spot_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniformV3("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
+    object_shader.setUniformV3("spot_light.specular", glm::vec3(1.0f)); 
 
     std::stringstream s ("");
     for(int i = 0; i < POINT_LIGHT_COUNT; i ++){
         s << "point_lights" << "[" << i << "]";
-        object_shader.setUniform(s.str() + ".ambient",  glm::vec3(0.1f));
-        object_shader.setUniform(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
-        object_shader.setUniform(s.str() + ".specular", diffuses[i]); 
-        object_shader.setUniform(s.str() + ".position", light_positions[i]);
-        object_shader.setUniform(s.str() + ".constant", 1.0f);
-        object_shader.setUniform(s.str() + ".linear", .09f);
-        object_shader.setUniform(s.str() + ".quadratic", .032f);
+        object_shader.setUniformV3(s.str() + ".ambient",  glm::vec3(0.1f));
+        object_shader.setUniformV3(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
+        object_shader.setUniformV3(s.str() + ".specular", diffuses[i]); 
+        object_shader.setUniformV3(s.str() + ".position", light_positions[i]);
+        object_shader.setUniformF(s.str() + ".constant", 1.0f);
+        object_shader.setUniformF(s.str() + ".linear", .09f);
+        object_shader.setUniformF(s.str() + ".quadratic", .032f);
         s.str("");
         s.clear();
     }
     
     light_shader.use();
     
-    light_shader.setUniform("projection", proj);
-    light_shader.setUniform("view", view);
-    light_shader.setUniform("model",model);
-    light_shader.setUniform("aColor",glm::vec3(0.0f,1.0f,0.0f));
+    light_shader.setUniformM4("projection", proj);
+    light_shader.setUniformM4("view", view);
+    light_shader.setUniformM4("model",model);
+    light_shader.setUniformV3("aColor",glm::vec3(0.0f,1.0f,0.0f));
     return LightingEnvironment{model,view,proj,object_shader,light_shader};
 }
 void setupMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment){
 
-    lightingEnvironment.projection = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+    lightingEnvironment.projection = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100000.0f);
     lightingEnvironment.view = camera.GetViewMatrix();
 
     lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniform("view",lightingEnvironment.view);
-    lightingEnvironment.object_shader.setUniform("projection",lightingEnvironment.projection);
+    lightingEnvironment.object_shader.setUniformM4("view",lightingEnvironment.view);
+    lightingEnvironment.object_shader.setUniformM4("projection",lightingEnvironment.projection);
 }
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights){
 
@@ -1843,27 +1675,27 @@ void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, gl
     
 
     lightingEnvironment.light_shader.use();
-    lightingEnvironment.light_shader.setUniform("projection",lightingEnvironment.projection);
-    lightingEnvironment.light_shader.setUniform("view",lightingEnvironment.view);
+    lightingEnvironment.light_shader.setUniformM4("projection",lightingEnvironment.projection);
+    lightingEnvironment.light_shader.setUniformM4("view",lightingEnvironment.view);
 
     if (drawLights){
         for(int i = 0; i < POINT_LIGHT_COUNT; i++){
             lightingEnvironment.model = glm::mat4(1.0f);
             lightingEnvironment.model = glm::translate(lightingEnvironment.model, light_positions[i]);
             lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.2f));
-            lightingEnvironment.light_shader.setUniform("model", lightingEnvironment.model);
-            lightingEnvironment.light_shader.setUniform("aColor", diffuses[i]);
+            lightingEnvironment.light_shader.setUniformM4("model", lightingEnvironment.model);
+            lightingEnvironment.light_shader.setUniformV3("aColor", diffuses[i]);
             lightShape.draw(lightingEnvironment.light_shader);
         }
     }
 
     lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniform("view",lightingEnvironment.view);
-    lightingEnvironment.object_shader.setUniform("projection",lightingEnvironment.projection);
-    lightingEnvironment.object_shader.setUniform("view_pos", camera.Position);
-   lightingEnvironment.object_shader.setUniform("spot_light.position", camera.Position);
-   lightingEnvironment.object_shader.setUniform("spot_light.direction", camera.Front);
-   lightingEnvironment.object_shader.setUniform("spot_light.is_on", (bool)flash_light);
+    lightingEnvironment.object_shader.setUniformM4("view",lightingEnvironment.view);
+    lightingEnvironment.object_shader.setUniformM4("projection",lightingEnvironment.projection);
+    lightingEnvironment.object_shader.setUniformV3("view_pos", camera.Position);
+   lightingEnvironment.object_shader.setUniformV3("spot_light.position", camera.Position);
+   lightingEnvironment.object_shader.setUniformV3("spot_light.direction", camera.Front);
+   lightingEnvironment.object_shader.setUniformB("spot_light.is_on", (bool)flash_light);
 }
 OpenGLShape::OpenGLShape(unsigned int vert_cnt, unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture){
     this->ind_cnt = ind_cnt;
@@ -1890,7 +1722,7 @@ int mainCoords(int argc, char * argv[]){
     if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
-    Alarm alarm(SHAPE_INITIAL_SPAWN_TIME);
+    Alarm alarm(SHAPE_SPAWN_TIME);
     bool shapesFull = false;
     
     unsigned int diffuse_sampler_2d;
@@ -1929,9 +1761,9 @@ int mainCoords(int argc, char * argv[]){
     LightingEnvironment lightingEnvironment = initLighting(light_positions, diffuses);
 
     lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniform("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
-    lightingEnvironment.object_shader.setUniform("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
-    lightingEnvironment.object_shader.setUniform("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
+    lightingEnvironment.object_shader.setUniformF("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
+    lightingEnvironment.object_shader.setUniformF("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
+    lightingEnvironment.object_shader.setUniformF("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
     glm::mat4 model(1.0f);
     
     
@@ -2074,6 +1906,7 @@ Alarm::Alarm(float waitTime) : waitTime(waitTime)
 void Alarm::setWaitTime(float waitTime)
 {
     this->waitTime = waitTime;
+    this->time = 0.0f;
 }
 
 bool Alarm::checkAndUpdate()
@@ -2133,65 +1966,72 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
     return forwardDistance(a.coords) < forwardDistance(b.coords);
 }
 
-void drawCubeMatrices2D(LightingEnvironment lightingEnvironment, std::queue<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
+void drawCubeMatrices2DScale(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm){
 
     glDepthMask(false);
-    lightingEnvironment.object_shader.setUniform("elapsedTime", (float)deltaTimer.getElapsedTime());
-    std::stack<ShapeProperties2D> shapePropsStack{};
-    std::queue<ShapeProperties2D> shapePropsQueue{};
-    while (!cubeMatrices.empty()){
-        ShapeProperties2D shape = cubeMatrices.front();
-        shapePropsStack.push(shape);
-        shapePropsQueue.push(shape);
-        cubeMatrices.pop();
-    }
+    lightingEnvironment.object_shader.use();
+    lightingEnvironment.object_shader.setUniformB("DO_FADE", true);
+    lightingEnvironment.object_shader.setUniformF("destructionTime", destructionAlarm.getWaitTime());
+    lightingEnvironment.object_shader.setUniformF("destructionTimePassed", destructionAlarm.getPassedTime());
+    unsigned i = 0;
+    unsigned shapesInLayer = SHAPES_IN_BATCH*6;
+    unsigned shapesInTotal = shapesInLayer*MAXIMUM_BATCHES;
+    unsigned maxLayer = (shapesInTotal - 1)/shapesInLayer;
+    lightingEnvironment.object_shader.setUniformI("maxLayer", maxLayer);
     // Draw cubes
-    while( !shapePropsStack.empty()){
-        ShapeProperties2D shape = shapePropsStack.top();
-        lightingEnvironment.object_shader.setUniform("creationDate", (float)shape.creationTimeStamp);
-       // float distance = fade;
-       // glm::vec3 normDir(1.0f,0.0f,0.0f);
-       // model = glm::translate(model, ((10.0f*distance)*normDir)-10.0f*normDir);
-
-
-
-        lightingEnvironment.object_shader.setUniform("model", shape.model);
-        lightingEnvironment.object_shader.setUniform("aColor", shape.color);
+    for( auto shape : cubeMatrices ){
+        int placement = (shapesInTotal - 1 - i);
+        int layer;
+        layer = placement/shapesInLayer;
+        //float fade = calcFade(destructionAlarm.getPassedTime(),destructionAlarm.getWaitTime(),maxLayer,layer);
+        lightingEnvironment.object_shader.setUniformI("layer", layer);
+        glm::mat4 model(1.0f);
+        model = glm::translate(model, shape.coords);
+        float fade = calcFade(destructionAlarm.getPassedTime(), destructionAlarm.getWaitTime(), maxLayer, layer);
+        model = glm::scale(model, (1.0f-fade)*shape.scale);
+        model = glm::rotate(model, shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
+        lightingEnvironment.object_shader.setUniformM4("model", model);
+        //lightingEnvironment.object_shader.setUniformM4("model", shape.model);
+        lightingEnvironment.object_shader.setUniformV4("aColor", shape.color);
         shapes[shape.type]->draw(lightingEnvironment.object_shader);
-        shapePropsStack.pop();
-    }
-    while (!shapePropsQueue.empty()){
-        ShapeProperties2D shape = shapePropsQueue.front();
-        cubeMatrices.push(shape);
-        shapePropsQueue.pop();
+        i++;
     }
     glDepthMask(true);
 }
 void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
 
-    lightingEnvironment.object_shader.setUniform("elapsedTime", (float)deltaTimer.getElapsedTime());
+    lightingEnvironment.object_shader.setUniformF("elapsedTime", (float)deltaTimer.getElapsedTime());
     // Draw cubes
     glDepthMask(false);
     for( ShapeProperties shape : cubeMatrices){
-        lightingEnvironment.object_shader.setUniform("creationDate", (float)shape.creationTimeStamp);
-       // float distance = fade;
-       // glm::vec3 normDir(1.0f,0.0f,0.0f);
-       // model = glm::translate(model, ((10.0f*distance)*normDir)-10.0f*normDir);
-
-
-
-        lightingEnvironment.object_shader.setUniform("model", shape.model);
-        lightingEnvironment.object_shader.setUniform("aColor", shape.color);
+        lightingEnvironment.object_shader.setUniformF("creationDate", (float)shape.creationTimeStamp);
+        lightingEnvironment.object_shader.setUniformM4("model", shape.model);
+        lightingEnvironment.object_shader.setUniformV4("aColor", shape.color);
         shapes[shape.type]->draw(lightingEnvironment.object_shader);
     }
     glDepthMask(true);
 }
 void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera){
+    static int loopCount = 1;
+    static std::vector<float> deltaTimes{};
     // Flip Buffers and Draw
     glfwSwapBuffers(mWindow);
     glfwPollEvents();
-    std::cout << "FPS: " << 1/deltaTimer.getDeltaTime() << std::endl;
     processInput(mWindow, camera, deltaTimer.getDeltaTime());
+    deltaTimes.push_back(deltaTimer.getDeltaTime());
+    if(loopCount >= 60){
+        float sum = 0.0f;
+        for(float time : deltaTimes){
+            sum+=time;
+        }
+        float average = sum/deltaTimes.size();
+        std::cout << "FPS: " << ((float)loopCount)/((float)sum) << std::endl;
+        deltaTimes.clear();
+        loopCount = 1;
+    }
+    else {
+        loopCount++;
+    }
 }
 void endRenderLoopViewStatic(GLFWwindow*& mWindow, DeltaTimer deltaTimer){
     glfwSwapBuffers(mWindow);
@@ -2301,7 +2141,7 @@ int mainCoordsBasic(int argc, char * argv[]){
     if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
-    Alarm alarm(SHAPE_INITIAL_SPAWN_TIME);
+    Alarm alarm(SHAPE_SPAWN_TIME);
     bool shapesFull = false;
     
     unsigned int diffuse_sampler_2d;
@@ -2326,10 +2166,10 @@ int mainCoordsBasic(int argc, char * argv[]){
     LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
 
     lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniform("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
-    lightingEnvironment.object_shader.setUniform("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
-    lightingEnvironment.object_shader.setUniform("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
-    lightingEnvironment.object_shader.setUniform("ourTexture1", (unsigned) 0);
+    lightingEnvironment.object_shader.setUniformF("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
+    lightingEnvironment.object_shader.setUniformF("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
+    lightingEnvironment.object_shader.setUniformF("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
+    lightingEnvironment.object_shader.setUniformI("ourTexture1", (unsigned) 0);
     glm::mat4 model(1.0f);
     
     
@@ -2445,7 +2285,7 @@ int mainCoordsBasicStream(int argc, char * argv[]){
     if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
-    Alarm alarm(SHAPE_INITIAL_SPAWN_TIME);
+    Alarm alarm(SHAPE_SPAWN_TIME);
     bool shapesFull = false;
     
     unsigned int diffuse_sampler_2d;
@@ -2470,10 +2310,10 @@ int mainCoordsBasicStream(int argc, char * argv[]){
     LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
 
     lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniform("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
-    lightingEnvironment.object_shader.setUniform("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
-    lightingEnvironment.object_shader.setUniform("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
-    lightingEnvironment.object_shader.setUniform("ourTexture1", (unsigned) 0);
+    lightingEnvironment.object_shader.setUniformF("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
+    lightingEnvironment.object_shader.setUniformF("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
+    lightingEnvironment.object_shader.setUniformF("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
+    lightingEnvironment.object_shader.setUniformI("ourTexture1", (unsigned) 0);
     glm::mat4 model(1.0f);
     
     
@@ -2597,7 +2437,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
-    Alarm alarm(SHAPE_INITIAL_SPAWN_TIME);
+    Alarm creationAlarm(SHAPE_INITIAL_SPAWN_TIME);
     bool shapesFull = false;
     
     unsigned int diffuse_sampler_2d;
@@ -2609,7 +2449,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     
     std::vector<unsigned int> objectSizes{3};
     OpenGLShape square((unsigned int) 4, (unsigned int)6, shapes::rect, shapes::rect_ind, objectSizes, diffuse_sampler_2d, false);
-    OpenGLShape triangle((unsigned int) 3, (unsigned int)3, shapes::r_tri, shapes::r_tri_ind, objectSizes, diffuse_sampler_2d, false);
+    OpenGLShape triangle((unsigned int) 3, (unsigned int)3, shapes::e_tri, shapes::e_tri_ind, objectSizes, diffuse_sampler_2d, false);
     OpenGLShape circle = create_circle(16);
     
     std::map<SHAPE_TYPE_2D, OpenGLShape*> shapeTypes{{SQUARE , &square}, {TRIANGLE, &triangle}, {CIRCLE, &circle}};
@@ -2622,29 +2462,29 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/mvp-color.vs", "Glitter/Shaders/mvp-color.fs");
 
     lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniform("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
-    lightingEnvironment.object_shader.setUniform("MAXIMUM_BATCHES", (float) MAXIMUM_BATCHES);
-    lightingEnvironment.object_shader.setUniform("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
-    //lightingEnvironment.object_shader.setUniform("ourTexture1", (unsigned) 0);
     glm::mat4 model(1.0f);
     
-    
+    lightingEnvironment.object_shader.setUniformF("SHAPE_MAX_FADE", SHAPE_MAX_FADE);
+    lightingEnvironment.object_shader.setUniformF("SHAPE_MIN_FADE", SHAPE_MIN_FADE);
+    lightingEnvironment.object_shader.setUniformI("MID_LAYER", MID_LAYER);
     
     
     // initMouse(mWindow);
 
 
     
-    std::queue<ShapeProperties2D> cubeMatrices{};
+    std::deque<ShapeProperties2D> cubeMatrices{};
     
 
+    float elderTimeStamp = 0.0f;
 
-    
+    int shareCount = 0;
+    std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
         bool cubesChanged = false;
-        alarm.checkAndUpdate();
+        creationAlarm.checkAndUpdate();
 
         deltaTimer.updateDeltaTime();
         // Background Fill Color
@@ -2656,7 +2496,13 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
 
 
-        std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
+        if(shareCount >= BATCHES_SHARE_EMOTION){
+            emotionArray = readEmotionArray("../data.json");
+            shareCount = 0;
+        }
+        else {
+            shareCount++;
+        }
         
         // Use emotion array to set properties of shapes
         for(int i = 0; i < emotionArray.size(); i++){
@@ -2665,13 +2511,20 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             glm::vec2 coords2D = emotionArrayToVec2(array);
             glm::vec3 coords = glm::vec3(coords2D.x, coords2D.y, 0.0f);
             glm::vec3 rotAxis = glm::vec3(0.0f,0.0f,-1.0f);
-            float rotScale = rand_range_uniform(0.0f, 1.0f);
+            float rotScale = 0.0f;
+            //rotScale = rand_range_uniform(0.0f, 1.0f);
             SHAPE_TYPE_2D type = emotionArrayToShapeType2D(array);
+            float alphaScale = 1.0f;
+            //alphaScale = clamp(rand_range_normal(0.25f, 0.1f), 0.0f, 1.0f);
+
             for (int j = 0; j < SHAPES_IN_BATCH; j++){
 
                 float maxScale = 1.0f;
-                glm::vec3 scale = rand_range_uniform(1.0f,maxScale) * glm::vec3(1.0f);
-                scale = maxScale * glm::vec3(1.0f);
+                float minScale = 0.001f;
+                float aveScale = 0.5f;
+                float devScale = 0.2f;
+                glm::vec3 scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale) * glm::vec3(1.0f);
+
                 
                 coords += 0.25f*randCoords();
                 coords = randCoords();
@@ -2692,25 +2545,29 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
                 
                 // Create and delete cubes
-                if(alarm.check()){
+                if(creationAlarm.check()){
                         cubesChanged = true;
-                        ShapeProperties2D shape = ShapeProperties2D{model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.0f, scaledCoordinates};
-                        cubeMatrices.push(shape);
-                    if(!shapesFull) {
-                        shapesFull = true;
-                        alarm.setWaitTime(SHAPE_SPAWN_TIME);
-                    }
+                        ShapeProperties2D shape = ShapeProperties2D{model,glm::vec4(emotionRGB,alphaScale),type, scaledCoordinates, rotScale, scale};
+                        cubeMatrices.push_front(shape);
                 }
 
             }
         }
+        bool shapeDeleted = false;
         // Delete cubes
         while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*6){
-            cubeMatrices.pop();
+            cubeMatrices.pop_back();
+            shapeDeleted = true;
+        }
+        if(shapeDeleted && !shapesFull){
+            creationAlarm.setWaitTime(DESTRUCTION_TIME);
         }
 
         // Draw cubes
-        drawCubeMatrices2D(lightingEnvironment, cubeMatrices, shapeTypes, deltaTimer);
+        if(DO_SCALE)
+            drawCubeMatrices2DScale(lightingEnvironment, cubeMatrices, shapeTypes, deltaTimer, creationAlarm);
+        else 
+            drawCubeMatrices2DFade(lightingEnvironment, cubeMatrices, shapeTypes, deltaTimer, creationAlarm);
 
 
 
@@ -2730,7 +2587,7 @@ int mainDrawRectangle(int argc, char* argv[]){
     if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
     Shader colorShader("Glitter/Shaders/color.vs", "Glitter/Shaders/color.fs");
     colorShader.use();
-    colorShader.setUniform("aColor", glm::vec4(1.0f,0.0f,0.0f,0.7f));
+    colorShader.setUniformV4("aColor", glm::vec4(1.0f,0.0f,0.0f,0.7f));
     OpenGLShape rectangle((unsigned) 4, (unsigned) 6, shapes::rect, shapes::rect_ind, std::vector<unsigned> {3}, 0, false);
     DeltaTimer deltaTimer{};
     
@@ -2739,7 +2596,7 @@ int mainDrawRectangle(int argc, char* argv[]){
         glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         deltaTimer.updateDeltaTime();
-        colorShader.setUniform("aColor", glm::vec4(glm::sin(deltaTimer.getElapsedTime()),glm::sin(deltaTimer.getElapsedTime()*2.0f),glm::sin(deltaTimer.getElapsedTime()*3.0f),0.7f));
+        colorShader.setUniformV4("aColor", glm::vec4(glm::sin(deltaTimer.getElapsedTime()),glm::sin(deltaTimer.getElapsedTime()*2.0f),glm::sin(deltaTimer.getElapsedTime()*3.0f),0.7f));
         rectangle.draw(colorShader);
         endRenderLoopViewStatic(mWindow, deltaTimer);
     
@@ -2787,4 +2644,71 @@ OpenGLShape create_circle(unsigned int tri_cnt){
     return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3}, (unsigned) 0, false);
     
 
+}
+float clamp(const float x, const float min, const float max){
+    if(x < min) return min;
+    if(x > max) return max;
+    return x;
+}
+
+float calcFade(float destructionTimePassed, float destructionTime, int maxLayer, int layer){
+    float fade = 0.0f;
+    int midLayer = MID_LAYER;
+    int midLayerMinus = maxLayer - midLayer;
+    float timePassed = destructionTimePassed;
+    float normalizer = destructionTime;
+    float timePassedNorm = timePassed/normalizer;
+    float maxFadeLayerRatio;
+    float minFadeLayerRatio;
+    float maxFade;
+    float minFade;
+    float slope;
+    float b;
+    if(layer > midLayer){ // Fade in
+        maxFadeLayerRatio = float(layer - midLayer)/float(midLayerMinus);
+        minFadeLayerRatio = float(layer - midLayer-1)/float(midLayerMinus);
+        maxFade = maxFadeLayerRatio*(SHAPE_MAX_FADE);
+        minFade = minFadeLayerRatio*(SHAPE_MAX_FADE);
+        slope = (minFade - maxFade)/(1.0f - 0.0f);
+        b = minFade - slope*1.0f;
+    }
+    else{ // Fade out
+        maxFadeLayerRatio = float((midLayer) - layer)/float(midLayer);
+        minFadeLayerRatio = float((midLayer-1) - layer)/float(midLayer);
+        maxFade = maxFadeLayerRatio*(SHAPE_MAX_FADE);
+        minFade = minFadeLayerRatio*(SHAPE_MAX_FADE);
+        slope = (maxFade - minFade)/(1.0f - 0.0f);
+        b = maxFade - slope*1.0f;
+    }
+
+    fade = b + slope*timePassedNorm;
+    if(fade > SHAPE_MAX_FADE) fade = SHAPE_MAX_FADE;
+    else if (fade < SHAPE_MIN_FADE) fade = SHAPE_MIN_FADE;
+    return fade;
+}
+
+void drawCubeMatrices2DFade(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm){
+    glDepthMask(false);
+    lightingEnvironment.object_shader.use();
+    lightingEnvironment.object_shader.setUniformF("destructionTime", destructionAlarm.getWaitTime());
+    lightingEnvironment.object_shader.setUniformF("destructionTimePassed", destructionAlarm.getPassedTime());
+    lightingEnvironment.object_shader.setUniformB("DO_FADE", true);
+    unsigned i = 0;
+    unsigned shapesInLayer = SHAPES_IN_BATCH*6;
+    unsigned shapesInTotal = shapesInLayer*MAXIMUM_BATCHES;
+    unsigned maxLayer = (shapesInTotal - 1)/shapesInLayer;
+    lightingEnvironment.object_shader.setUniformI("maxLayer", maxLayer);
+    // Draw cubes
+    for( auto shape : cubeMatrices ){
+        int placement = (shapesInTotal - 1 - i);
+        int layer;
+        layer = placement/shapesInLayer;
+        //float fade = calcFade(destructionAlarm.getPassedTime(),destructionAlarm.getWaitTime(),maxLayer,layer);
+        lightingEnvironment.object_shader.setUniformI("layer", layer);
+        lightingEnvironment.object_shader.setUniformM4("model", shape.model);
+        lightingEnvironment.object_shader.setUniformV4("aColor", shape.color);
+        shapes[shape.type]->draw(lightingEnvironment.object_shader);
+        i++;
+    }
+    glDepthMask(true);
 }

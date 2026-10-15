@@ -1,12 +1,12 @@
 #include "shapes.hpp"
 namespace shapes {
-    const float r_tri[] = {
-       -0.5f, 0.25f, 0.0f,  // top-left
-       -0.5f, -0.5f, 0.0f,  // bottom-left
-       0.5f, -0.5f, 0.0f,  // bottom-right
+    const float e_tri[] = {
+        0.0f,  0.5f, 0.0f,  // top
+       -0.5f, -0.5f,  0.0f,  // bottom-left
+        0.5f, -0.5f,  0.0f,  // bottom-right
     };
     
-    const unsigned int r_tri_ind[] = {
+    const unsigned int e_tri_ind[] = {
         0, 1, 2
     };
     

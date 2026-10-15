@@ -3,8 +3,8 @@
 #include <glm/vec3.hpp>
 
 namespace shapes {
-    extern const float r_tri[];
-    extern const unsigned int r_tri_ind[];
+    extern const float e_tri[];
+    extern const unsigned int e_tri_ind[];
     extern const float rect[];
     extern const float rect_c_t[];
     extern const float rect_t[];
