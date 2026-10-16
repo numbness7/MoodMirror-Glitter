@@ -80,7 +80,7 @@ class PngData{
         void setData(int row, int col, int channel, const unsigned char& byte);
         void setData(int gridIndex, int channel, const unsigned char& byte) { data[indexFromGrid(gridIndex,channel)] = byte; }
         void setData(int index, const unsigned char& byte) { data[index] = byte; }
-        unsigned int getTextureFromData();
+        const unsigned char* getData () const { return data; }
         
 
         
@@ -94,6 +94,8 @@ class PngData{
     private:
         unsigned char* data;
 };
+
+unsigned int getTextureFromData(const PngData& pngData);
 class PngDataIterator{
     public:
         PngDataIterator(int width, int height, int nrChannels) : width{width},  height{height}, nrChannels{nrChannels} {

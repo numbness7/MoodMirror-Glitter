@@ -378,7 +378,7 @@ void generatePNGBorder(unsigned char* data, int width, int height, int nrChannel
 unsigned int obtainPNGBorder(int width, int height, int nrChannels, int hThickness, int vThickness){
     PngData pngData(width, height, nrChannels);
     generatePNGBorder(pngData, width, height, nrChannels, hThickness, vThickness);
-    unsigned texture = pngData.getTextureFromData();
+    unsigned texture = getTextureFromData( pngData);
     return texture;
 }
 void generatePNGData(unsigned char* data, int width, int height, int nrChannels){
@@ -2876,9 +2876,10 @@ void PngData::setData(int row, int col, int channel, const unsigned char& byte){
     data[index(row, col, channel)] = byte;
 }
 
-unsigned int PngData::getTextureFromData()
-{
-    return useTextureDataToCreateTexture(this->data, width, height, "png");
-}
 
 int floor(int x, int y){ return x/y; }
+
+unsigned int getTextureFromData(const PngData &pngData)
+{
+    return useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "png");
+}
