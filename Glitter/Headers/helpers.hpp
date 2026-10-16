@@ -59,7 +59,81 @@
 #define SCATTER_COORD_SCALE 1.00f
 #define EMOTION_COORD_SCALE 1.00f
 
+int floor(int x, int y);
+
 // Classes
+class PngData{
+    public:
+        PngData(int width, int height, int nrChannels);
+        ~PngData();
+        int index(int row, int col, int channel) { return row*width*nrChannels+col*nrChannels+channel; }
+        int indexFromGrid(int gridIndex, int channel) { return gridIndex*nrChannels + channel; }
+        int size() { return height*width*nrChannels; }
+        int gridSize() { return height*width; }
+        int row(int index) { return floor(index,(width*nrChannels)); }
+        int col(int index) { return floor(index - row(index)*width*nrChannels,nrChannels); }
+        int rowFromGrid(int gridIndex) { return floor(gridIndex,(width)); }
+        int colFromGrid(int gridIndex) { return gridIndex - rowFromGrid(gridIndex)*width; }
+        int rFG(int gridIndex) { return rowFromGrid(gridIndex); }
+        int cFG(int gridIndex) { return colFromGrid(gridIndex); }
+        int channel(int index) { return index - row(index)*width*nrChannels - col(index)*nrChannels; }
+        void setData(int row, int col, int channel, const unsigned char& byte);
+        void setData(int gridIndex, int channel, const unsigned char& byte) { data[indexFromGrid(gridIndex,channel)] = byte; }
+        void setData(int index, const unsigned char& byte) { data[index] = byte; }
+        unsigned int getTextureFromData();
+        
+
+        
+        static const int redChannel = 0;
+        static const int blueChannel = 1;
+        static const int greenChannel = 2;
+        static const int alphaChannel = 3;
+        const int width;
+        const int height;
+        const int nrChannels;
+    private:
+        unsigned char* data;
+};
+class PngDataIterator{
+    public:
+        PngDataIterator(int width, int height, int nrChannels) : width{width},  height{height}, nrChannels{nrChannels} {
+            row = 0;
+            col = 0;
+            channel = 0;
+        }
+        void iterate(){
+            if(channel < nrChannels) channel++;
+            else{
+                channel = 0;
+                if(col < width) col++;
+                else {
+                    col = 0;
+                    if(row < height) row++;
+                }
+            }
+        }
+        bool isNotDone(){
+            return row < height;
+        }
+        int index(){
+            return row*width*nrChannels+col*nrChannels+channel;
+        }
+        void setChannelByte(const int channel, const unsigned char& sourceByte, unsigned char& destinationByte){
+            if(channel == this->channel) destinationByte = sourceByte;
+        }
+        static const int redChannel = 0;
+        static const int blueChannel = 1;
+        static const int greenChannel = 2;
+        static const int alphaChannel = 3;
+        const int width;
+        const int height;
+        const int nrChannels;
+        bool done = false;
+        int row;
+        int col;
+        int channel;
+};
+
 class DeltaTimer{
     public:
         DeltaTimer();
@@ -264,7 +338,7 @@ unsigned char* initializePNGTextureData(int width, int height, int nrChannels);
 void freePNGTextureData(unsigned char* data);
 unsigned int generateTextureSpecified(int width, int height, int nrChannels, std::string filetype);
 void generatePNGData(unsigned char* data, int width, int height, int nrChannels);
-unsigned int useTextureDataToCreateTexture(unsigned char* data, int width, int height, std::string filetype);
+unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width, int height, std::string filetype);
 bool isOnBorder(int width, int height, int row, int col, int hThickness, int vThickness);
 unsigned char getBorderCheckColor(int width, int height, int row, int col, int hThickness, int vThickness);
 void generatePNGBorder(unsigned char* data, int width, int height, int nrChannels, int hThickness, int vThickness);

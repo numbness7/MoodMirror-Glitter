@@ -360,45 +360,15 @@ unsigned char getBorderCheckColor(int width, int height, int row, int col, int h
     else return cdata::EMPTY_COLOR; 
 
 }
-class PngDataIterator{
-    public:
-        PngDataIterator(int width, int height, int nrChannels) : width{width},  height{height}, nrChannels{nrChannels} {
-            row = 0;
-            col = 0;
-            channel = 0;
-        }
-        void iterate(){
-            if(channel < nrChannels) channel++;
-            else{
-                channel = 0;
-                if(col < width) col++;
-                else {
-                    col = 0;
-                    if(row < height) row++;
-                }
-            }
-        }
-        bool isNotDone(){
-            return row < height;
-        }
-        int index(){
-            return row*width*nrChannels+col*nrChannels+channel;
-        }
-        void setChannelByte(const int channel, const unsigned char& sourceByte, unsigned char& destinationByte){
-            if(channel == this->channel) destinationByte = sourceByte;
-        }
-        static const int redChannel = 0;
-        static const int blueChannel = 1;
-        static const int greenChannel = 2;
-        static const int alphaChannel = 3;
-        const int width;
-        const int height;
-        const int nrChannels;
-        bool done = false;
-        int row;
-        int col;
-        int channel;
-};
+void generatePNGBorder(PngData& pngData, int width, int height, int nrChannels, int hThickness, int vThickness){
+    for(int gI = 0; gI < pngData.gridSize(); gI++){
+        pngData.setData(gI, PngData::redChannel, getBorderCheckColor(width, height, pngData.rFG(gI), pngData.cFG(gI), hThickness, vThickness));
+        pngData.setData(gI, PngData::blueChannel, cdata::EMPTY_COLOR);
+        pngData.setData(gI, PngData::greenChannel, cdata::EMPTY_COLOR);
+        pngData.setData(gI, PngData::alphaChannel, getBorderCheckColor(width, height, pngData.rFG(gI), pngData.cFG(gI), hThickness, vThickness));
+    }
+        
+}
 void generatePNGBorder(unsigned char* data, int width, int height, int nrChannels, int hThickness, int vThickness){
     for(PngDataIterator pDI(width, height, nrChannels); pDI.isNotDone(); pDI.iterate()){
         pDI.setChannelByte( PngDataIterator::redChannel, getBorderCheckColor(width, height, pDI.row, pDI.col, hThickness, vThickness), data[pDI.index()]);
@@ -406,10 +376,9 @@ void generatePNGBorder(unsigned char* data, int width, int height, int nrChannel
     }
 }
 unsigned int obtainPNGBorder(int width, int height, int nrChannels, int hThickness, int vThickness){
-    auto data = initializePNGTextureData(width, height, nrChannels);
-    generatePNGBorder(data, width, height, nrChannels, hThickness, vThickness);
-    unsigned texture = useTextureDataToCreateTexture(data, width, height, "png");
-    freePNGTextureData(data);
+    PngData pngData(width, height, nrChannels);
+    generatePNGBorder(pngData, width, height, nrChannels, hThickness, vThickness);
+    unsigned texture = pngData.getTextureFromData();
     return texture;
 }
 void generatePNGData(unsigned char* data, int width, int height, int nrChannels){
@@ -452,7 +421,7 @@ void generatePNGData(unsigned char* data, int width, int height, int nrChannels)
     }
     std::cout << "O: " << other << std::endl;
 }
-unsigned int useTextureDataToCreateTexture(unsigned char* data, int width, int height, std::string filetype){
+unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width, int height, std::string filetype){
     unsigned int texture;
     glGenTextures(1, &texture);
     
@@ -2896,3 +2865,20 @@ void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironme
     minimumStartRenderLoop(deltaTimer);
     setupMPVEnvironmentToDraw(lightingEnvironment);
 }
+PngData::PngData(int width, int height, int nrChannels) : width{width},  height{height}, nrChannels{nrChannels}{
+    data = initializePNGTextureData(width, height, nrChannels);
+}
+PngData::~PngData(){
+    freePNGTextureData(data);
+}
+
+void PngData::setData(int row, int col, int channel, const unsigned char& byte){
+    data[index(row, col, channel)] = byte;
+}
+
+unsigned int PngData::getTextureFromData()
+{
+    return useTextureDataToCreateTexture(this->data, width, height, "png");
+}
+
+int floor(int x, int y){ return x/y; }
