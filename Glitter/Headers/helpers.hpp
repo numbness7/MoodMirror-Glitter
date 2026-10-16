@@ -16,6 +16,7 @@
 #include <stack>
 #include <numbers>
 #include <color.hpp>
+#include <limits>
 
 // System Headers
 #include <glad/glad.h>
@@ -82,13 +83,13 @@ class PngData{
         void setData(int row, int col, int channel, const unsigned char& byte);
         void setData(int gridIndex, int channel, const unsigned char& byte) { data[indexFromGrid(gridIndex,channel)] = byte; }
         void setData(int index, const unsigned char& byte) { data[index] = byte; }
-        void setColor(int gridIndex, cdata::color color){
+        void setColor(int gridIndex, cdata::Color color){
             setData(gridIndex, redChannel, color.red);
             setData(gridIndex, blueChannel, color.blue);
             setData(gridIndex, greenChannel, color.green);
             setData(gridIndex, alphaChannel, color.alpha);
         }
-        void setColor(int row, int col, cdata::color color){
+        void setColor(int row, int col, cdata::Color color){
             setColor(gridIndex(row,col), color);
         }
         const unsigned char* getData () const { return data; }
@@ -355,7 +356,9 @@ unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width,
 bool isOnBorder(int width, int height, int row, int col, int hThickness, int vThickness);
 unsigned char getBorderCheckColor(int width, int height, int row, int col, int hThickness, int vThickness);
 void generatePNGBorder(unsigned char* data, int width, int height, int nrChannels, int hThickness, int vThickness);
-void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::color borderColor, cdata::color innerColor, bool ignoreInner, bool ignoreBorder);
+void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder);
 unsigned int obtainPNGBorder(int width, int height, int nrChannels, int hThickness, int vThickness);
-unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::color borderColor, cdata::color innerColor, bool ignoreInner, bool ignoreBorder);
+unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder);
+cdata::Color pngColorFromValue(unsigned int value);
+unsigned int valueFromPngColor(cdata::Color color);
 #endif

@@ -5,6 +5,11 @@ namespace shapes {
        -0.5f, -0.5f,  0.0f,  // bottom-left
         0.5f, -0.5f,  0.0f,  // bottom-right
     };
+    const float e_tri_t[] = {
+        0.0f,  0.5f,  0.0f,  0.5f, 0.0f, // top-middle
+       -0.5f, -0.5f,  0.0f, 0.0f, 0.0f, // bottom-left
+        0.5f, -0.5f,  0.0f, 1.0f, 0.0f, // bottom-right
+    };
     
     const unsigned int e_tri_ind[] = {
         0, 1, 2

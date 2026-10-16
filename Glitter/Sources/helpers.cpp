@@ -360,7 +360,7 @@ unsigned char getBorderCheckColor(int width, int height, int row, int col, int h
     else return cdata::EMPTY_COLOR; 
 
 }
-void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::color borderColor, cdata::color innerColor, bool ignoreInner, bool ignoreBorder){
+void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder){
     for(int gI = 0; gI < pngData.gridSize(); gI++){
         if (isOnBorder(width, height, pngData.rFG(gI), pngData.cFG(gI), hThickness, vThickness)){
             if(!ignoreBorder) pngData.setColor(gI, borderColor);
@@ -376,13 +376,37 @@ void generatePNGBorder(unsigned char* data, int width, int height, int nrChannel
         pDI.setChannelByte( PngDataIterator::alphaChannel, getBorderCheckColor(width, height, pDI.row, pDI.col, hThickness, vThickness), data[pDI.index()]);
     }
 }
-unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::color borderColor, cdata::color innerColor, bool ignoreInner, bool ignoreBorder){
+unsigned int obtainPNGDistFromBorder(int width, int height){
+
+}
+unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder){
     PngData pngData(width, height);
     generatePNGBorder(pngData, width, height,  hThickness, vThickness, borderColor, innerColor, ignoreInner, ignoreBorder);
     unsigned texture = getTextureFromData(pngData);
     return texture;
 }
-void generatePNGData(unsigned char* data, int width, int height, int nrChannels){
+cdata::Color pngColorFromValue(unsigned int value)
+{
+    cdata::Color color;
+    unsigned int mask = std::numeric_limits<unsigned char>::max();
+    color.red   = mask & (value >> ((PngData::nrChannels - 1 - PngData::redChannel   ) * sizeof(unsigned char)));
+    color.green = mask & (value >> ((PngData::nrChannels - 1 - PngData::greenChannel ) * sizeof(unsigned char)));
+    color.blue  = mask & (value >> ((PngData::nrChannels - 1 - PngData::blueChannel  ) * sizeof(unsigned char)));
+    color.alpha = mask & (value >> ((PngData::nrChannels - 1 - PngData::alphaChannel ) * sizeof(unsigned char)));
+
+    return color;
+}
+unsigned int valueFromPngColor(cdata::Color color)
+{
+    unsigned int value = 0;
+    value += ((unsigned int) color.red  )   << ((PngData::nrChannels - 1 - PngData::redChannel   ) * sizeof(unsigned char));
+    value += ((unsigned int) color.green)   << ((PngData::nrChannels - 1 - PngData::greenChannel ) * sizeof(unsigned char));
+    value += ((unsigned int) color.blue )   << ((PngData::nrChannels - 1 - PngData::blueChannel  ) * sizeof(unsigned char));
+    value += ((unsigned int) color.alpha)   << ((PngData::nrChannels - 1 - PngData::alphaChannel ) * sizeof(unsigned char));
+    return value;
+}
+void generatePNGData(unsigned char *data, int width, int height, int nrChannels)
+{
     std::cout << "W: " << width << ", H: " << height << ", N: " << nrChannels << std::endl;
     static const unsigned int size = 0xFF;
     std::cout << "S: " << size << std::endl;
@@ -2135,6 +2159,7 @@ void drawCubeMatrices2DScale(LightingEnvironment lightingEnvironment, std::deque
         lightingEnvironment.object_shader.setUniformM4("model", model);
         //lightingEnvironment.object_shader.setUniformM4("model", shape.model);
         lightingEnvironment.object_shader.setUniformV4("aColor", shape.color);
+        lightingEnvironment.object_shader.setUniformB("IGNORE_TEXTURE", shape.type == CIRCLE);
         shapes[shape.type]->draw(lightingEnvironment.object_shader);
         i++;
     }
@@ -2585,14 +2610,14 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     unsigned int diffuse_sampler_2d;
     //create_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
     generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
-    unsigned int border = obtainPNGBorder(255, 255,  10, 10, cdata::color{0xFF,0x00,0x00,0xFF}, cdata::color{0, 255, 255, 80}, false, false);
+    unsigned int border = obtainPNGBorder(255, 255,  10, 10, cdata::Color{0xFF,0x00,0x00,0xFF}, cdata::Color{0, 255, 255, 80}, false, false);
 
 
     
     
-    std::vector<unsigned int> objectSizes{3};
-    OpenGLShape square((unsigned int) 4, (unsigned int)6, shapes::rect, shapes::rect_ind, objectSizes, diffuse_sampler_2d, false);
-    OpenGLShape triangle((unsigned int) 3, (unsigned int)3, shapes::e_tri, shapes::e_tri_ind, objectSizes, diffuse_sampler_2d, false);
+    std::vector<unsigned int> objectSizes{3,2};
+    OpenGLShape square((unsigned int) 4, (unsigned int)6, shapes::rect_t, shapes::rect_ind, objectSizes, border, true);
+    OpenGLShape triangle((unsigned int) 3, (unsigned int)3, shapes::e_tri_t, shapes::e_tri_ind, objectSizes, diffuse_sampler_2d, false);
     OpenGLShape circle = create_circle(16);
     
     std::map<SHAPE_TYPE_2D, OpenGLShape*> shapeTypes{{SQUARE , &square}, {TRIANGLE, &triangle}, {CIRCLE, &circle}};
@@ -2602,7 +2627,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     
     
     
-    LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/mvp-color.vs", "Glitter/Shaders/mvp-color.fs");
+    LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
 
     lightingEnvironment.object_shader.use();
     glm::mat4 model(1.0f);
@@ -2610,6 +2635,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     lightingEnvironment.object_shader.setUniformF("SHAPE_MAX_FADE", SHAPE_MAX_FADE);
     lightingEnvironment.object_shader.setUniformF("SHAPE_MIN_FADE", SHAPE_MIN_FADE);
     lightingEnvironment.object_shader.setUniformI("MID_LAYER", MID_LAYER);
+    lightingEnvironment.object_shader.setUniformI("ourTexture1", 0);
     
     
     // initMouse(mWindow);
@@ -2723,8 +2749,11 @@ int mainDrawRectangle(int argc, char* argv[]){
     colorShader.use();
     colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
     //unsigned int texture = create_texture("Glitter/Textures/container2.png", "png");
+    cdata::Color purple(255,0,255,255);
+    unsigned int purpleValue = valueFromPngColor(purple);
+    cdata::Color purpleColorAgain = pngColorFromValue(purpleValue);
     
-    unsigned int texture1 = obtainPNGBorder(255, 255,  10, 10, cdata::color{0xFF,0x00,0x00,0xFF}, cdata::color{0, 255, 255, 80}, false, false);
+    unsigned int texture1 = obtainPNGBorder(255, 255,  10, 10, purpleColorAgain, cdata::Color{0, 255, 255, 100}, false, false);
     unsigned int texture2 = create_texture("Glitter/Textures/container2.png", "png");
     
     colorShader.setUniformI("ourTexture", 0);
@@ -2777,6 +2806,8 @@ OpenGLShape create_circle(unsigned int tri_cnt){
             circle.push_back(vert.x);
             circle.push_back(vert.y);
             circle.push_back(vert.z);
+            circle.push_back(0.0f); // random junk
+            circle.push_back(0.0f); // random junk
             
             for(unsigned int i = 0; i<3; i++){
                 ind.push_back(index);
@@ -2785,7 +2816,7 @@ OpenGLShape create_circle(unsigned int tri_cnt){
         }
     }
     
-    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3}, (unsigned) 0, false);
+    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, (unsigned) 0, true);
     
 
 }
@@ -2851,6 +2882,7 @@ void drawCubeMatrices2DFade(LightingEnvironment lightingEnvironment, std::deque<
         lightingEnvironment.object_shader.setUniformI("layer", layer);
         lightingEnvironment.object_shader.setUniformM4("model", shape.model);
         lightingEnvironment.object_shader.setUniformV4("aColor", shape.color);
+        lightingEnvironment.object_shader.setUniformB("IGNORE_TEXTURE", shape.type == CIRCLE);
         shapes[shape.type]->draw(lightingEnvironment.object_shader);
         i++;
     }

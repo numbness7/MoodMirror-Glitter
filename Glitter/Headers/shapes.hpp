@@ -8,6 +8,7 @@ namespace shapes {
     extern const float rect[];
     extern const float rect_c_t[];
     extern const float rect_t[];
+    extern const float e_tri_t[];
     extern const unsigned int rect_ind[];
     extern const float textured_cube[];
     extern const float normal_cube[];

@@ -3,6 +3,7 @@ in vec2 ourTexCoord;
 out vec4 FragColor;
 
 uniform vec4 aColor;
+uniform sampler2D ourTexture1;
 uniform float destructionTimePassed;
 uniform float destructionTime;
 uniform int layer;
@@ -11,6 +12,7 @@ uniform float SHAPE_MAX_FADE;
 uniform float SHAPE_MIN_FADE;
 uniform int MID_LAYER;
 uniform bool DO_FADE;
+uniform bool IGNORE_TEXTURE;
 
 in vec3 oPos;
 
@@ -26,8 +28,10 @@ void main(){
     
     newColor.a = (1.0f - fade)*aColor.a;
 
-    FragColor = newColor*texture(ourTexture1, ourTexCoord);
-    FragColor = newColor;
+    if (IGNORE_TEXTURE)
+        FragColor = newColor;
+    else
+        FragColor = newColor*texture(ourTexture1, ourTexCoord);
 }
 
 float calcFade(){

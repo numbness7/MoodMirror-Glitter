@@ -5,7 +5,7 @@
 #include "glm/ext/vector_float3.hpp"
 #include "glm/geometric.hpp"
 namespace cdata{
-    struct color{
+    struct Color{
         unsigned char red;
         unsigned char blue;
         unsigned char green;
