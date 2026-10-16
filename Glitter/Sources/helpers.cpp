@@ -360,14 +360,15 @@ unsigned char getBorderCheckColor(int width, int height, int row, int col, int h
     else return cdata::EMPTY_COLOR; 
 
 }
-void generatePNGBorder(PngData& pngData, int width, int height, int nrChannels, int hThickness, int vThickness){
+void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::color borderColor, cdata::color innerColor, bool ignoreInner, bool ignoreBorder){
     for(int gI = 0; gI < pngData.gridSize(); gI++){
-        pngData.setData(gI, PngData::redChannel, getBorderCheckColor(width, height, pngData.rFG(gI), pngData.cFG(gI), hThickness, vThickness));
-        pngData.setData(gI, PngData::blueChannel, cdata::EMPTY_COLOR);
-        pngData.setData(gI, PngData::greenChannel, cdata::EMPTY_COLOR);
-        pngData.setData(gI, PngData::alphaChannel, getBorderCheckColor(width, height, pngData.rFG(gI), pngData.cFG(gI), hThickness, vThickness));
+        if (isOnBorder(width, height, pngData.rFG(gI), pngData.cFG(gI), hThickness, vThickness)){
+            if(!ignoreBorder) pngData.setColor(gI, borderColor);
+        }
+        else{
+            if(!ignoreInner) pngData.setColor(gI, innerColor);
+        }
     }
-        
 }
 void generatePNGBorder(unsigned char* data, int width, int height, int nrChannels, int hThickness, int vThickness){
     for(PngDataIterator pDI(width, height, nrChannels); pDI.isNotDone(); pDI.iterate()){
@@ -375,10 +376,10 @@ void generatePNGBorder(unsigned char* data, int width, int height, int nrChannel
         pDI.setChannelByte( PngDataIterator::alphaChannel, getBorderCheckColor(width, height, pDI.row, pDI.col, hThickness, vThickness), data[pDI.index()]);
     }
 }
-unsigned int obtainPNGBorder(int width, int height, int nrChannels, int hThickness, int vThickness){
-    PngData pngData(width, height, nrChannels);
-    generatePNGBorder(pngData, width, height, nrChannels, hThickness, vThickness);
-    unsigned texture = getTextureFromData( pngData);
+unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::color borderColor, cdata::color innerColor, bool ignoreInner, bool ignoreBorder){
+    PngData pngData(width, height);
+    generatePNGBorder(pngData, width, height,  hThickness, vThickness, borderColor, innerColor, ignoreInner, ignoreBorder);
+    unsigned texture = getTextureFromData(pngData);
     return texture;
 }
 void generatePNGData(unsigned char* data, int width, int height, int nrChannels){
@@ -2584,6 +2585,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     unsigned int diffuse_sampler_2d;
     //create_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
     generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+    unsigned int border = obtainPNGBorder(255, 255,  10, 10, cdata::color{0xFF,0x00,0x00,0xFF}, cdata::color{0, 255, 255, 80}, false, false);
 
 
     
@@ -2722,7 +2724,7 @@ int mainDrawRectangle(int argc, char* argv[]){
     colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
     //unsigned int texture = create_texture("Glitter/Textures/container2.png", "png");
     
-    unsigned int texture1 = obtainPNGBorder(255, 255, 4, 10, 10);
+    unsigned int texture1 = obtainPNGBorder(255, 255,  10, 10, cdata::color{0xFF,0x00,0x00,0xFF}, cdata::color{0, 255, 255, 80}, false, false);
     unsigned int texture2 = create_texture("Glitter/Textures/container2.png", "png");
     
     colorShader.setUniformI("ourTexture", 0);
@@ -2865,7 +2867,7 @@ void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironme
     minimumStartRenderLoop(deltaTimer);
     setupMPVEnvironmentToDraw(lightingEnvironment);
 }
-PngData::PngData(int width, int height, int nrChannels) : width{width},  height{height}, nrChannels{nrChannels}{
+PngData::PngData(int width, int height) : width{width},  height{height}{
     data = initializePNGTextureData(width, height, nrChannels);
 }
 PngData::~PngData(){

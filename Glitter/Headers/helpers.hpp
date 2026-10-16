@@ -64,7 +64,7 @@ int floor(int x, int y);
 // Classes
 class PngData{
     public:
-        PngData(int width, int height, int nrChannels);
+        PngData(int width, int height);
         ~PngData();
         int index(int row, int col, int channel) { return row*width*nrChannels+col*nrChannels+channel; }
         int indexFromGrid(int gridIndex, int channel) { return gridIndex*nrChannels + channel; }
@@ -76,21 +76,32 @@ class PngData{
         int colFromGrid(int gridIndex) { return gridIndex - rowFromGrid(gridIndex)*width; }
         int rFG(int gridIndex) { return rowFromGrid(gridIndex); }
         int cFG(int gridIndex) { return colFromGrid(gridIndex); }
+        int gridIndex(int row, int col){ return width*row + col; }
+        int gridIndex(int index){ return floor(index,nrChannels); }
         int channel(int index) { return index - row(index)*width*nrChannels - col(index)*nrChannels; }
         void setData(int row, int col, int channel, const unsigned char& byte);
         void setData(int gridIndex, int channel, const unsigned char& byte) { data[indexFromGrid(gridIndex,channel)] = byte; }
         void setData(int index, const unsigned char& byte) { data[index] = byte; }
+        void setColor(int gridIndex, cdata::color color){
+            setData(gridIndex, redChannel, color.red);
+            setData(gridIndex, blueChannel, color.blue);
+            setData(gridIndex, greenChannel, color.green);
+            setData(gridIndex, alphaChannel, color.alpha);
+        }
+        void setColor(int row, int col, cdata::color color){
+            setColor(gridIndex(row,col), color);
+        }
         const unsigned char* getData () const { return data; }
         
 
         
         static const int redChannel = 0;
-        static const int blueChannel = 1;
-        static const int greenChannel = 2;
+        static const int greenChannel = 1;
+        static const int blueChannel = 2;
         static const int alphaChannel = 3;
         const int width;
         const int height;
-        const int nrChannels;
+        static const int nrChannels = 4;
     private:
         unsigned char* data;
 };
@@ -344,5 +355,7 @@ unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width,
 bool isOnBorder(int width, int height, int row, int col, int hThickness, int vThickness);
 unsigned char getBorderCheckColor(int width, int height, int row, int col, int hThickness, int vThickness);
 void generatePNGBorder(unsigned char* data, int width, int height, int nrChannels, int hThickness, int vThickness);
+void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::color borderColor, cdata::color innerColor, bool ignoreInner, bool ignoreBorder);
 unsigned int obtainPNGBorder(int width, int height, int nrChannels, int hThickness, int vThickness);
+unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::color borderColor, cdata::color innerColor, bool ignoreInner, bool ignoreBorder);
 #endif
