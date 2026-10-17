@@ -427,6 +427,29 @@ bool isInSquare(glm::vec2 point, glm::vec2 center,  float length){
 
 
 void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices){
+        std::vector<std::tuple<float,float,float>> borderLines{}; 
+        glm::vec2 prevVertex  = borderVertices[borderVertices.size()-1];
+        for(int borderVertexIndex = 0; borderVertexIndex < borderVertices.size(); borderVertexIndex++){
+            glm::vec2 curVertex;
+            if(borderVertexIndex < borderVertices.size() - 1)
+                curVertex = borderVertices[borderVertexIndex];
+            else
+                curVertex = borderVertices[borderVertices.size()-1];
+            float  preVertexNormX = boundTransformation(prevVertex.x, -0.5f, 0.5f, 0, pngData.width);
+            float  preVertexNormY = boundTransformation(prevVertex.y, -0.5f, 0.5f, 0, pngData.height);
+            glm::vec2 preVertexNorm(preVertexNormX,preVertexNormY);
+            float  curVertexNormX = boundTransformation(curVertex.x, -0.5f, 0.5f, 0, pngData.width);
+            float  curVertexNormY = boundTransformation(curVertex.y, -0.5f, 0.5f, 0, pngData.height);
+            glm::vec2 curVertexNorm(curVertexNormX,curVertexNormY);
+            auto line = getLineFromVertices(preVertexNorm.x, curVertexNorm.x, preVertexNorm.y, curVertexNorm.y);
+            borderLines.push_back(line);
+            checkPrint(std::format(      "({:.2f},\t{:.2f})\t-> ",  prevVertex.x,  prevVertex.y), true, DEBUG_LINE);
+            checkPrint(std::format(    "\t({:.2f},\t{:.2f})"  ,   curVertex.x,   curVertex.y), true, DEBUG_LINE);
+            checkPrint(std::format(  "\t\t\t({:.2f}, {:.2f})\t-> ",  preVertexNorm.x,  preVertexNorm.y), true, DEBUG_LINE);
+            checkPrint(std::format(    "\t({:.2f}, {:.2f})\n"  ,   curVertexNorm.x,   curVertexNorm.y), true, DEBUG_LINE);
+            prevVertex = curVertex;
+
+        }
     for(int gI = 0; gI < pngData.gridSize(); gI++){
         float row = (float) pngData.rFG(gI);
         float col = (float) pngData.cFG(gI);
@@ -459,29 +482,15 @@ void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> bord
         checkPrint(std::format("gZ: {}\n", pngData.gridSize()), combine, DEBUG_BORDER);
 
         float minDistance = std::numeric_limits<float>::max();
-        glm::vec2 prevVertex  = borderVertices[borderVertices.size()-1];
-        for(int i = 0; i < borderVertices.size(); i++){
 
-            glm::vec2 curVertex;
-            if(i < borderVertices.size() - 1)
-                curVertex = borderVertices[i];
-            else
-                curVertex = borderVertices[borderVertices.size()-1];
-            float  preVertexNormX = boundTransformation(prevVertex.x, -0.5f, 0.5f, 0, pngData.width);
-            float  preVertexNormY = boundTransformation(prevVertex.y, -0.5f, 0.5f, 0, pngData.height);
-            glm::vec2 preVertexNorm(preVertexNormX,preVertexNormY);
-            float  curVertexNormX = boundTransformation(curVertex.x, -0.5f, 0.5f, 0, pngData.width);
-            float  curVertexNormY = boundTransformation(curVertex.y, -0.5f, 0.5f, 0, pngData.height);
-            glm::vec2 curVertexNorm(curVertexNormX,curVertexNormY);
-            auto line = getLineFromVertices(preVertexNorm.x, curVertexNorm.x, preVertexNorm.y, curVertexNorm.y);
-            checkPrint(std::format("({},{}) -> ",  preVertexNorm.x,  preVertexNorm.y), combine, DEBUG_LINE);
-            checkPrint(std::format("({},{})\n"  ,   curVertexNorm.x,   curVertexNorm.y), combine, DEBUG_LINE);
+        for(int borderVertexIndex = 0; borderVertexIndex < borderVertices.size(); borderVertexIndex++){
+            auto line = borderLines[borderVertexIndex];
+
             float distance = distFromLine(line, gridVertex);
             if(distance < minDistance){
                 minDistance = distance;
             }
             checkPrint("distance", distance, combine, DEBUG_DISTANCE);
-            prevVertex = curVertex;
         }
 
         float maximumPossibleDistance = glm::length(glm::vec2(pngData.width,pngData.height))/2.0f;
@@ -3000,20 +3009,20 @@ int mainDrawCircle(int argc, char *argv[])
     std::vector<glm::vec2> borderVertices = borderVerticesFromShape(shapes::rectT.vertices, shapes::rectT.vertCnt, shapes::rectT.getStride());
     
 
-    unsigned int texture1 = obtainPNGDistanceFromBorder(255, 255, borderVertices);
+    // unsigned int texture1 = obtainPNGDistanceFromBorder(255, 255, borderVertices);
     //unsigned int texture1 = obtainPNGBorder(255, 255,  10, 10, purpleColorAgain, cdata::Color{0, 255, 255, 100}, false, false);
     unsigned int texture2 = obtainPNGBorder(255,255,50,50, cdata::Color(255,255,255,255),cdata::Color(100,100,100,255), false, false);
     
     colorShader.setUniformI("ourTexture", 0);
 
-    OpenGLShape rectangle((unsigned) shapes::rectT.vertCnt, (unsigned) 6, shapes::rect_t, shapes::rect_ind, std::vector<unsigned> {3,2}, texture1, true);
+    OpenGLShape rectangle((unsigned) shapes::rectT.vertCnt, (unsigned) 6, shapes::rect_t, shapes::rect_ind, std::vector<unsigned> {3,2}, texture2, true);
     //std::vector<glm::vec2> triBorderVertices = borderVerticesFromShape(shapes::eTriT.vertices, shapes::eTriT.vertCnt, shapes::eTriT.getStride());
-    std::vector<glm::vec2> triVerts = borderVerticesFromShape(shapes::eTriT.vertices, shapes::eTriT.vertCnt, shapes::eTriT.getStride());
-    unsigned int texture3 = obtainPNGDistanceFromBorder(255, 255, triVerts);
-    OpenGLShape triangle(shapes::eTriT.vertCnt, shapes::eTriT.indCnt, shapes::eTriT.vertices, shapes::eTriT.indices,  shapes::eTriT.attributeSizes,  texture3, true);
+    // std::vector<glm::vec2> triVerts = borderVerticesFromShape(shapes::eTriT.vertices, shapes::eTriT.vertCnt, shapes::eTriT.getStride());
+    // unsigned int texture3 = obtainPNGDistanceFromBorder(255, 255, triVerts);
+    // OpenGLShape triangle(shapes::eTriT.vertCnt, shapes::eTriT.indCnt, shapes::eTriT.vertices, shapes::eTriT.indices,  shapes::eTriT.attributeSizes,  texture3, true);
     DeltaTimer deltaTimer{};
     
-    OpenGLShape circle = create_circle(10);
+    OpenGLShape circle = create_circle(1000);
     
     
     while(!glfwWindowShouldClose(mWindow)){
@@ -3058,6 +3067,7 @@ OpenGLShape create_circle(unsigned int tri_cnt)
                 glm::vec4 radius_vec4(radius_vec,1.0f);
                 radius_vec4 = transform * radius_vec4;
                 vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
+                assert(vert.x != 0.0f || vert.y != 0.0f);
                 if(vi == 1)
                     border.push_back(glm::vec2(vert.x,vert.y));
             }

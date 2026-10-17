@@ -35,7 +35,7 @@
 #include <json.hpp>
 
 // Header Macros
-#define DEBUG_LINE false
+#define DEBUG_LINE true
 #define BYTESIZE 8
 #define POINT_LIGHT_COUNT 4
 #define MAXIMUM_BATCHES 100
