@@ -35,6 +35,7 @@
 #include <json.hpp>
 
 // Header Macros
+#define DEBUG_LINE false
 #define BYTESIZE 8
 #define POINT_LIGHT_COUNT 4
 #define MAXIMUM_BATCHES 100
@@ -64,7 +65,7 @@
 #define EMOTION_COORD_SCALE 1.00f
 #define DEBUG_BORDER false
 #define DEBUG_DISTANCE false
-#define DEBUG_FUN true
+#define DEBUG_FUN false
 
 int floor(int x, int y);
 
@@ -244,6 +245,7 @@ struct LightingEnvironment {
 // Main Programs
 int mainCoordsBasic2D(int argc, char * argv[]);
 int mainDrawRectangle(int argc, char* argv[]);
+int mainDrawCircle(int argc, char* argv[]);
 int mainCoords(int argc, char * argv[]);
 int mainCoordsBasic(int argc, char * argv[]);
 int mainCoordsBasicStream(int argc, char * argv[]);

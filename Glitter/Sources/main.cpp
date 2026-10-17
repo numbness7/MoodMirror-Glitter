@@ -21,5 +21,5 @@
 
 
 int main(int argc, char * argv[]) {
-    mainDrawRectangle(argc, argv);
+    mainDrawCircle(argc, argv);
 }

@@ -377,11 +377,6 @@ void generatePNGBorder(unsigned char* data, int width, int height, int nrChannel
     }
 }
 
-float transformBounds(float x, float min, float max, float tMin, float tMax){
-    float mid = (min + max)/2;
-    float tMid = (tMin + tMax)/2;
-
-}
 /// @brief 
 /// @param width 
 /// @param height 
@@ -479,13 +474,13 @@ void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> bord
             float  curVertexNormY = boundTransformation(curVertex.y, -0.5f, 0.5f, 0, pngData.height);
             glm::vec2 curVertexNorm(curVertexNormX,curVertexNormY);
             auto line = getLineFromVertices(preVertexNorm.x, curVertexNorm.x, preVertexNorm.y, curVertexNorm.y);
+            checkPrint(std::format("({},{}) -> ",  preVertexNorm.x,  preVertexNorm.y), combine, DEBUG_LINE);
+            checkPrint(std::format("({},{})\n"  ,   curVertexNorm.x,   curVertexNorm.y), combine, DEBUG_LINE);
             float distance = distFromLine(line, gridVertex);
             if(distance < minDistance){
                 minDistance = distance;
             }
             checkPrint("distance", distance, combine, DEBUG_DISTANCE);
-            checkPrint(std::format("({},{}) -> ",  preVertexNorm.x,  preVertexNorm.y), combine, DEBUG_BORDER);
-            checkPrint(std::format("({},{})\n"  ,   curVertexNorm.x,   curVertexNorm.y), combine, DEBUG_BORDER);
             prevVertex = curVertex;
         }
 
@@ -2990,12 +2985,64 @@ int mainDrawRectangle(int argc, char* argv[]){
     return EXIT_SUCCESS;
     
 }
-OpenGLShape create_circle(unsigned int tri_cnt){
+int mainDrawCircle(int argc, char *argv[])
+{
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    Shader colorShader("Glitter/Shaders/texture-color.vs", "Glitter/Shaders/texture-color.fs");
+    colorShader.use();
+    colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
+    unsigned int texture5 = create_texture("Glitter/Textures/container2.png", "png");
+    cdata::Color purple(255,0,255,255);
+    unsigned int purpleValue = valueFromPngColor(purple);
+    cdata::Color purpleColorAgain = pngColorFromValue(purpleValue);
+    std::vector<glm::vec2> borderVertices = borderVerticesFromShape(shapes::rectT.vertices, shapes::rectT.vertCnt, shapes::rectT.getStride());
+    
 
+    unsigned int texture1 = obtainPNGDistanceFromBorder(255, 255, borderVertices);
+    //unsigned int texture1 = obtainPNGBorder(255, 255,  10, 10, purpleColorAgain, cdata::Color{0, 255, 255, 100}, false, false);
+    unsigned int texture2 = obtainPNGBorder(255,255,50,50, cdata::Color(255,255,255,255),cdata::Color(100,100,100,255), false, false);
+    
+    colorShader.setUniformI("ourTexture", 0);
+
+    OpenGLShape rectangle((unsigned) shapes::rectT.vertCnt, (unsigned) 6, shapes::rect_t, shapes::rect_ind, std::vector<unsigned> {3,2}, texture1, true);
+    //std::vector<glm::vec2> triBorderVertices = borderVerticesFromShape(shapes::eTriT.vertices, shapes::eTriT.vertCnt, shapes::eTriT.getStride());
+    std::vector<glm::vec2> triVerts = borderVerticesFromShape(shapes::eTriT.vertices, shapes::eTriT.vertCnt, shapes::eTriT.getStride());
+    unsigned int texture3 = obtainPNGDistanceFromBorder(255, 255, triVerts);
+    OpenGLShape triangle(shapes::eTriT.vertCnt, shapes::eTriT.indCnt, shapes::eTriT.vertices, shapes::eTriT.indices,  shapes::eTriT.attributeSizes,  texture3, true);
+    DeltaTimer deltaTimer{};
+    
+    OpenGLShape circle = create_circle(10);
+    
+    
+    while(!glfwWindowShouldClose(mWindow)){
+        minimumStartRenderLoop(deltaTimer);
+        glDepthMask(false);
+        colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
+        colorShader.setUniformB("distanceFade", false);
+        rectangle.setTexture(texture2);
+        rectangle.draw(colorShader);
+        // colorShader.setUniformV4("aColor", glm::vec4(1.0f,0.0f,0.0f,1.0f));
+        // colorShader.setUniformB("distanceFade", true);
+        // rectangle.setTexture(texture1);
+        // rectangle.draw(colorShader);
+        colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
+        colorShader.setUniformB("distanceFade", true);
+        circle.draw(colorShader);
+        glDepthMask(true);
+        endRenderLoopViewStatic(mWindow, deltaTimer);
+    } glfwTerminate();
+    
+    return EXIT_SUCCESS;
+}
+OpenGLShape create_circle(unsigned int tri_cnt)
+{
 
     std::vector<float> circle{};
     std::vector<unsigned> ind{};
     unsigned int index = 0;
+    std::vector<glm::vec2> border;
 
     for(unsigned int tri = 0; tri < tri_cnt; tri++){
        
@@ -3011,15 +3058,17 @@ OpenGLShape create_circle(unsigned int tri_cnt){
                 glm::vec4 radius_vec4(radius_vec,1.0f);
                 radius_vec4 = transform * radius_vec4;
                 vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
+                if(vi == 1)
+                    border.push_back(glm::vec2(vert.x,vert.y));
             }
             else{
-                vert = glm::vec3(0.0f,0.0f,0.0f);
+                vert = glm::vec3(0.0f,0.0f,0.0f); // Center Vertex
             }
             circle.push_back(vert.x);
             circle.push_back(vert.y);
             circle.push_back(vert.z);
-            circle.push_back(0.0f); // random junk
-            circle.push_back(0.0f); // random junk
+            circle.push_back(boundTransformation(vert.x, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
+            circle.push_back(boundTransformation(vert.y, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
             
             for(unsigned int i = 0; i<3; i++){
                 ind.push_back(index);
@@ -3028,9 +3077,9 @@ OpenGLShape create_circle(unsigned int tri_cnt){
         }
     }
     
-    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, (unsigned) 0, true);
+    unsigned int texture = obtainPNGDistanceFromBorder(255,255, border);
     
-
+    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, texture, true);
 }
 float clamp(const float x, const float min, const float max){
     if(x < min) return min;
