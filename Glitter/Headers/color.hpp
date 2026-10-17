@@ -15,6 +15,7 @@ namespace cdata{
     };
     const unsigned char FULL_COLOR = 0xFF;
     const unsigned char EMPTY_COLOR = 0x00;
+    const Color white(FULL_COLOR,FULL_COLOR,FULL_COLOR,FULL_COLOR);
     std::string col2str(Color col);
 }
 

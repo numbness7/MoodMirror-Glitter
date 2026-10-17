@@ -71,7 +71,7 @@ void Shader::compileShader(const char vertex_shader_source[], const char fragmen
 void uniformError(std::string name, GLint uniform_loc){
     
     if(uniform_loc == -1){
-        //std::cout << "Error: Uniform: " << name << " does not exist!" << std::endl;
+        std::cout << "Error: Uniform: " << name << " does not exist!" << std::endl;
     }
 }
 

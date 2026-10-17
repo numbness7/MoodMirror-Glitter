@@ -2,8 +2,11 @@
 in vec2 ourTexCoord;
 out vec4 FragColor;
 
+uniform sampler2D borderTexture;
+uniform int borderCase = 0;
+
 uniform vec4 aColor;
-uniform sampler2D ourTexture1;
+uniform sampler2D ourTexture;
 uniform float destructionTimePassed;
 uniform float destructionTime;
 uniform int layer;
@@ -13,25 +16,33 @@ uniform float SHAPE_MIN_FADE;
 uniform int MID_LAYER;
 uniform bool DO_FADE;
 uniform bool IGNORE_TEXTURE;
+uniform float BORDER_DIST_SCALE;
 
 in vec3 oPos;
 
+float getDist(vec4 textureColor);
 float calcFade();
-
+vec4 getDistColor(vec4 textureColor, int theCase, float borderDistScale);
 
 void main(){
+    
+    
     float fade = 0.0f;
     if (DO_FADE)
         fade = calcFade();
-    vec4 newColor = aColor;
-    
-    
-    newColor.a = (1.0f - fade)*aColor.a;
+    vec4 fadedColor = aColor;
+    fadedColor.a = (1.0f - fade)*fadedColor.a;
+
+
+    vec4 borderTextureColor = texture(borderTexture, ourTexCoord);
+    vec4 textureColor = texture(ourTexture, ourTexCoord);
+    vec4 borderColor = getDistColor(borderTextureColor, borderCase, BORDER_DIST_SCALE);
+    float dist = getDist(borderTextureColor);
 
     if (IGNORE_TEXTURE)
-        FragColor = newColor;
+        FragColor = borderColor*fadedColor;
     else
-        FragColor = newColor*texture(ourTexture1, ourTexCoord);
+        FragColor = borderColor*fadedColor*textureColor;
 }
 
 float calcFade(){
@@ -70,24 +81,35 @@ float calcFade(){
     return fade;
 }
 
-float calcFadeSimple(){
-    float fade = 0.0f;
-    int midLayer = maxLayer/2;
-    float timePassed = destructionTimePassed;
-    float normalizer = destructionTime;
-    float timePassedNorm = timePassed/normalizer;
-    if (layer == 0){
-        float slope = (SHAPE_MAX_FADE - SHAPE_MIN_FADE)/(1.0f - 0.0f);
-        float b = SHAPE_MIN_FADE;
-        fade = b + slope*timePassedNorm;
+float getDist(vec4 textureColor){
+        const float redChannel = 0;
+        const float greenChannel = 1;
+        const float blueChannel = 2;
+        const float alphaChannel = 3;
+        const float nrChannels = 4;
+        float dist = 
+              textureColor.x*pow(2,-(redChannel)*8)
+            + textureColor.y*pow(2,-(greenChannel)*8)
+            + textureColor.z*pow(2,-( blueChannel)*8);
+        return dist;
+}
+
+vec4 getDistColor(vec4 textureColor, int theCase, float borderDistScale){
+    if (theCase == 0){
+        return vec4(1.0f)*vec4(textureColor.x, textureColor.y, textureColor.z + textureColor.a,1.0f);
+    }
+    else if (theCase == 1) {
+        return vec4(1.0f)*textureColor;
+    }
+    else if (theCase == 2){
+        float dist = getDist(textureColor);
+        return vec4(1.0f)*vec4(1.0f,1.0f,1.0f,dist*borderDistScale);
+    }
+    else if (theCase == 3){
+        float dist = getDist(textureColor);
+        return vec4(1.0f)*vec4(1.0f,1.0f,1.0f,1.0f - dist*borderDistScale);
     }
     else {
-        float maxFade = float(layer)/float(maxLayer);
-        float slope = (float(layer-1)/float(maxLayer) - maxFade)/(1.0f - 0.0f);
-        float b = maxFade;
-        fade = b + slope*timePassedNorm;
+        return vec4(1.0f);
     }
-    if(fade > SHAPE_MAX_FADE) fade = SHAPE_MAX_FADE;
-    else if (fade < SHAPE_MIN_FADE) fade = SHAPE_MIN_FADE;
-    return fade;
 }

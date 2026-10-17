@@ -39,7 +39,6 @@ namespace shapes {
         0, 1, 2
     };
     
-    const Shape eTriT(e_tri_t, 5*3, std::vector<unsigned>{3,2}, e_tri_ind, 3);
     
     const float rectVerts[] = {
         // position       
@@ -71,7 +70,8 @@ namespace shapes {
 
     };
     
-    const Shape rectT(rect_t, sizeof(rect_t)/sizeof(float),rect_t_attribute_sizes, rect_ind, 6);
+    const Shape rectT(rect_t,  sizeof(rect_t)/sizeof(float), rect_t_attribute_sizes,      rect_ind, sizeof(rect_ind)/sizeof(unsigned int));
+    const Shape eTriT(e_tri_t, sizeof(e_tri_t)/sizeof(float),std::vector<unsigned>{3,2}, e_tri_ind, 3);
     const float cube[] = {
     -0.5f, -0.5f, -0.5f,
      0.5f, -0.5f, -0.5f,

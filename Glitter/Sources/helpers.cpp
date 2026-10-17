@@ -53,6 +53,11 @@ glm::vec4 randRGBA(){
 }
 
 
+template<typename T> void mySwap(T& o1, T& o2){
+    T temp = o1;
+    o1 = o2;
+    o2 = temp;
+}
 
 void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2){
     shader.use();
@@ -63,6 +68,21 @@ void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader
     glBindVertexArray(VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glDrawElements(GL_TRIANGLES, vert_cnt, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+unsigned int getGL_TextureX(unsigned int index){
+    return GL_TEXTURE0 + index;
+}
+void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures){
+    shader.use();
+    for(int i = 0; i < textures.size(); i++){
+        unsigned int GL_TEXTUREX = getGL_TextureX(i);
+        glActiveTexture(GL_TEXTUREX);
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+    }
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glDrawElements(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
 
@@ -383,12 +403,19 @@ void generatePNGBorder(unsigned char* data, int width, int height, int nrChannel
 /// @param borderVertices In clockwise order each vertex has x in [-0.5f,0.5f], y in [-0.5f,0.5f]
 /// @return 
 unsigned int obtainPNGDistanceFromBorder(int width, int height, std::vector<glm::vec2> borderVertices){
-
     PngData pngData(width, height);
     generatePNGDistanceFromBorder(pngData, borderVertices);
     unsigned int texture = getTextureFromData(pngData);
     return texture;
-
+}
+/// @brief 
+/// @param pngData 
+/// @param borderVertices In clockwise order each vertex has x in [-0.5f,0.5f], y in [-0.5f,0.5f]
+/// @return 
+unsigned int obtainPNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices){
+    generatePNGDistanceFromBorder(pngData, borderVertices);
+    unsigned int texture = getTextureFromData(pngData);
+    return texture;
 }
 
 float distFromLine(std::tuple<float,float,float> line, glm::vec2 point){
@@ -397,6 +424,9 @@ float distFromLine(std::tuple<float,float,float> line, glm::vec2 point){
     return glm::abs(A*point.x + B*point.y + C)/glm::sqrt(glm::pow(A,2) + glm::pow(B,2));
 }
 
+std::vector<glm::vec2> borderVerticesFromShape(const shapes::Shape& shape){
+    return borderVerticesFromShape(shape.vertices, shape.vertCnt, shape.getStride());
+}
 std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride){
     std::vector<glm::vec2> borderVertices{};
     for(int i = 0; i < vert_cnt; i+=stride){
@@ -429,6 +459,10 @@ bool isInSquare(glm::vec2 point, glm::vec2 center,  float length){
 void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices){
         std::vector<std::tuple<float,float,float>> borderLines{}; 
         glm::vec2 prevVertex  = borderVertices[borderVertices.size()-1];
+        std::vector<glm::vec2> borderVerticesN{};
+        glm::vec2 centerN = glm::vec2(
+                boundTransformation(0, -0.5f, 0.5f, 0, pngData.width),
+                boundTransformation(0, -0.5f, 0.5f, 0, pngData.height));
         for(int borderVertexIndex = 0; borderVertexIndex < borderVertices.size(); borderVertexIndex++){
             glm::vec2 curVertex;
             if(borderVertexIndex < borderVertices.size() - 1)
@@ -441,6 +475,7 @@ void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> bord
             float  curVertexNormX = boundTransformation(curVertex.x, -0.5f, 0.5f, 0, pngData.width);
             float  curVertexNormY = boundTransformation(curVertex.y, -0.5f, 0.5f, 0, pngData.height);
             glm::vec2 curVertexNorm(curVertexNormX,curVertexNormY);
+            borderVerticesN.push_back(curVertexNorm);
             auto line = getLineFromVertices(preVertexNorm.x, curVertexNorm.x, preVertexNorm.y, curVertexNorm.y);
             borderLines.push_back(line);
             checkPrint(std::format(      "({:.2f},\t{:.2f})\t-> ",  prevVertex.x,  prevVertex.y), true, DEBUG_LINE);
@@ -448,8 +483,16 @@ void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> bord
             checkPrint(std::format(  "\t\t\t({:.2f}, {:.2f})\t-> ",  preVertexNorm.x,  preVertexNorm.y), true, DEBUG_LINE);
             checkPrint(std::format(    "\t({:.2f}, {:.2f})\n"  ,   curVertexNorm.x,   curVertexNorm.y), true, DEBUG_LINE);
             prevVertex = curVertex;
-
         }
+
+        std::vector<std::tuple<float,float,float>> centerlines{}; 
+
+        for(int borderVertexIndexN = 0; borderVertexIndexN < borderVerticesN.size(); borderVertexIndexN++){
+            glm::vec2 curVertexN = borderVerticesN[borderVertexIndexN];
+            const auto line = getLineFromVertices(centerN.x, curVertexN.x, centerN.y, curVertexN.y);
+            centerlines.push_back(line);
+        }
+
     for(int gI = 0; gI < pngData.gridSize(); gI++){
         float row = (float) pngData.rFG(gI);
         float col = (float) pngData.cFG(gI);
@@ -457,40 +500,36 @@ void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> bord
         float gridX = col;
         float gridYN = boundTransformation(gridY, 0, pngData.height, -0.5f, 0.5f);
         float gridXN = boundTransformation(gridX, 0, pngData.width, -0.5f, 0.5f);
-        glm::vec2 gridVertexN(gridXN, gridYN);
-        glm::vec2 gridVertex(gridX, gridY);
+        glm::vec2 tileCenter(0.5,0.5);
+        glm::vec2 gridVertex(gridX + tileCenter.x, gridY + tileCenter.y);
         
 
 
-        bool isInRange = isInSquare(gridVertexN, glm::vec2(0.0f), SMALL_FLOAT) 
-            || isInSquare(gridVertexN, glm::vec2(0.5f, 0.2f), SMALL_FLOAT)
-            || isInSquare(gridVertexN, glm::vec2(0.2f,0.0f), SMALL_FLOAT)
-            || isInSquare(gridVertexN, glm::vec2(-0.2f,0.0f), SMALL_FLOAT);
-        bool isSmall = gridXN <= -0.5+SMALL_FLOAT && gridYN <= -0.5+SMALL_FLOAT;
-        bool isBig = gridXN >= 0.5-NOT_THAT_SMALL_FLOAT && gridYN >= 0.5-NOT_THAT_SMALL_FLOAT;
-        bool combine = isInRange;
         
 
         
-        checkPrint(std::format("Range ##################################################################\n"), isInRange, DEBUG_BORDER);
-        checkPrint(std::format("Small ################\n"), isSmall, DEBUG_BORDER);
-        checkPrint(std::format("BIG   ################\n"), isBig, DEBUG_BORDER);
-        checkPrint(std::format("col:  {0:f}, row: {1:f}\n", col, row), combine, DEBUG_BORDER);
-        checkPrint(std::format("gridXN: {0:f}, gridYN: {1:f}\n", gridXN, gridYN), combine, DEBUG_BORDER);
-        checkPrint(std::format("gridX:  {0:f}, gridY: {1:f}\n", gridX, gridY), combine, DEBUG_BORDER);
-        checkPrint(std::format("gI: {}\n", gI), combine, DEBUG_BORDER);
-        checkPrint(std::format("gZ: {}\n", pngData.gridSize()), combine, DEBUG_BORDER);
 
         float minDistance = std::numeric_limits<float>::max();
 
-        for(int borderVertexIndex = 0; borderVertexIndex < borderVertices.size(); borderVertexIndex++){
-            auto line = borderLines[borderVertexIndex];
+        int preIndex = borderVertices.size()-1;
+        glm::vec2 prevVertexN  = borderVertices[preIndex];
+        for(int borderVertexIndexN = 0; borderVertexIndexN < borderVertices.size(); borderVertexIndexN++){
+            auto line = borderLines[borderVertexIndexN];
+            glm::vec2 curVertexN;
+            int curIndex = borderVertexIndexN;
+            if(borderVertexIndexN >= borderVertices.size() - 1)
+                curIndex = borderVertices.size()-1;
+            curVertexN = borderVertices[curIndex];
 
             float distance = distFromLine(line, gridVertex);
+            // bool isOnPreCenterLine = isOnLine(centerlines[preIndex], gridVertex);
+            // bool isOnCurCenterLine = isOnLine(centerlines[curIndex], gridVertex);
+            //checkPrint(std::format("CLinePoint: {}, {}, Border: {},{}, Distance: {}\n",gridVertex.x, gridVertex.y, curVertexN.x, curVertexN.y, distance), isOnCurCenterLine, DEBUG_LINE);
+            //checkPrint(std::format("PLinePoint: {}, {}, Border: {},{}, Distance: {}\n",gridVertex.x, gridVertex.y, prevVertexN.x, prevVertexN.y, distance), isOnPreCenterLine, DEBUG_LINE);
             if(distance < minDistance){
                 minDistance = distance;
             }
-            checkPrint("distance", distance, combine, DEBUG_DISTANCE);
+            prevVertexN = curVertexN;
         }
 
         float maximumPossibleDistance = glm::length(glm::vec2(pngData.width,pngData.height))/2.0f;
@@ -504,17 +543,6 @@ void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> bord
         
         unsigned int maxInt = std::numeric_limits<unsigned int>::max();
         cdata::Color colorCodedMaxDistance =  pngColorFromValue(maxInt);
-        checkPrint(std::format("maxInt: {}\n", maxInt), combine, DEBUG_FUN);
-        checkPrint(std::format("maximumPossibleDistance: {}\n", maximumPossibleDistance), combine, DEBUG_BORDER);
-        checkPrint("UBERMAXUNSIGNEDINT", std::numeric_limits<unsigned int>::max(), combine, DEBUG_BORDER);
-        checkPrint("CCMD", cdata::col2str(colorCodedMaxDistance), combine, DEBUG_FUN);
-        checkPrint(std::format("VALUES_____________________\n"), combine, DEBUG_FUN);
-        checkPrint(std::format("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"), combine, DEBUG_FUN);
-        checkPrint("minDistance", minDistance, combine, DEBUG_FUN);
-        checkPrint("DV", std::format("{0:d}\n", distanceValue), combine, DEBUG_FUN);
-        checkPrint("DV", std::format("0x{0:x}\n", distanceValue), combine, DEBUG_FUN);
-        checkPrint("CCD", cdata::col2str(colorCodedDistance), combine, DEBUG_FUN);
-        checkPrint("distanceFromValueNorm", distanceFloatValueNorm, combine, DEBUG_BORDER);
     }
 
 }
@@ -524,7 +552,35 @@ unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickn
     unsigned texture = getTextureFromData(pngData);
     return texture;
 }
-cdata::Color pngColorFromValue(const unsigned int& value)
+unsigned int obtainPNGBlank(PngData& pngData){
+    generatePNGBlank(pngData);
+    unsigned texture = getTextureFromData(pngData);
+    return texture;
+}
+void generatePNGBlank(PngData& pngData){
+    for(int gI = 0; gI < pngData.gridSize(); gI++) {
+        pngData.setColor(gI, cdata::white);
+    }
+}
+
+bool isInRange(float x, float min, float max){
+   return min < x && x < max; 
+}
+
+bool isOnLine(std::tuple<float, float, float> line, glm::vec2 point)
+{
+    const auto& [A, B, C] = line;
+    float actualValue = A*point.x + B*point.y + C;
+    return isInRange(actualValue, -SMALL_FLOAT, SMALL_FLOAT);
+}
+
+unsigned int obtainPNGBorder(PngData &pngData, int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder)
+{
+    generatePNGBorder(pngData, pngData.width, pngData.height,  hThickness, vThickness, borderColor, innerColor, ignoreInner, ignoreBorder);
+    unsigned texture = getTextureFromData(pngData);
+    return texture;
+}
+cdata::Color pngColorFromValue(const unsigned int &value)
 {
     const cdata::Color color(
         (unsigned char) (value >> ((PngData::nrChannels - 1 - PngData::redChannel   ) * sizeof(unsigned char)*BYTESIZE)),
@@ -2058,13 +2114,25 @@ void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, gl
 OpenGLShape::OpenGLShape(unsigned int vert_cnt, unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture){
     this->ind_cnt = ind_cnt;
     this->vert_cnt = vert_cnt;
-    this->texture = texture;
-    this->hasTexture = hasTexture;
+    this->textures = std::vector<unsigned int>{texture};
+    this->hasTextures = hasTexture;
     create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, this->vert_cnt, vertices, indices, attributeSizes);
 }
-void OpenGLShape::draw(Shader shader){
-    if(hasTexture)
-        drawTexturedShape(VAO, EBO, shader, ind_cnt, texture);
+OpenGLShape::OpenGLShape(const shapes::Shape &shape, unsigned int texture, bool hasTexture) : OpenGLShape(shape.vertCnt, shape.indCnt, shape.vertices, shape.indices, shape.attributeSizes, texture, hasTexture)
+{
+}
+OpenGLShape::OpenGLShape(const shapes::Shape &shape, const std::vector<unsigned int> &textures, const bool hasMultipleTextures)
+{
+    this->ind_cnt = shape.indCnt;
+    this->vert_cnt = shape.vertCnt;
+    this->hasTextures = hasMultipleTextures;
+    setTextures(textures);
+    create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, this->vert_cnt, shape.vertices, shape.indices, shape.attributeSizes);
+}
+void OpenGLShape::draw(Shader shader)
+{
+    if(hasTextures)
+        drawMultipleTexturedShape(VAO, EBO, shader, ind_cnt, textures);
     else
         drawShape(VAO, EBO, shader, ind_cnt);
 }
@@ -2362,7 +2430,6 @@ void drawCubeMatrices2DScale(LightingEnvironment lightingEnvironment, std::deque
         lightingEnvironment.object_shader.setUniformM4("model", model);
         //lightingEnvironment.object_shader.setUniformM4("model", shape.model);
         lightingEnvironment.object_shader.setUniformV4("aColor", shape.color);
-        lightingEnvironment.object_shader.setUniformB("IGNORE_TEXTURE", shape.type == CIRCLE);
         shapes[shape.type]->draw(lightingEnvironment.object_shader);
         i++;
     }
@@ -2810,18 +2877,31 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     Alarm creationAlarm(SHAPE_INITIAL_SPAWN_TIME);
     bool shapesFull = false;
     
-    unsigned int diffuse_sampler_2d;
-    //create_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
-    generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
-    unsigned int border = obtainPNGBorder(255, 255,  10, 10, cdata::Color{0xFF,0x00,0x00,0xFF}, cdata::Color{0, 255, 255, 80}, false, false);
 
+    PngData blankPNGData(255,255);
+    unsigned int blankTexture = obtainPNGBlank(blankPNGData);
 
+    std::cout << "Generate triangle" << std::endl;
+    PngData pngDataTriangle(255, 255);
+    std::vector<glm::vec2> triangleBorder = borderVerticesFromShape(shapes::eTriT);
+    unsigned int triangleBorderTexture = obtainPNGDistanceFromBorder(pngDataTriangle, triangleBorder);
+    OpenGLShape triangle(shapes::eTriT, {blankTexture,triangleBorderTexture}, true);
     
     
-    std::vector<unsigned int> objectSizes{3,2};
-    OpenGLShape square((unsigned int) 4, (unsigned int)6, shapes::rect_t, shapes::rect_ind, objectSizes, border, true);
-    OpenGLShape triangle((unsigned int) 3, (unsigned int)3, shapes::e_tri_t, shapes::e_tri_ind, objectSizes, diffuse_sampler_2d, false);
-    OpenGLShape circle = create_circle(16);
+
+    std::cout << "Generate square" << std::endl;
+    PngData pngDataSquare(255, 255);
+    std::vector<glm::vec2> squareBorder = borderVerticesFromShape(shapes::rectT);
+    unsigned int squareBorderTexture = obtainPNGDistanceFromBorder(pngDataSquare, squareBorder);
+    OpenGLShape square(shapes::rectT, {blankTexture,squareBorderTexture}, true);
+    
+
+    
+
+    std::cout << "Generate circle" << std::endl;
+    PngData pngDataCircle(255, 255);
+    OpenGLShape circle = create_circle(16, pngDataCircle);
+    circle.setTextures({blankTexture, circle.getTexture(0)});
     
     std::map<SHAPE_TYPE_2D, OpenGLShape*> shapeTypes{{SQUARE , &square}, {TRIANGLE, &triangle}, {CIRCLE, &circle}};
     
@@ -2838,7 +2918,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     lightingEnvironment.object_shader.setUniformF("SHAPE_MAX_FADE", SHAPE_MAX_FADE);
     lightingEnvironment.object_shader.setUniformF("SHAPE_MIN_FADE", SHAPE_MIN_FADE);
     lightingEnvironment.object_shader.setUniformI("MID_LAYER", MID_LAYER);
-    lightingEnvironment.object_shader.setUniformI("ourTexture1", 0);
+    lightingEnvironment.object_shader.setUniformI("ourTexture", 0);
+    lightingEnvironment.object_shader.setUniformI("borderTexture", 1);
+    lightingEnvironment.object_shader.setUniformI("IGNORE_TEXTURE", false);
+    lightingEnvironment.object_shader.setUniformI("borderCase", 0);
+    lightingEnvironment.object_shader.setUniformF("BORDER_DIST_SCALE", 0.125f);
     
     
     // initMouse(mWindow);
@@ -2951,43 +3035,23 @@ int mainDrawRectangle(int argc, char* argv[]){
     Shader colorShader("Glitter/Shaders/texture-color.vs", "Glitter/Shaders/texture-color.fs");
     colorShader.use();
     colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
-    unsigned int texture5 = create_texture("Glitter/Textures/container2.png", "png");
-    cdata::Color purple(255,0,255,255);
-    unsigned int purpleValue = valueFromPngColor(purple);
-    cdata::Color purpleColorAgain = pngColorFromValue(purpleValue);
-    std::vector<glm::vec2> borderVertices = borderVerticesFromShape(shapes::rectT.vertices, shapes::rectT.vertCnt, shapes::rectT.getStride());
-    
-
-    unsigned int texture1 = obtainPNGDistanceFromBorder(255, 255, borderVertices);
-    //unsigned int texture1 = obtainPNGBorder(255, 255,  10, 10, purpleColorAgain, cdata::Color{0, 255, 255, 100}, false, false);
-    unsigned int texture2 = obtainPNGBorder(255,255,50,50, cdata::Color(255,255,255,255),cdata::Color(100,100,100,255), false, false);
-    
+    colorShader.setUniformI("borderCase", 3);
     colorShader.setUniformI("ourTexture", 0);
-
-    OpenGLShape rectangle((unsigned) shapes::rectT.vertCnt, (unsigned) 6, shapes::rect_t, shapes::rect_ind, std::vector<unsigned> {3,2}, texture1, true);
-    //std::vector<glm::vec2> triBorderVertices = borderVerticesFromShape(shapes::eTriT.vertices, shapes::eTriT.vertCnt, shapes::eTriT.getStride());
-    std::vector<glm::vec2> triVerts = borderVerticesFromShape(shapes::eTriT.vertices, shapes::eTriT.vertCnt, shapes::eTriT.getStride());
-    unsigned int texture3 = obtainPNGDistanceFromBorder(255, 255, triVerts);
-    OpenGLShape triangle(shapes::eTriT.vertCnt, shapes::eTriT.indCnt, shapes::eTriT.vertices, shapes::eTriT.indices,  shapes::eTriT.attributeSizes,  texture3, true);
+    colorShader.setUniformI("borderTexture", 1);
     DeltaTimer deltaTimer{};
+    PngData blankPngData(16,16);
+    PngData borderPngData(16,16);
+    unsigned int borderTexture = obtainPNGDistanceFromBorder(borderPngData, borderVerticesFromShape(shapes::rectT));
+    unsigned int blankTexture = obtainPNGBlank(blankPngData);
+    OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture}, true);
+    pngDataSavePng("testSSR.png", borderPngData);
+    
+
     
     
     while(!glfwWindowShouldClose(mWindow)){
-        minimumStartRenderLoop(deltaTimer);
-        glDepthMask(false);
-        colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
-        colorShader.setUniformB("distanceFade", false);
-        rectangle.setTexture(texture2);
+        minimumStartRenderLoop(deltaTimer, glm::vec4(0.0f,0.1f,0.0f,1.0f));
         rectangle.draw(colorShader);
-        // colorShader.setUniformV4("aColor", glm::vec4(1.0f,0.0f,0.0f,1.0f));
-        // colorShader.setUniformB("distanceFade", true);
-        // rectangle.setTexture(texture1);
-        // rectangle.draw(colorShader);
-        colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
-        colorShader.setUniformB("distanceFade", true);
-        triangle.setTexture(texture3);
-        triangle.draw(colorShader);
-        glDepthMask(true);
         endRenderLoopViewStatic(mWindow, deltaTimer);
     } glfwTerminate();
     
@@ -3003,47 +3067,89 @@ int mainDrawCircle(int argc, char *argv[])
     colorShader.use();
     colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
     unsigned int texture5 = create_texture("Glitter/Textures/container2.png", "png");
-    cdata::Color purple(255,0,255,255);
-    unsigned int purpleValue = valueFromPngColor(purple);
-    cdata::Color purpleColorAgain = pngColorFromValue(purpleValue);
+    int width, height, nrChannels;
+    std::string texture_filepath = "Glitter/Textures/container2.png";
     std::vector<glm::vec2> borderVertices = borderVerticesFromShape(shapes::rectT.vertices, shapes::rectT.vertCnt, shapes::rectT.getStride());
     
 
-    // unsigned int texture1 = obtainPNGDistanceFromBorder(255, 255, borderVertices);
-    //unsigned int texture1 = obtainPNGBorder(255, 255,  10, 10, purpleColorAgain, cdata::Color{0, 255, 255, 100}, false, false);
-    unsigned int texture2 = obtainPNGBorder(255,255,50,50, cdata::Color(255,255,255,255),cdata::Color(100,100,100,255), false, false);
+    unsigned int blankTexture = obtainPNGBorder(255,255,50,50, cdata::Color(255,255,255,255),cdata::Color(255,255,255,255), false, false);
     
     colorShader.setUniformI("ourTexture", 0);
 
-    OpenGLShape rectangle((unsigned) shapes::rectT.vertCnt, (unsigned) 6, shapes::rect_t, shapes::rect_ind, std::vector<unsigned> {3,2}, texture2, true);
-    //std::vector<glm::vec2> triBorderVertices = borderVerticesFromShape(shapes::eTriT.vertices, shapes::eTriT.vertCnt, shapes::eTriT.getStride());
-    // std::vector<glm::vec2> triVerts = borderVerticesFromShape(shapes::eTriT.vertices, shapes::eTriT.vertCnt, shapes::eTriT.getStride());
-    // unsigned int texture3 = obtainPNGDistanceFromBorder(255, 255, triVerts);
-    // OpenGLShape triangle(shapes::eTriT.vertCnt, shapes::eTriT.indCnt, shapes::eTriT.vertices, shapes::eTriT.indices,  shapes::eTriT.attributeSizes,  texture3, true);
     DeltaTimer deltaTimer{};
     
-    OpenGLShape circle = create_circle(1000);
+    PngData pngData(255, 255);
+    OpenGLShape circle = create_circle(3, pngData);
+    circle.setTextures({blankTexture,circle.getTexture(0)});
+    pngDataSavePng("test.png", pngData);
     
+    colorShader.setUniformI("borderCase", 2);
+    colorShader.setUniformI("ourTexture", 0);
+    colorShader.setUniformI("borderTexture", 1);
+    
+
+
     
     while(!glfwWindowShouldClose(mWindow)){
         minimumStartRenderLoop(deltaTimer);
         glDepthMask(false);
         colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
-        colorShader.setUniformB("distanceFade", false);
-        rectangle.setTexture(texture2);
-        rectangle.draw(colorShader);
-        // colorShader.setUniformV4("aColor", glm::vec4(1.0f,0.0f,0.0f,1.0f));
-        // colorShader.setUniformB("distanceFade", true);
-        // rectangle.setTexture(texture1);
-        // rectangle.draw(colorShader);
-        colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
-        colorShader.setUniformB("distanceFade", true);
+        colorShader.setUniformI("borderCase", 2);
         circle.draw(colorShader);
         glDepthMask(true);
         endRenderLoopViewStatic(mWindow, deltaTimer);
     } glfwTerminate();
     
     return EXIT_SUCCESS;
+}
+OpenGLShape create_circle(unsigned int tri_cnt, PngData& pngData){
+
+    std::vector<float> circle{};
+    std::vector<unsigned> ind{};
+    unsigned int index = 0;
+    std::vector<glm::vec2> border;
+
+    for(unsigned int tri = 0; tri < tri_cnt; tri++){
+       
+        
+        for(int vi = 0; vi<3;vi++){
+
+            glm::vec3 vert;
+            if(vi > 0){
+                glm::mat4 transform(1.0f);
+                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
+                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
+                glm::vec3 radius_vec(0.5f,0.0f,0.0f);
+                glm::vec4 radius_vec4(radius_vec,1.0f);
+                radius_vec4 = transform * radius_vec4;
+                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
+                assert(vert.x != 0.0f || vert.y != 0.0f);
+                if(vi == 1)
+                    border.push_back(glm::vec2(vert.x,vert.y));
+            }
+            else{
+                vert = glm::vec3(0.0f,0.0f,0.0f); // Center Vertex
+            }
+            circle.push_back(vert.x);
+            circle.push_back(vert.y);
+            circle.push_back(vert.z);
+            circle.push_back(boundTransformation(vert.x, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
+            circle.push_back(boundTransformation(vert.y, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
+            
+            for(unsigned int i = 0; i<3; i++){
+                ind.push_back(index);
+                index++;
+            }
+        }
+    }
+    
+    unsigned int texture = obtainPNGDistanceFromBorder(pngData, border);
+    
+    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, texture, true);
+}
+void pngDataSavePng(const std::string filepath, const PngData& pngData){
+    
+    stbi_write_png(filepath.c_str(), pngData.width, pngData.height, pngData.nrChannels, pngData.getData(), pngData.nrChannels * pngData.width);
 }
 OpenGLShape create_circle(unsigned int tri_cnt)
 {
@@ -3153,17 +3259,16 @@ void drawCubeMatrices2DFade(LightingEnvironment lightingEnvironment, std::deque<
         lightingEnvironment.object_shader.setUniformI("layer", layer);
         lightingEnvironment.object_shader.setUniformM4("model", shape.model);
         lightingEnvironment.object_shader.setUniformV4("aColor", shape.color);
-        lightingEnvironment.object_shader.setUniformB("IGNORE_TEXTURE", shape.type == CIRCLE);
         shapes[shape.type]->draw(lightingEnvironment.object_shader);
         i++;
     }
     glDepthMask(true);
 }
 
-void minimumStartRenderLoop(DeltaTimer& deltaTimer){
+void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor){
     deltaTimer.updateDeltaTime();
     // Background Fill Color
-    glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
+    glClearColor(backgroundColor.x,backgroundColor.y,backgroundColor.z,backgroundColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment){

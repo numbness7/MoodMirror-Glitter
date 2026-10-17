@@ -26,6 +26,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <stb_image.h>
+#include <stb_image_write.h>
 #include <stdexcept>
 
 #include <sstream>
@@ -38,36 +39,38 @@
 #define DEBUG_LINE true
 #define BYTESIZE 8
 #define POINT_LIGHT_COUNT 4
-#define MAXIMUM_BATCHES 100
-#define SHAPES_IN_BATCH  25
-#define MID_LAYER 25   
-#define SHAPE_INITIAL_SPAWN_TIME 0.001f
+#define MAXIMUM_BATCHES 5
+#define SHAPES_IN_BATCH  1
+#define MID_LAYER 3   
+#define SHAPE_INITIAL_SPAWN_TIME 0.1f
 #define SHAPE_SPAWN_TIME         0.01f
 #define BATCHES_SHARE_EMOTION 1
-#define DESTRUCTION_TIME  0.1f
+#define DESTRUCTION_TIME  5.0f
 #define SORT_TIME 0.25f
-#define SHAPE_MAX_FADE 1.0f
+#define SHAPE_MAX_FADE 0.0f
 #define SHAPE_MIN_FADE 0.0f
 #define SUPER_SMALL_FLOAT 0.00001f
 #define SMALL_FLOAT 0.002f
 #define NOT_THAT_SMALL_FLOAT 0.01f
-#define DO_SCALE true
-#define MAX_SCALE 100.0f
-#define MIN_SCALE 0.00f
+#define DO_SCALE false
+#define MAX_SCALE 1.0f
+#define MIN_SCALE 1.0f
 #define AVE_SCALE 0.25f
 #define DEV_SCALE 0.25f
 #define AVE_ALPHA 1.0f
 #define DEV_ALPHA 0.5f
-#define MIN_ALPHA 0.5f
-#define MAX_ALPHA 0.5f
+#define MIN_ALPHA 1.0f
+#define MAX_ALPHA 1.0f
 #define SCATTER_TO_EMOTION_COORD_RATIO 1.0f
 #define SCATTER_COORD_SCALE 1.00f
 #define EMOTION_COORD_SCALE 1.00f
 #define DEBUG_BORDER false
 #define DEBUG_DISTANCE false
 #define DEBUG_FUN false
+#define HACKY_COMPILE_MAKER f
 
 int floor(int x, int y);
+template<typename T> void mySwap(T& o1, T& o2);
 
 // Classes
 class PngData{
@@ -109,6 +112,7 @@ class PngData{
         static const int alphaChannel = 3;
         const int width;
         const int height;
+        
         static const int nrChannels = 4;
     private:
         unsigned char* data;
@@ -199,16 +203,24 @@ class StraightPath{
 class OpenGLShape {
     public:
         OpenGLShape(unsigned int vert_cnt, unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture);
+        OpenGLShape(const shapes::Shape &shape, const std::vector<unsigned int> &textures, const bool hasMultipleTextures);
+        OpenGLShape(const shapes::Shape& shape, unsigned int texture, bool hasTexture);
         void draw(Shader shader);
-        void setTexture(unsigned const int texture){ this->texture = texture; }
+        void setTexture(const unsigned int texture, unsigned const int index=0){ this->textures[index] = texture; }
+        void swapTexture(const unsigned int indexA, unsigned const int indexB){ mySwap(textures[indexA], textures[indexB]); }
+        void pushTexture(const unsigned int texture){ textures.push_back(texture); }
+        void padTextures(unsigned int padding) { for(int i = 0; i < padding; i++) textures.push_back(0); }
+        void clearTextures() { textures.clear(); }
+        void setTextures(const std::vector<unsigned int> textures) { clearTextures(); for(const auto texture : textures) this->textures.push_back(texture); }
+        unsigned int getTexture(const unsigned index) { return textures[index]; }
     private:
-        bool hasTexture;
+        bool hasTextures;
         unsigned int VAO;
         unsigned int VBO;
         unsigned int EBO;
         unsigned int ind_cnt;
         unsigned int vert_cnt;
-        unsigned int texture;
+        std::vector<unsigned int> textures;
 };
 
 // Enums
@@ -297,7 +309,6 @@ void initMouse(GLFWwindow* mWindow);
 LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT]);
 // Start
 void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment);
-void minimumStartRenderLoop(DeltaTimer& deltaTimer);
 // End
 void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera);
 // Input
@@ -343,7 +354,6 @@ glm::vec3 randCoords();
 std::string to_string(std::vector<std::vector<float>> coefficients);
 std::string to_string(std::vector<float> coefficients);
 std::vector<float> solve(std::vector<std::vector<float>> coefficients, std::vector<float> constants, const float& smallFloat=SMALL_FLOAT);
-void swap(float& a, float&b);
 glm::vec3 vectorToVec3(std::vector<float> a);
 std::vector<float> vec3ToVector(glm::vec3 a);
 
@@ -366,8 +376,8 @@ bool isOnBorder(int width, int height, int row, int col, int hThickness, int vTh
 unsigned char getBorderCheckColor(int width, int height, int row, int col, int hThickness, int vThickness);
 void generatePNGBorder(unsigned char* data, int width, int height, int nrChannels, int hThickness, int vThickness);
 void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder);
-unsigned int obtainPNGBorder(int width, int height, int nrChannels, int hThickness, int vThickness);
 unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder);
+unsigned int obtainPNGBorder(PngData& pngData,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder);
 cdata::Color pngColorFromValue(const unsigned int& value);
 unsigned int valueFromPngColor(cdata::Color color);
 float boundTransformation(float x, float min, float max, float minT, float maxT);
@@ -383,4 +393,12 @@ template <typename T> void checkPrint(std::string message, T data, bool check,  
 void checkPrint(std::string message, bool check, bool debugIt);
 bool isInSquare(glm::vec2 point, glm::vec2 center,  float length);
 bool isInSquare(float x, float y, float centerX, float centerY, float length);
+OpenGLShape create_circle(unsigned int tri_cnt, PngData& pngData);
+void pngDataSavePng(const std::string filepath, const PngData& pngData);
+unsigned int obtainPNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices);
+std::vector<glm::vec2> borderVerticesFromShape(const shapes::Shape& shape);
+void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
+void generatePNGBlank(PngData& pngData);
+bool isOnLine(std::tuple<float,float,float> line, glm::vec2 point);
+void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor = glm::vec4(0.0f,0.0f,0.0f,1.0f));
 #endif
