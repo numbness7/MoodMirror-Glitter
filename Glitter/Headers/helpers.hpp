@@ -17,7 +17,7 @@
 #include <numbers>
 #include <color.hpp>
 #include <limits>
-
+#include <format>
 // System Headers
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -35,6 +35,7 @@
 #include <json.hpp>
 
 // Header Macros
+#define BYTESIZE 8
 #define POINT_LIGHT_COUNT 4
 #define MAXIMUM_BATCHES 100
 #define SHAPES_IN_BATCH  25
@@ -46,7 +47,9 @@
 #define SORT_TIME 0.25f
 #define SHAPE_MAX_FADE 1.0f
 #define SHAPE_MIN_FADE 0.0f
-#define SMALL_FLOAT 0.00001f
+#define SUPER_SMALL_FLOAT 0.00001f
+#define SMALL_FLOAT 0.002f
+#define NOT_THAT_SMALL_FLOAT 0.01f
 #define DO_SCALE true
 #define MAX_SCALE 100.0f
 #define MIN_SCALE 0.00f
@@ -59,6 +62,9 @@
 #define SCATTER_TO_EMOTION_COORD_RATIO 1.0f
 #define SCATTER_COORD_SCALE 1.00f
 #define EMOTION_COORD_SCALE 1.00f
+#define DEBUG_BORDER false
+#define DEBUG_DISTANCE false
+#define DEBUG_FUN true
 
 int floor(int x, int y);
 
@@ -248,6 +254,7 @@ int mainGenerateTexturesCubes(int argc, char * argv[]);
 int mainTextureGenerate(int argc, char * argv[]);
 int mainPathCube(int argc, char * argv[]);
 int mainPathRectangle(int argc, char * argv[]);
+int mainSolve(int argc, char * argv[]);
 
 
 // Draw
@@ -359,6 +366,19 @@ void generatePNGBorder(unsigned char* data, int width, int height, int nrChannel
 void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder);
 unsigned int obtainPNGBorder(int width, int height, int nrChannels, int hThickness, int vThickness);
 unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder);
-cdata::Color pngColorFromValue(unsigned int value);
+cdata::Color pngColorFromValue(const unsigned int& value);
 unsigned int valueFromPngColor(cdata::Color color);
+float boundTransformation(float x, float min, float max, float minT, float maxT);
+unsigned int obtainPNGDistanceFromBorder(int width, int height, std::vector<glm::vec2> borderVertices);
+void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices);
+float boundTransformation(float x, std::tuple<float,float> line);
+std::tuple<float,float> linearTransformation(float min, float max, float minT, float maxT);
+float boundTransformation(float x, float slope, float intercept);
+std::tuple<float,float,float> getLineFromVertices(float xi, float xf, float yi, float yf);
+std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride);
+
+template <typename T> void checkPrint(std::string message, T data, bool check,  bool debugIt=true, std::string end="\n", std::string prefix=": ");
+void checkPrint(std::string message, bool check, bool debugIt);
+bool isInSquare(glm::vec2 point, glm::vec2 center,  float length);
+bool isInSquare(float x, float y, float centerX, float centerY, float length);
 #endif

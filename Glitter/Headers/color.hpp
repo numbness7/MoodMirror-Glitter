@@ -1,22 +1,25 @@
-#ifndef COLOR_H
-#define COLOR_H
+#ifndef LOTS_OF_COLOR_H
+#define LOTS_OF_COLOR_H
 
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float3.hpp"
 #include "glm/geometric.hpp"
+#include <iostream>
+#include <string>
 namespace cdata{
     struct Color{
-        unsigned char red;
-        unsigned char blue;
-        unsigned char green;
-        unsigned char alpha;
+        const unsigned char red;
+        const unsigned char blue;
+        const unsigned char green;
+        const unsigned char alpha;
     };
-    extern const unsigned char FULL_COLOR;
-    extern const unsigned char EMPTY_COLOR;
+    const unsigned char FULL_COLOR = 0xFF;
+    const unsigned char EMPTY_COLOR = 0x00;
+    std::string col2str(Color col);
 }
 
 namespace cvec4{
-    extern const glm::vec4 FULL_COLOR;
+    const glm::vec4 FULL_COLOR(1.0f);
 }
 
 

@@ -2,9 +2,13 @@
 
 
 namespace cdata{
-    const unsigned char FULL_COLOR = 0xFF;
-    const unsigned char EMPTY_COLOR = 0x00;
+    std::string col2str(Color col){
+        return "(" 
+            + std::to_string(static_cast<unsigned int>(col.red  )) + ", "
+            + std::to_string(static_cast<unsigned int>(col.green)) + ", "
+            + std::to_string(static_cast<unsigned int>(col.blue )) + ", "
+            + std::to_string(static_cast<unsigned int>(col.alpha)) + ")";
+    }
 }
 namespace cvec4{
-    const glm::vec4 FULL_COLOR(1.0f);
 }
