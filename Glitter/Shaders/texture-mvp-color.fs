@@ -46,7 +46,7 @@ bool isOuter(float dist, float thickness){
 }
 
 bool isInner(float dist, float thickness){
-    return dist > thickness;
+    return !isOuter(dist,thickness);
 }
 
 
@@ -68,10 +68,10 @@ void main(){
             borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : (AMOUNT_INNER*INNER_COLOR + (1.0f-AMOUNT_INNER)*OUTER_COLOR);
             break;
         case 2:
-            borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : vec4(1.0f,1.0f,1.0f,0.0f);
+            borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : vec4(INNER_COLOR.xyz,INNER_COLOR.a*AMOUNT_INNER);
             break;
         case 3:
-            borderColor = isInner(dist, BORDER_THICKNESS) ? vec4(1.0f,1.0f,1.0f,0.0f) : INNER_COLOR;
+            borderColor = isInner(dist, BORDER_THICKNESS) ? vec4(INNER_COLOR.xyz,INNER_COLOR.a*(1.0f-AMOUNT_INNER)) : INNER_COLOR;
             break;
         default:
             borderColor = INNER_COLOR;

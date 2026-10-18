@@ -37,10 +37,10 @@
 
 // Header Macros
 #define BYTESIZE 8
-#define MAXIMUM_BATCHES 50 
-#define SHAPES_IN_BATCH 50 
-#define MID_LAYER  90  
-#define SHAPE_INITIAL_SPAWN_TIME 0.1f
+#define MAXIMUM_BATCHES 1000 
+#define SHAPES_IN_BATCH 3
+#define MID_LAYER  10  
+#define SHAPE_INITIAL_SPAWN_TIME 0.01f
 #define BATCHES_SHARE_EMOTION 1 
 #define DESTRUCTION_TIME  0.1f
 
@@ -62,13 +62,13 @@
 
 #define SOFTNESS_SCALE 0.25f
 
-#define MAX_SCALE 10.0f
+#define MAX_SCALE 1.0f
 #define MIN_SCALE 0.5f
 #define AVE_SCALE 0.5f
-#define DEV_SCALE 0.5f
+#define DEV_SCALE 0.125f
 
 #define MAX_ALPHA 1.0f
-#define MIN_ALPHA 0.1f
+#define MIN_ALPHA 1.0f
 #define AVE_ALPHA 0.25f
 #define DEV_ALPHA 0.25f
 
@@ -437,4 +437,5 @@ void generatePNGBlank(PngData& pngData);
 bool isOnLine(std::tuple<float,float,float> line, glm::vec2 point);
 void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor = glm::vec4(0.0f,0.0f,0.0f,1.0f));
 float emotionArrayToAlpha(std::vector<float> emotionArray);
+void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor);
 #endif

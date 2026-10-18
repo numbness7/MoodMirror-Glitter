@@ -647,8 +647,8 @@ unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width,
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
     glBindTexture(GL_TEXTURE_2D, texture);
     
@@ -1923,7 +1923,21 @@ glm::vec3 emotionArrayToColor(std::vector<float> array0){
     float green = (0.5*disgust +  0.5*surprise);
     float blue =  (0.5*sadness + 0.5*happiness);
     
+    //if(red > green && red > blue){
+
+    //    return glm::vec3(red,0.0f,0.0f);
+    //}
+    //else if(blue > green){
+    //    
+    //    return glm::vec3(0.0f,0.0f,blue);
+    //}
+    //else{
+    //    return glm::vec3(red+green,green,green+blue);
+    //    
+    //}
+    
     return glm::vec3(red,green,blue);
+    
 }
 SHAPE_TYPE_2D emotionArrayToShapeType2D(std::vector<float> array0){
     float fear      = array0[0];
@@ -2450,29 +2464,14 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
         lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
         assert(shape.doFade || shape.doScale);
 
-        if(layer != prelayer){
-            lightingEnvironment.object_shader.setUniformI("layer", layer);
-            if((DO_SCALE && shape.doScale) || !DO_FADE){
+        lightingEnvironment.object_shader.setUniformI("layer", layer);
+
+        if(shape.doScale){
                 scaleDown = calcFade(destructionAlarm.getPassedTime(), destructionAlarm.getWaitTime(), maxLayer, layer, SHAPE_MIN_FADE_SCALE, SHAPE_MAX_FADE_SCALE);
-            }
-        }
-
-        if(shape.doScale || shape.doVortex || !DO_FADE){
             model = glm::mat4(1.0f);
-            if(shape.doVortex && DO_VORTEX){
-                model = glm::scale(model, glm::vec3(1.0f-scaleDown));
-                model = glm::rotate(model, (1.0f-scaleDown)*shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
-                model = glm::translate(model, shape.coords);
-            }
-            else{
-                model = glm::translate(model, shape.coords);
-                model = glm::rotate(model, shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
-            }
-            if(shape.doScale && DO_SCALE || !DO_FADE)
-                model = glm::scale(model, shape.scale*(1.0f-scaleDown));
-            else
-                model = glm::scale(model, shape.scale);
-
+            model = glm::translate(model, shape.coords);
+            model = glm::rotate(model, shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
+            model = glm::scale(model, shape.scale*(1.0f-scaleDown));
             lightingEnvironment.object_shader.setUniformM4("model", model);
         }
         else{
@@ -2987,9 +2986,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     int shareCount = 0;
     std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
     
+    glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
+    
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
-        startMPVLoop(deltaTimer, lightingEnvironment);
+        startMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
         creationAlarm.checkAndUpdate();
 
 
@@ -3006,12 +3007,23 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         for(int i = 0; i < emotionArray.size(); i++){
             std::vector<float> array = emotionArray[i];
             glm::vec3 emotionRGB = emotionArrayToColor(array);
+            float change = (deltaTimer.getDeltaTime()*60.0f);
+            float speed = 0.01f;
+            float speedRatio = speed*change;
+            // backgroundColor.x = ((1.0f - speedRatio)*backgroundColor.x + speedRatio*emotionRGB.x);
+            // backgroundColor.y = ((1.0f - speedRatio)*backgroundColor.y + speedRatio*emotionRGB.y);
+            // backgroundColor.z = ((1.0f - speedRatio)*backgroundColor.z + speedRatio*emotionRGB.z);
+
+            // backgroundColor.x = backgroundColor.x >= 0.0f ? backgroundColor.x : SMALL_FLOAT;
+            // backgroundColor.y = backgroundColor.y >= 0.0f ? backgroundColor.y : SMALL_FLOAT;
+            // backgroundColor.z = backgroundColor.z >= 0.0f ? backgroundColor.z : SMALL_FLOAT;
             glm::vec2 emotionCoords2D = emotionArrayToVec2(array);
             glm::vec3 emotionCoords3D = glm::vec3(emotionCoords2D.x, emotionCoords2D.y, 0.0f);
             glm::vec3 coords;
             glm::vec3 rotAxis = glm::vec3(0.0f,0.0f,-1.0f);
             float pi = std::numbers::pi;
             float rotScale = 2*pi*emotionArrayToRotation(array);
+            //float rotScale = 0.0f;
             SHAPE_TYPE_2D type = emotionArrayToShapeType2D(array);
             const auto [doFade, doScale] = emotionArrayToFadeScale(array);
             const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(array);
@@ -3333,6 +3345,10 @@ void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor){
     // Background Fill Color
     glClearColor(backgroundColor.x,backgroundColor.y,backgroundColor.z,backgroundColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor){
+    minimumStartRenderLoop(deltaTimer, backgroundColor);
+    setupMPVEnvironmentToDraw(lightingEnvironment);
 }
 void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment){
     minimumStartRenderLoop(deltaTimer, glm::vec4(1.0f,1.0f,1.0f,1.0f));
