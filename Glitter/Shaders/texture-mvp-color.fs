@@ -3,7 +3,7 @@ in vec2 ourTexCoord;
 out vec4 FragColor;
 
 uniform sampler2D borderTexture;
-uniform int borderCase = 0;
+uniform int borderCase;
 
 uniform sampler2D ourTexture;
 uniform float destructionTimePassed;
@@ -18,7 +18,6 @@ const float SCALE = 1.0f;
 uniform float BORDER_THICKNESS;
 uniform vec4 INNER_COLOR;
 uniform vec4 OUTER_COLOR;
-uniform bool SOLID_BORDER = false;
 
 
 const float redChannel = 0;
@@ -61,18 +60,32 @@ void main(){
     float AMOUNT_INNER = dist/BORDER_THICKNESS;
     vec4 borderColor;
 
-    if(SOLID_BORDER)
-        borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : OUTER_COLOR;
-    else
-        borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : (AMOUNT_INNER*INNER_COLOR + (1.0f-AMOUNT_INNER)*OUTER_COLOR);
+    switch (borderCase){
+        case 0:
+            borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : OUTER_COLOR;
+            break;
+        case 1:
+            borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : (AMOUNT_INNER*INNER_COLOR + (1.0f-AMOUNT_INNER)*OUTER_COLOR);
+            break;
+        case 2:
+            borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : vec4(1.0f,1.0f,1.0f,0.0f);
+            break;
+        case 3:
+            borderColor = isInner(dist, BORDER_THICKNESS) ? vec4(1.0f,1.0f,1.0f,0.0f) : INNER_COLOR;
+            break;
+        default:
+            borderColor = INNER_COLOR;
+    }
 
 
     float fade = 0.0f;
+    vec4 fadeColor = borderColor;
     if(DO_FADE){
         fade = calcFade();
+        fadeColor.a = (1.0f - fade)*fadeColor.a;
     }
 
-    FragColor = vec4(INNER_COLOR.xyz, INNER_COLOR.a*(1.0f-fade));
+    FragColor = fadeColor*textureColor;
 }
 
 float calcFade(){

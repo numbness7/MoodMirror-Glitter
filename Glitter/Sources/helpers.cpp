@@ -1890,7 +1890,7 @@ float emotionArrayToAlpha(std::vector<float> emotionArray)
     float surprise  = emotionArray[5];
     return boundTransformation( (anger + surprise + disgust + happiness - fear - sadness), -2.0f, 4.0f, 0.0f, 1.0f);
 }
-std::tuple<bool,float> emotionArrayToSoftness(std::vector<float> emotionArray)
+std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray)
 {
     float fear      = emotionArray[0];
     float anger     = emotionArray[1];
@@ -1899,13 +1899,15 @@ std::tuple<bool,float> emotionArrayToSoftness(std::vector<float> emotionArray)
     float happiness = emotionArray[4];
     float surprise  = emotionArray[5];
     float softness = boundTransformation((sadness + happiness + fear + disgust - anger - surprise), -2.0f, 4.0f, 0.0f, 1.0f);
-    if (softness < 0.5f){
-        float thickness = (anger + surprise + disgust + fear)/4.0f;
-        return {false, thickness};
-        
+    if (softness > 0.66f){
+        return {2,softness};
     }
-    else{
-        return {true,softness};
+    else if(softness > 0.33f){
+        return {4,softness};
+    }
+    else {
+        float thickness = (anger + surprise)/6.0f;
+        return {0, thickness};
     }
 }
 
@@ -1916,9 +1918,11 @@ glm::vec3 emotionArrayToColor(std::vector<float> array0){
     float disgust   = array0[3];
     float happiness = array0[4];
     float surprise  = array0[5];
-    float red   =   0.5f + (disgust - fear)/2;
-    float green =   0.5f + (happiness - anger)/2;
-    float blue  =   0.5f + (surprise - sadness)/2;
+
+    float red =   (0.5*anger + 0.5*fear);
+    float green = (0.5*disgust +  0.5*surprise);
+    float blue =  (0.5*sadness + 0.5*happiness);
+    
     return glm::vec3(red,green,blue);
 }
 SHAPE_TYPE_2D emotionArrayToShapeType2D(std::vector<float> array0){
@@ -2443,7 +2447,7 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
         layer = placement/shapesInLayer;
         lightingEnvironment.object_shader.setUniformM4("model", shape.model);
         lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && shape.doFade) || (DO_SCALE && length(shape.scale)*(1.0f - scaleDown) < MINIMUM_DRAWN_SCALE) );
-        lightingEnvironment.object_shader.setUniformB("SOLID_BORDER", !shape.isSoft);
+        lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
         assert(shape.doFade || shape.doScale);
 
         if(layer != prelayer){
@@ -3010,9 +3014,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             float rotScale = 2*pi*emotionArrayToRotation(array);
             SHAPE_TYPE_2D type = emotionArrayToShapeType2D(array);
             const auto [doFade, doScale] = emotionArrayToFadeScale(array);
-            auto [isSoft, softnessOrThickness] = emotionArrayToSoftness(array);
-            isSoft = rand_range_uniform(0.0f, 1.0f) <= 0.5f;
-            softnessOrThickness = rand_range_uniform(0.0f, 1.0f);
+            const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(array);
             const auto doVortex = rand_range_uniform(0.0f, 1.0f) <= 0.1f;
             const auto emotionAlpha = emotionArrayToAlpha(array);
 
@@ -3057,13 +3059,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                         glm::vec4 shapeColor = glm::vec4(emotionRGB,alphaScale);
                         //glm::vec4 invertedShapeColor = glm::vec4(glm::vec3(1.0f) - emotionRGB, alphaScale);
                         glm::vec4 invertedShapeColor;
-                        if(isSoft)
-                            invertedShapeColor = glm::vec4(emotionRGB, 0.0f*alphaScale);
-                        else{
-                            invertedShapeColor = glm::vec4(emotionRGB, alphaScale);
-                            softnessOrThickness = 0.0f;
-                        }
-                        ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, 0.0f, doFade, doScale, false, false};
+                        invertedShapeColor = glm::vec4(glm::vec3(1.0f) -emotionRGB, alphaScale);
+                        ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, doFade, doScale, false, borderCase};
                         cubeMatrices.push_front(shape);
                 }
 
@@ -3338,7 +3335,7 @@ void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment){
-    minimumStartRenderLoop(deltaTimer);
+    minimumStartRenderLoop(deltaTimer, glm::vec4(1.0f,1.0f,1.0f,1.0f));
     setupMPVEnvironmentToDraw(lightingEnvironment);
 }
 PngData::PngData(int width, int height) : width{width},  height{height}{
