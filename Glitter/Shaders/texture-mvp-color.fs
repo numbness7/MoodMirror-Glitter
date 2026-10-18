@@ -5,7 +5,6 @@ out vec4 FragColor;
 uniform sampler2D borderTexture;
 uniform int borderCase = 0;
 
-uniform vec4 aColor;
 uniform sampler2D ourTexture;
 uniform float destructionTimePassed;
 uniform float destructionTime;
@@ -15,34 +14,65 @@ uniform float SHAPE_MAX_FADE;
 uniform float SHAPE_MIN_FADE;
 uniform int MID_LAYER;
 uniform bool DO_FADE;
-uniform bool IGNORE_TEXTURE;
-uniform float BORDER_DIST_SCALE;
+const float SCALE = 1.0f;
+uniform float BORDER_THICKNESS;
+uniform vec4 INNER_COLOR;
+uniform vec4 OUTER_COLOR;
+uniform bool SOLID_BORDER = false;
 
-in vec3 oPos;
 
-float getDist(vec4 textureColor);
+const float redChannel = 0;
+const float greenChannel = 1;
+const float blueChannel = 2;
+const float alphaChannel = 3;
+const float nrChannels = 4;
+const float maxColor = pow(2,8) - 1;
+const float maxDistData = pow(2,8*4)-1;
+const float maxColorToDistRatio = (maxColor/maxDistData);
+const float maxDistNormal = sqrt(2);
+
+float getColorDist(float color, float channel);
 float calcFade();
-vec4 getDistColor(vec4 textureColor, int theCase, float borderDistScale);
+float distFromCenter(float dist);
+bool isOuter(float dist, float thickness);
+float getDist(vec4 textureColor);
+bool isInner(float dist, float thickness);
+
+float distFromCenter(float dist){
+    return 1.0f - dist;
+}
+
+bool isOuter(float dist, float thickness){
+    return dist <= thickness;
+}
+
+bool isInner(float dist, float thickness){
+    return dist > thickness;
+}
+
+
 
 void main(){
     
-    
-    float fade = 0.0f;
-    if (DO_FADE)
-        fade = calcFade();
-    vec4 fadedColor = aColor;
-    fadedColor.a = (1.0f - fade)*fadedColor.a;
-
-
     vec4 borderTextureColor = texture(borderTexture, ourTexCoord);
     vec4 textureColor = texture(ourTexture, ourTexCoord);
-    vec4 borderColor = getDistColor(borderTextureColor, borderCase, BORDER_DIST_SCALE);
+    
     float dist = getDist(borderTextureColor);
+    float AMOUNT_INNER = dist/BORDER_THICKNESS;
+    vec4 borderColor;
 
-    if (IGNORE_TEXTURE)
-        FragColor = borderColor*fadedColor;
+    if(SOLID_BORDER)
+        borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : OUTER_COLOR;
     else
-        FragColor = borderColor*fadedColor*textureColor;
+        borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : (AMOUNT_INNER*INNER_COLOR + (1.0f-AMOUNT_INNER)*OUTER_COLOR);
+
+
+    float fade = 0.0f;
+    if(DO_FADE){
+        fade = calcFade();
+    }
+
+    FragColor = vec4(INNER_COLOR.xyz, INNER_COLOR.a*(1.0f-fade));
 }
 
 float calcFade(){
@@ -80,36 +110,12 @@ float calcFade(){
     else if (fade < SHAPE_MIN_FADE) fade = SHAPE_MIN_FADE;
     return fade;
 }
-
 float getDist(vec4 textureColor){
-        const float redChannel = 0;
-        const float greenChannel = 1;
-        const float blueChannel = 2;
-        const float alphaChannel = 3;
-        const float nrChannels = 4;
-        float dist = 
-              textureColor.x*pow(2,-(redChannel)*8)
-            + textureColor.y*pow(2,-(greenChannel)*8)
-            + textureColor.z*pow(2,-( blueChannel)*8);
-        return dist;
+        float dist = getColorDist(textureColor.x,redChannel)+getColorDist(textureColor.y,greenChannel)+getColorDist(textureColor.z,blueChannel)+getColorDist(textureColor.a,alphaChannel);
+        float distNormalized = dist*maxDistNormal;
+        return distNormalized;
 }
 
-vec4 getDistColor(vec4 textureColor, int theCase, float borderDistScale){
-    if (theCase == 0){
-        return vec4(1.0f)*vec4(textureColor.x, textureColor.y, textureColor.z + textureColor.a,1.0f);
-    }
-    else if (theCase == 1) {
-        return vec4(1.0f)*textureColor;
-    }
-    else if (theCase == 2){
-        float dist = getDist(textureColor);
-        return vec4(1.0f)*vec4(1.0f,1.0f,1.0f,dist*borderDistScale);
-    }
-    else if (theCase == 3){
-        float dist = getDist(textureColor);
-        return vec4(1.0f)*vec4(1.0f,1.0f,1.0f,1.0f - dist*borderDistScale);
-    }
-    else {
-        return vec4(1.0f);
-    }
+float getColorDist(float color, float channel){
+   return color*maxColorToDistRatio*pow(2,(nrChannels-channel-1)*8); 
 }

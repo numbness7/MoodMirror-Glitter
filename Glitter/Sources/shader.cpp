@@ -68,9 +68,9 @@ void Shader::compileShader(const char vertex_shader_source[], const char fragmen
     glDeleteShader(fragment_shader);
 }
 
-void uniformError(std::string name, GLint uniform_loc){
-    
-    if(uniform_loc == -1){
+void Shader::uniformError(std::string name, GLint uniform_loc){
+    if(uniform_loc == -1 && !uniformsLackingExistence.contains(name)){
+        uniformsLackingExistence[name] = true;
         std::cout << "Error: Uniform: " << name << " does not exist!" << std::endl;
     }
 }

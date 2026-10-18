@@ -36,38 +36,58 @@
 #include <json.hpp>
 
 // Header Macros
-#define DEBUG_LINE true
 #define BYTESIZE 8
-#define POINT_LIGHT_COUNT 4
-#define MAXIMUM_BATCHES 5
-#define SHAPES_IN_BATCH  1
-#define MID_LAYER 3   
-#define SHAPE_INITIAL_SPAWN_TIME 0.1f
-#define SHAPE_SPAWN_TIME         0.01f
-#define BATCHES_SHARE_EMOTION 1
-#define DESTRUCTION_TIME  5.0f
+#define MAXIMUM_BATCHES 100 
+#define SHAPES_IN_BATCH 5 
+#define MID_LAYER  10  
+#define SHAPE_INITIAL_SPAWN_TIME 0.005f
+#define BATCHES_SHARE_EMOTION 3 
+#define DESTRUCTION_TIME  0.1f
+
 #define SORT_TIME 0.25f
-#define SHAPE_MAX_FADE 0.0f
+#define SHAPE_SPAWN_TIME         0.01f
+
+#define SHAPE_MAX_FADE 1.0f
 #define SHAPE_MIN_FADE 0.0f
+#define SHAPE_MAX_FADE_SCALE 1.0f
+#define SHAPE_MIN_FADE_SCALE 0.0f
+
 #define SUPER_SMALL_FLOAT 0.00001f
 #define SMALL_FLOAT 0.002f
 #define NOT_THAT_SMALL_FLOAT 0.01f
 #define DO_SCALE false
-#define MAX_SCALE 1.0f
-#define MIN_SCALE 1.0f
-#define AVE_SCALE 0.25f
-#define DEV_SCALE 0.25f
-#define AVE_ALPHA 1.0f
-#define DEV_ALPHA 0.5f
-#define MIN_ALPHA 1.0f
+#define DO_FADE true
+#define DO_VORTEX false
+#define DO_VORTEX_SCALE 3.0f
+
+#define SOFTNESS_SCALE 0.25f
+
+#define MAX_SCALE 10.0f
+#define MIN_SCALE 0.5f
+#define AVE_SCALE 0.5f
+#define DEV_SCALE 0.5f
+
 #define MAX_ALPHA 1.0f
+#define MIN_ALPHA 0.1f
+#define AVE_ALPHA 0.25f
+#define DEV_ALPHA 0.25f
+
+#define DO_SCALE_SCALE 1.0f
+#define DO_FADE_SCALE 1.0f
+
 #define SCATTER_TO_EMOTION_COORD_RATIO 1.0f
+
 #define SCATTER_COORD_SCALE 1.00f
 #define EMOTION_COORD_SCALE 1.00f
+
+#define DEBUG_LINE true
 #define DEBUG_BORDER false
 #define DEBUG_DISTANCE false
 #define DEBUG_FUN false
 #define HACKY_COMPILE_MAKER f
+#define MINIMUM_DRAWN_SCALE 0.00f
+
+#define POINT_LIGHT_COUNT 4
 
 int floor(int x, int y);
 template<typename T> void mySwap(T& o1, T& o2);
@@ -239,11 +259,18 @@ struct ShapeProperties {
 };
 struct ShapeProperties2D {
     glm::mat4 model;
-    glm::vec4 color;
+    glm::vec4 innerColor;
+    glm::vec4 outerColor;
     SHAPE_TYPE_2D type;
     glm::vec3 coords;
     float rotation;
     glm::vec3 scale;
+    float borderThickness;
+    bool doFade;
+    bool doScale;
+    bool doVortex;
+    bool isSoft;
+
 };
 
 struct LightingEnvironment {
@@ -272,9 +299,9 @@ int mainSolve(int argc, char * argv[]);
 
 
 // Draw
-void drawCubeMatrices2DScale(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
-void drawCubeMatrices2DFade(LightingEnvironment lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
-void drawCubeMatrices(LightingEnvironment lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
+void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
+void drawCubeMatrices2DFade(LightingEnvironment& lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
+void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, unsigned int texture);
@@ -327,6 +354,7 @@ nlohmann::json readjsonfile(std::string filepath);
 std::vector<std::vector<float>> readEmotionArray(std::string filepath);
 glm::vec3 emotionArrayToVec3(std::vector<float> emotionArray);
 float emotionArrayToLength(std::vector<std::vector<float>> emotionArray);
+std::tuple<bool,float> emotionArrayToSoftness(std::vector<float> emotionArray);
 
 //Manage
 
@@ -364,8 +392,15 @@ void endRenderLoopViewStatic(GLFWwindow*& mWindow, DeltaTimer deltaTimer);
 OpenGLShape create_circle(unsigned int tri_cnt);
 
 float clamp(const float x, const float min, const float max);
-float calcFade(float destructionTimePassed, float destructionTime, int maxLayer, int layer);
+float calcFade(float destructionTimePassed, float destructionTime, int maxLayer, int layer, float shapeMinFade, float shapeMaxFade);
+
 float emotionArrayToRotation(std::vector<float> array0);
+std::tuple<bool,bool> emotionArrayToFadeScale(std::vector<float> emotionArray);
+std::tuple<bool,bool> emotionArrayToFadeScale(std::vector<float> array0);
+
+
+
+
 unsigned int create_texture(std::string texture_filepath, std::string filetype);
 unsigned char* initializePNGTextureData(int width, int height, int nrChannels);
 void freePNGTextureData(unsigned char* data);
@@ -401,4 +436,5 @@ void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shad
 void generatePNGBlank(PngData& pngData);
 bool isOnLine(std::tuple<float,float,float> line, glm::vec2 point);
 void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor = glm::vec4(0.0f,0.0f,0.0f,1.0f));
+float emotionArrayToAlpha(std::vector<float> emotionArray);
 #endif

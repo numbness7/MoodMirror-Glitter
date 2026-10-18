@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
+#include <map>
 
 std::string readfile(const char filepath[]);
 class Shader {
@@ -30,10 +31,12 @@ class Shader {
 
     
     private:
+        void uniformError(std::string name, GLint uniform_loc);
         unsigned int shaderProgram;
         void compileShader(const char vertex_shader_source[], const char fragment_shader_source[]);
         std::string vertex_shader_filepath;
         std::string fragment_shader_filepath;
+        std::map<std::string, bool> uniformsLackingExistence{};
 
 
 };
