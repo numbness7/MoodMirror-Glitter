@@ -1898,17 +1898,18 @@ std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray)
     float disgust   = emotionArray[3];
     float happiness = emotionArray[4];
     float surprise  = emotionArray[5];
-    float softness = boundTransformation((sadness + happiness + fear + disgust - anger - surprise), -2.0f, 4.0f, 0.0f, 1.0f);
-    if (softness > 0.66f){
-        return {2,softness};
+    float softness = boundTransformation((0.25*sadness + 0.25*happiness + 0.25f*disgust - 0.25f*fear - 0.25f*anger - 0.25f*surprise), -0.75f, 0.75f, 0.0f, 1.0f);
+    if (softness > 0.75f){
+        return {2,boundTransformation(softness,0.0f,1.0f,0.0f,0.25f)};
     }
-    else if(softness > 0.33f){
+    else if (softness < 0.2f){
+        return {0,(anger + surprise)/6.0f};
+
+    }
+    else{
         return {4,softness};
     }
-    else {
-        float thickness = (anger + surprise)/6.0f;
-        return {0, thickness};
-    }
+
 }
 
 glm::vec3 emotionArrayToColor(std::vector<float> array0){
@@ -1918,23 +1919,38 @@ glm::vec3 emotionArrayToColor(std::vector<float> array0){
     float disgust   = array0[3];
     float happiness = array0[4];
     float surprise  = array0[5];
-
-    float red =   (0.5*anger + 0.5*fear);
-    float green = (0.5*disgust +  0.5*surprise);
-    float blue =  (0.5*sadness + 0.5*happiness);
     
-    //if(red > green && red > blue){
+    
 
-    //    return glm::vec3(red,0.0f,0.0f);
-    //}
-    //else if(blue > green){
-    //    
-    //    return glm::vec3(0.0f,0.0f,blue);
-    //}
-    //else{
-    //    return glm::vec3(red+green,green,green+blue);
-    //    
-    //}
+    float redHue =   (0.5*anger + 0.5*fear);
+    float greenHue = (0.5*disgust +  0.5*surprise);
+    float blueHue =  (0.5*sadness + 0.5*happiness);
+    float hue;
+
+    if(redHue > greenHue && redHue > blueHue)
+        if(greenHue > blueHue) hue = (greenHue - blueHue)/(redHue - blueHue);
+        else hue = (greenHue - blueHue)/(redHue - greenHue);
+    else if(greenHue > redHue && greenHue > blueHue)
+        if(redHue > blueHue) hue = 2.0f + (blueHue - redHue)/(greenHue - blueHue);
+        else hue = 2.0f + (blueHue - redHue)/(greenHue - redHue);
+    else
+        if(redHue > greenHue) hue = 4.0f + (redHue - greenHue)/(blueHue - greenHue);
+        else hue = 4.0f + (redHue - greenHue)/(blueHue - redHue);
+    hue *= 60.0f;
+    if(hue < 0.0f) hue += 360.0f;
+    
+    float saturation = 100.0f*(0.4f*disgust + 0.75f*sadness + 0.77f*fear + anger + happiness + surprise)/(6.0f);
+    float lightness = 100.0f*(0.2f*fear + 0.4f*sadness + 0.45f*anger + 0.5f*disgust + 0.66f*surprise + 0.75f*happiness)/(6.0f);
+    color::hsl<float> colorHSL({hue,saturation,lightness});
+    color::rgb<float> colorRGB;
+    colorRGB = colorHSL;
+    
+    float red = color::get::red(colorRGB);
+    float green = color::get::green(colorRGB);
+    float blue = color::get::blue(colorRGB);
+    
+    
+    
     
     return glm::vec3(red,green,blue);
     
@@ -3023,7 +3039,15 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             glm::vec3 rotAxis = glm::vec3(0.0f,0.0f,-1.0f);
             float pi = std::numbers::pi;
             float rotScale = 2*pi*emotionArrayToRotation(array);
-            //float rotScale = 0.0f;
+            if(rotScale < pi/4.0f) rotScale = 0.0f;
+            else if(rotScale < pi/2.0f) rotScale = pi/4.0f;
+            else if(rotScale < 3.0f*pi/4.0f) rotScale = pi/2.0f;
+            else if(rotScale < pi) rotScale = 3.0f*pi/4.0f;
+            else if(rotScale < pi + pi/4.0f) rotScale = pi;
+            else if(rotScale < pi + pi/2.0f) rotScale = pi + pi/4.0f;
+            else if(rotScale < pi + 3*pi/4.0f) rotScale = pi + pi/2.0f;
+            else if(rotScale < 2*pi) rotScale = pi + 3.0f*pi/4.0f;
+
             SHAPE_TYPE_2D type = emotionArrayToShapeType2D(array);
             const auto [doFade, doScale] = emotionArrayToFadeScale(array);
             const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(array);
@@ -3071,7 +3095,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                         glm::vec4 shapeColor = glm::vec4(emotionRGB,alphaScale);
                         //glm::vec4 invertedShapeColor = glm::vec4(glm::vec3(1.0f) - emotionRGB, alphaScale);
                         glm::vec4 invertedShapeColor;
-                        invertedShapeColor = glm::vec4(glm::vec3(1.0f) -emotionRGB, alphaScale);
+                        invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
                         ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, doFade, doScale, false, borderCase};
                         cubeMatrices.push_front(shape);
                 }

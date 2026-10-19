@@ -45,6 +45,7 @@ add_executable(${PROJECT_NAME}
     ${PROJECT_HEADERS}
     ${PROJECT_SHADERS}
     Glitter/Headers/helpers.hpp
+    Glitter/Vendor/color/src/color/color.body.hpp
     Glitter/Sources/helpers.cpp
     Glitter/Sources/shader.cpp
     Glitter/Headers/shader.hpp
@@ -71,7 +72,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 #    Glitter/Vendor/bullet/src/
 # NONEED END
     Glitter/Vendor/glm/
-    Glitter/Vendor/stb/)
+    Glitter/Vendor/stb/
+    Glitter/Vendor/color/src/color
+    )
 
 # Platform-specific link dependencies
 if(NOT WIN32 AND NOT MSVC)

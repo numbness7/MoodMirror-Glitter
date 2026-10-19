@@ -22,3 +22,9 @@
     path = Glitter/Vendor/bullet
     url = https://github.com/bulletphysics/bullet3.git
     branch = master
+[submodule "Glitter/Vendor/colorm"]
+	path = Glitter/Vendor/colorm
+	url = https://github.com/soreja/colorm.git
+[submodule "Glitter/Vendor/color"]
+	path = Glitter/Vendor/color
+	url = https://github.com/dmilos/color.git

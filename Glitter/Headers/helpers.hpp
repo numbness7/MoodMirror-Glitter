@@ -18,6 +18,7 @@
 #include <color.hpp>
 #include <limits>
 #include <format>
+#include <color.body.hpp>
 // System Headers
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -37,9 +38,9 @@
 
 // Header Macros
 #define BYTESIZE 8
-#define MAXIMUM_BATCHES 1000 
-#define SHAPES_IN_BATCH 3
-#define MID_LAYER  10  
+#define MAXIMUM_BATCHES 50
+#define SHAPES_IN_BATCH 50
+#define MID_LAYER   10
 #define SHAPE_INITIAL_SPAWN_TIME 0.01f
 #define BATCHES_SHARE_EMOTION 1 
 #define DESTRUCTION_TIME  0.1f
@@ -62,18 +63,18 @@
 
 #define SOFTNESS_SCALE 0.25f
 
-#define MAX_SCALE 1.0f
+#define MAX_SCALE 6.0f
 #define MIN_SCALE 0.5f
-#define AVE_SCALE 0.5f
-#define DEV_SCALE 0.125f
+#define AVE_SCALE 1.0f
+#define DEV_SCALE 1.125f
 
 #define MAX_ALPHA 1.0f
-#define MIN_ALPHA 1.0f
-#define AVE_ALPHA 0.25f
+#define MIN_ALPHA 1.00f
+#define AVE_ALPHA 0.95f
 #define DEV_ALPHA 0.25f
 
 #define DO_SCALE_SCALE 1.0f
-#define DO_FADE_SCALE 1.0f
+#define DO_FADE_SCALE 0.75f
 
 #define SCATTER_TO_EMOTION_COORD_RATIO 1.0f
 
