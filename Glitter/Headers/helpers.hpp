@@ -38,12 +38,12 @@
 
 // Header Macros
 #define BYTESIZE 8
-#define MAXIMUM_BATCHES 20
+#define MAXIMUM_BATCHES 50
 #define SHAPES_IN_BATCH 50
-#define MID_LAYER   10
+#define MID_LAYER   45
 #define SHAPE_INITIAL_SPAWN_TIME 0.01f
 #define BATCHES_SHARE_EMOTION 1 
-#define DESTRUCTION_TIME  0.1f
+#define DESTRUCTION_TIME  0.01f
 
 #define SORT_TIME 0.25f
 #define SHAPE_SPAWN_TIME         0.01f
@@ -353,7 +353,8 @@ void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFro
 
 // Read
 nlohmann::json readjsonfile(std::string filepath);
-std::vector<std::vector<float>> readEmotionArray(std::string filepath);
+std::vector<std::vector<float>> readEmotionArray(std::string filepath, bool printIt=true);
+std::string formatFloat(float f, int digitsBefore, int digitsAfter);
 glm::vec3 emotionArrayToVec3(std::vector<float> emotionArray);
 float emotionArrayToLength(std::vector<std::vector<float>> emotionArray);
 std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray);

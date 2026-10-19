@@ -1870,9 +1870,84 @@ nlohmann::json readjsonfile(std::string filepath)
     }
 }
 
-std::vector<std::vector<float>> readEmotionArray(std::string filepath){
+std::string formatFloat(float f, int digitsBefore, int digitsAfter){
+    std::string floatString = std::to_string(f);
+    int decimalPointIndex;
+    for(decimalPointIndex = 0; floatString[decimalPointIndex] != '.'; decimalPointIndex++);
+    assert(decimalPointIndex <= digitsBefore);
+    for(int i = 0; i < decimalPointIndex - digitsBefore; i++){
+        floatString = '0' + floatString;
+    }
+    int digitsAfterPoint = floatString.size() - decimalPointIndex - 1;
+    assert(digitsAfterPoint <= digitsAfter);
+    for(; digitsAfterPoint < digitsAfter; digitsAfterPoint++) floatString += '0';
+    return floatString;
+}
+EMOTION emotionIntToEnum(int emotion){
+    switch(emotion){
+        case 0:
+            return HAPPY   ;
+        case 1:
+            return SAD     ;
+        case 2:
+            return ANGRY   ;
+        case 3:
+            return FEAR    ;
+        case 4:
+            return SURPRISE;
+        case 5:
+            return DISGUST ;
+        default:
+            throw std::runtime_error("ERROR: Invalid emotion enum: " + std::to_string(emotion));
+    }
+}
+
+std::string emotionENUMToString(EMOTION emotion){
+    switch(emotion){
+        case HAPPY:
+            return "HAPPY";
+        case SAD:
+            return "SAD";
+        case ANGRY:
+            return "ANGRY";
+        case FEAR:
+            return "FEAR";
+        case SURPRISE:
+            return "SURPRISE";
+        case DISGUST:
+            return "DISGUST";
+        default:
+            throw std::runtime_error("ERROR: Invalid emotion enum: " + std::to_string(emotion));
+    }
+}
+
+void crappyClearScreen(int lines=1000){
+    for(int i = 0; i < lines; i++) std::cout << std::endl;
+}
+
+std::vector<std::vector<float>> readEmotionArray(std::string filepath, bool printIt){
     nlohmann::json data = readjsonfile(filepath);
-    return data["emotion_array"];
+    std::vector<std::vector<float>> emotionArray =  data["emotion_array"];
+    if(printIt){
+        crappyClearScreen();
+        std::cout << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
+        std::cout << "----------------------------------------------------------------------------------------------------" << std::endl;
+        for(int row=0; row < emotionArray.size(); row++){
+            float max = std::numeric_limits<float>::min();
+            int maxEmotion = -1;
+            for(int col=0; col < emotionArray[0].size(); col++){
+                float current = emotionArray[row][col];
+                std::cout << formatFloat(current, 1, 7) << "\t";
+                if(current > max){
+                    maxEmotion = col;
+                    max = current;
+                }
+            }
+            std::cout << emotionENUMToString(emotionIntToEnum(maxEmotion)) << std::endl;
+        }
+        std::cout << std::endl;
+    }
+    return emotionArray;
 }
 
 float emotionArrayToLength(std::vector<std::vector<float>> emotionArrays){
@@ -1882,12 +1957,12 @@ float emotionArrayToLength(std::vector<std::vector<float>> emotionArrays){
 
 float emotionArrayToAlpha(std::vector<float> emotionArray)
 {
-    float fear      = emotionArray[HAPPY];
-    float anger     = emotionArray[SAD];
-    float sadness   = emotionArray[ANGRY];
-    float disgust   = emotionArray[FEAR];
-    float happiness = emotionArray[SURPRISE];
-    float surprise  = emotionArray[DISGUST];
+    float happiness      = emotionArray[HAPPY];
+    float sadness     = emotionArray[SAD];
+    float anger   = emotionArray[ANGRY];
+    float fear   = emotionArray[FEAR];
+    float surprise = emotionArray[SURPRISE];
+    float disgust  = emotionArray[DISGUST];
     return boundTransformation( (anger + surprise + disgust + happiness - fear - sadness), -2.0f, 4.0f, 0.0f, 1.0f);
 }
 std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray)
