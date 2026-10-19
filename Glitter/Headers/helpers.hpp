@@ -38,7 +38,7 @@
 
 // Header Macros
 #define BYTESIZE 8
-#define MAXIMUM_BATCHES 50
+#define MAXIMUM_BATCHES 20
 #define SHAPES_IN_BATCH 50
 #define MID_LAYER   10
 #define SHAPE_INITIAL_SPAWN_TIME 0.01f
@@ -247,6 +247,7 @@ class OpenGLShape {
 // Enums
 enum SHAPE_TYPE_3D { CUBE, PYRAMID, OCTAHEDRON};
 enum SHAPE_TYPE_2D { TRIANGLE, SQUARE, CIRCLE};
+enum EMOTION {HAPPY=0, SAD=1, ANGRY=2, FEAR=3, SURPRISE=4, DISGUST=5 };
 
 // Structs
 
@@ -439,4 +440,5 @@ bool isOnLine(std::tuple<float,float,float> line, glm::vec2 point);
 void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor = glm::vec4(0.0f,0.0f,0.0f,1.0f));
 float emotionArrayToAlpha(std::vector<float> emotionArray);
 void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor);
+int emotionIndex(EMOTION emotion);
 #endif

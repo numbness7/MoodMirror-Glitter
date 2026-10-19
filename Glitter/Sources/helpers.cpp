@@ -1627,10 +1627,10 @@ int mainTurning(int argc, char * argv[]){
 
 
 
-        std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
+        std::vector<std::vector<float>> emotionArrays = readEmotionArray("../data.json");
         
         // Use emotion array to set properties of shapes
-        glm::vec3 emotionRGB = emotionArrayToColor(emotionArray[0]);
+        glm::vec3 emotionRGB = emotionArrayToColor(emotionArrays[0]);
         glm::vec3 rotationAxis = glm::vec3(sin(deltaTimer.getElapsedTime()*1.0f + M_1_PI),-sin(deltaTimer.getElapsedTime()*1.0f/2.7865432f + M_1_PI/2),sin(deltaTimer.getElapsedTime()*1.0f/3.125105f + M_1_PI/3));
         rotatedModel = glm::rotate(glm::mat4(1.0f), (float)(1.0f*((float)(M_PI))), rotationAxis);
 
@@ -1875,29 +1875,29 @@ std::vector<std::vector<float>> readEmotionArray(std::string filepath){
     return data["emotion_array"];
 }
 
-float emotionArrayToLength(std::vector<std::vector<float>> emotionArray){
-    std::vector<float> array0 = emotionArray[0];
+float emotionArrayToLength(std::vector<std::vector<float>> emotionArrays){
+    std::vector<float> array0 = emotionArrays[0];
     return array0[0] + 0.1f;
 }
 
 float emotionArrayToAlpha(std::vector<float> emotionArray)
 {
-    float fear      = emotionArray[0];
-    float anger     = emotionArray[1];
-    float sadness   = emotionArray[2];
-    float disgust   = emotionArray[3];
-    float happiness = emotionArray[4];
-    float surprise  = emotionArray[5];
+    float fear      = emotionArray[HAPPY];
+    float anger     = emotionArray[SAD];
+    float sadness   = emotionArray[ANGRY];
+    float disgust   = emotionArray[FEAR];
+    float happiness = emotionArray[SURPRISE];
+    float surprise  = emotionArray[DISGUST];
     return boundTransformation( (anger + surprise + disgust + happiness - fear - sadness), -2.0f, 4.0f, 0.0f, 1.0f);
 }
 std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray)
 {
-    float fear      = emotionArray[0];
-    float anger     = emotionArray[1];
-    float sadness   = emotionArray[2];
-    float disgust   = emotionArray[3];
-    float happiness = emotionArray[4];
-    float surprise  = emotionArray[5];
+    float happiness = emotionArray[HAPPY];
+    float sadness   = emotionArray[SAD];
+    float anger     = emotionArray[ANGRY];
+    float fear      = emotionArray[FEAR];
+    float surprise  = emotionArray[SURPRISE];
+    float disgust   = emotionArray[DISGUST];
     float softness = boundTransformation((0.25*sadness + 0.25*happiness + 0.25f*disgust - 0.25f*fear - 0.25f*anger - 0.25f*surprise), -0.75f, 0.75f, 0.0f, 1.0f);
     if (softness > 0.75f){
         return {2,boundTransformation(softness,0.0f,1.0f,0.0f,0.25f)};
@@ -1912,14 +1912,14 @@ std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray)
 
 }
 
-glm::vec3 emotionArrayToColor(std::vector<float> array0){
-    float fear      = array0[0];
-    float anger     = array0[1];
-    float sadness   = array0[2];
-    float disgust   = array0[3];
-    float happiness = array0[4];
-    float surprise  = array0[5];
+glm::vec3 emotionArrayToColor(std::vector<float> emotionArray){
     
+    float happiness = emotionArray[HAPPY];
+    float sadness   = emotionArray[SAD];
+    float anger     = emotionArray[ANGRY];
+    float fear      = emotionArray[FEAR];
+    float surprise  = emotionArray[SURPRISE];
+    float disgust   = emotionArray[DISGUST];
     
 
     float redHue =   (0.5*anger + 0.5*fear);
@@ -1955,13 +1955,13 @@ glm::vec3 emotionArrayToColor(std::vector<float> array0){
     return glm::vec3(red,green,blue);
     
 }
-SHAPE_TYPE_2D emotionArrayToShapeType2D(std::vector<float> array0){
-    float fear      = array0[0];
-    float anger     = array0[1];
-    float sadness   = array0[2];
-    float disgust   = array0[3];
-    float happiness = array0[4];
-    float surprise  = array0[5];
+SHAPE_TYPE_2D emotionArrayToShapeType2D(std::vector<float> emotionArray){
+    float happiness = emotionArray[HAPPY];
+    float sadness   = emotionArray[SAD];
+    float anger     = emotionArray[ANGRY];
+    float fear      = emotionArray[FEAR];
+    float surprise  = emotionArray[SURPRISE];
+    float disgust   = emotionArray[DISGUST];
     float tri = anger + surprise;
     float square = disgust + fear;
     float circ = sadness + happiness;
@@ -1975,13 +1975,13 @@ SHAPE_TYPE_2D emotionArrayToShapeType2D(std::vector<float> array0){
         return SQUARE;
     }
 }
-SHAPE_TYPE_3D emotionArrayToShapeType3D(std::vector<float> array0){
-    float fear      = array0[0];
-    float anger     = array0[1];
-    float sadness   = array0[2];
-    float disgust   = array0[3];
-    float happiness = array0[4];
-    float surprise  = array0[5];
+SHAPE_TYPE_3D emotionArrayToShapeType3D(std::vector<float> emotionArray){
+    float happiness = emotionArray[HAPPY];
+    float sadness   = emotionArray[SAD];
+    float anger     = emotionArray[ANGRY];
+    float fear      = emotionArray[FEAR];
+    float surprise  = emotionArray[SURPRISE];
+    float disgust   = emotionArray[DISGUST];
     float tri = anger + surprise;
     float square = disgust + fear;
     float circ = sadness + happiness;
@@ -2019,39 +2019,47 @@ std::string vec4ToString(glm::vec4 vec4)
     s+= ")";
     return s;
 }
-glm::vec3 emotionArrayToVec3(std::vector<float> array0)
+
+
+
+int emotionIndex(EMOTION emotion){
+    return emotion;
+}
+
+glm::vec3 emotionArrayToVec3(std::vector<float> emotionArray)
 {
-    float fear      = array0[0];
-    float anger     = array0[1];
-    float sadness   = array0[2];
-    float disgust   = array0[3];
-    float happiness = array0[4];
-    float surprise  = array0[5];
+    float happiness = emotionArray[HAPPY];
+    float sadness   = emotionArray[SAD];
+    float anger     = emotionArray[ANGRY];
+    float fear      = emotionArray[FEAR];
+    float surprise  = emotionArray[SURPRISE];
+    float disgust   = emotionArray[DISGUST];
     float x = disgust - fear;
     float y = happiness - anger;
     float z = surprise - sadness;
     return glm::vec3(x,y,z);
 }
-glm::vec2 emotionArrayToVec2(std::vector<float> array0)
+glm::vec2 emotionArrayToVec2(std::vector<float> emotionArray)
 {
-    float fear      = array0[0];
-    float anger     = array0[1];
-    float sadness   = array0[2];
-    float disgust   = array0[3];
-    float happiness = array0[4];
-    float surprise  = array0[5];
+    float happiness = emotionArray[HAPPY];
+    float sadness   = emotionArray[SAD];
+    float anger     = emotionArray[ANGRY];
+    float fear      = emotionArray[FEAR];
+    float surprise  = emotionArray[SURPRISE];
+    float disgust   = emotionArray[DISGUST];
     float x = ((surprise + anger + happiness) - (disgust + fear + sadness))/3.0f;
     float y = ((surprise + disgust + happiness) - (anger + fear + sadness))/3.0f;
     return glm::vec2(x,y);
 }
-float emotionArrayToRotation(std::vector<float> array0)
+float emotionArrayToRotation(std::vector<float> emotionArray)
 {
-    float fear      = array0[0];
-    float anger     = array0[1];
-    float sadness   = array0[2];
-    float disgust   = array0[3];
-    float happiness = array0[4];
-    float surprise  = array0[5];
+    float happiness = emotionArray[HAPPY];
+    float sadness   = emotionArray[SAD];
+    float anger     = emotionArray[ANGRY];
+    float fear      = emotionArray[FEAR];
+    float surprise  = emotionArray[SURPRISE];
+    float disgust   = emotionArray[DISGUST];
+
     return (anger + sadness + fear + happiness + surprise + disgust)/6.0f;
 }
 void initMouse(GLFWwindow* mWindow){
@@ -3000,7 +3008,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     float elderTimeStamp = 0.0f;
 
     int shareCount = 0;
-    std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
+    std::vector<std::vector<float>> emotionArrays = readEmotionArray("../data.json");
     
     glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
     
@@ -3012,7 +3020,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
 
         if(shareCount >= BATCHES_SHARE_EMOTION){
-            emotionArray = readEmotionArray("../data.json");
+            emotionArrays = readEmotionArray("../data.json");
             shareCount = 0;
         }
         else {
@@ -3020,25 +3028,18 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         }
         
         // Use emotion array to set properties of shapes
-        for(int i = 0; i < emotionArray.size(); i++){
-            std::vector<float> array = emotionArray[i];
-            glm::vec3 emotionRGB = emotionArrayToColor(array);
+        for(int i = 0; i < emotionArrays.size(); i++){
+            std::vector<float> emotionArray = emotionArrays[i];
+            glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
             float change = (deltaTimer.getDeltaTime()*60.0f);
             float speed = 0.01f;
             float speedRatio = speed*change;
-            // backgroundColor.x = ((1.0f - speedRatio)*backgroundColor.x + speedRatio*emotionRGB.x);
-            // backgroundColor.y = ((1.0f - speedRatio)*backgroundColor.y + speedRatio*emotionRGB.y);
-            // backgroundColor.z = ((1.0f - speedRatio)*backgroundColor.z + speedRatio*emotionRGB.z);
-
-            // backgroundColor.x = backgroundColor.x >= 0.0f ? backgroundColor.x : SMALL_FLOAT;
-            // backgroundColor.y = backgroundColor.y >= 0.0f ? backgroundColor.y : SMALL_FLOAT;
-            // backgroundColor.z = backgroundColor.z >= 0.0f ? backgroundColor.z : SMALL_FLOAT;
-            glm::vec2 emotionCoords2D = emotionArrayToVec2(array);
+            glm::vec2 emotionCoords2D = emotionArrayToVec2(emotionArray);
             glm::vec3 emotionCoords3D = glm::vec3(emotionCoords2D.x, emotionCoords2D.y, 0.0f);
             glm::vec3 coords;
             glm::vec3 rotAxis = glm::vec3(0.0f,0.0f,-1.0f);
             float pi = std::numbers::pi;
-            float rotScale = 2*pi*emotionArrayToRotation(array);
+            float rotScale = 2*pi*emotionArrayToRotation(emotionArray);
             if(rotScale < pi/4.0f) rotScale = 0.0f;
             else if(rotScale < pi/2.0f) rotScale = pi/4.0f;
             else if(rotScale < 3.0f*pi/4.0f) rotScale = pi/2.0f;
@@ -3048,11 +3049,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             else if(rotScale < pi + 3*pi/4.0f) rotScale = pi + pi/2.0f;
             else if(rotScale < 2*pi) rotScale = pi + 3.0f*pi/4.0f;
 
-            SHAPE_TYPE_2D type = emotionArrayToShapeType2D(array);
-            const auto [doFade, doScale] = emotionArrayToFadeScale(array);
-            const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(array);
+            SHAPE_TYPE_2D type = emotionArrayToShapeType2D(emotionArray);
+            const auto [doFade, doScale] = emotionArrayToFadeScale(emotionArray);
+            const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(emotionArray);
             const auto doVortex = rand_range_uniform(0.0f, 1.0f) <= 0.1f;
-            const auto emotionAlpha = emotionArrayToAlpha(array);
+            const auto emotionAlpha = emotionArrayToAlpha(emotionArray);
 
             float alphaScale = 1.0f;
             alphaScale = clamp(rand_range_normal(AVE_ALPHA, DEV_ALPHA), MIN_ALPHA, MAX_ALPHA);
@@ -3432,13 +3433,13 @@ void generatePNGLineToBordersFromPoint(PngData& pngData, std::vector<glm::vec2> 
     }
 
 }
-std::tuple<bool,bool> emotionArrayToFadeScale(std::vector<float> array0){
-    float fear      = array0[0];
-    float anger     = array0[1];
-    float sadness   = array0[2];
-    float disgust   = array0[3];
-    float happiness = array0[4];
-    float surprise  = array0[5];
+std::tuple<bool,bool> emotionArrayToFadeScale(std::vector<float> emotionArray){
+    float happiness = emotionArray[HAPPY];
+    float sadness   = emotionArray[SAD];
+    float anger     = emotionArray[ANGRY];
+    float fear      = emotionArray[FEAR];
+    float surprise  = emotionArray[SURPRISE];
+    float disgust   = emotionArray[DISGUST];
     assert(DO_SCALE | DO_FADE);
     if (!DO_SCALE) return {true,false};
     if (!DO_FADE) return {false,true};
