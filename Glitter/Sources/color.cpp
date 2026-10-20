@@ -10,5 +10,3 @@ namespace cdata{
             + std::to_string(static_cast<unsigned int>(col.alpha)) + ")";
     }
 }
-namespace cvec4{
-}

@@ -13,15 +13,22 @@ namespace cdata{
         const unsigned char green;
         const unsigned char alpha;
     };
-    const unsigned char FULL_COLOR = 0xFF;
-    const unsigned char EMPTY_COLOR = 0x00;
-    const Color white(FULL_COLOR,FULL_COLOR,FULL_COLOR,FULL_COLOR);
+    const unsigned char FULL_COLOR_D = 0xFF;
+    const unsigned char EMPTY_COLOR_D = 0x00;
+    const Color WHITE_D(FULL_COLOR_D,FULL_COLOR_D,FULL_COLOR_D,FULL_COLOR_D);
     std::string col2str(Color col);
+    const glm::vec3 WHITE_V3(1.0f);
+    const glm::vec3 RED_V3(1.0f,0.0f,0.0f);
+    const glm::vec3 GREEN_V3(0.0f,1.0f,0.0f);
+    const glm::vec3 BLUE_V3(0.0f,0.0f,1.0f);
+    const glm::vec3 BLACK_V3(0.0f);
+    const glm::vec4 WHITE_V4(1.0f);
+    const glm::vec4 RED_V4(RED_V3,1.0f);
+    const glm::vec4 GREEN_V4(GREEN_V3,1.0f);
+    const glm::vec4 BLUE_V4(BLUE_V3,1.0f);
 }
+namespace cvec4 = cdata;
 
-namespace cvec4{
-    const glm::vec4 FULL_COLOR(1.0f);
-}
 
 
 #endif

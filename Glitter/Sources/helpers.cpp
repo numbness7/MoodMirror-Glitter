@@ -376,8 +376,8 @@ bool isOnBorder(int width, int height, int row, int col, int hThickness, int vTh
     return col < hThickness || col > width - (hThickness + 1) || row < vThickness || row > height - (vThickness + 1);
 }
 unsigned char getBorderCheckColor(int width, int height, int row, int col, int hThickness, int vThickness){
-    if (isOnBorder(width, height, row, col, hThickness, vThickness)) return cdata::FULL_COLOR;
-    else return cdata::EMPTY_COLOR; 
+    if (isOnBorder(width, height, row, col, hThickness, vThickness)) return cdata::FULL_COLOR_D;
+    else return cdata::EMPTY_COLOR_D; 
 
 }
 void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder){
@@ -408,10 +408,18 @@ unsigned int obtainPNGDistanceFromBorder(int width, int height, std::vector<glm:
     unsigned int texture = getTextureFromData(pngData);
     return texture;
 }
-/// @brief 
-/// @param pngData 
+
+PngData loadPngTexture(std::string texture_filepath)
+{
+    int width, height, nrChannels;
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
+    return PngData(width, height, nrChannels, data);
+}
+/// @brief
+/// @param pngData
 /// @param borderVertices In clockwise order each vertex has x in [-0.5f,0.5f], y in [-0.5f,0.5f]
-/// @return 
+/// @return
 unsigned int obtainPNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices){
     generatePNGDistanceFromBorder(pngData, borderVertices);
     unsigned int texture = getTextureFromData(pngData);
@@ -559,7 +567,7 @@ unsigned int obtainPNGBlank(PngData& pngData){
 }
 void generatePNGBlank(PngData& pngData){
     for(int gI = 0; gI < pngData.gridSize(); gI++) {
-        pngData.setColor(gI, cdata::white);
+        pngData.setColor(gI, cdata::WHITE_D);
     }
 }
 
@@ -583,10 +591,10 @@ unsigned int obtainPNGBorder(PngData &pngData, int hThickness, int vThickness, c
 cdata::Color pngColorFromValue(const unsigned int &value)
 {
     const cdata::Color color(
-        (unsigned char) (value >> ((PngData::nrChannels - 1 - PngData::redChannel   ) * sizeof(unsigned char)*BYTESIZE)),
-        (unsigned char) (value >> ((PngData::nrChannels - 1 - PngData::greenChannel ) * sizeof(unsigned char)*BYTESIZE)),
-        (unsigned char) (value >> ((PngData::nrChannels - 1 - PngData::blueChannel  ) * sizeof(unsigned char)*BYTESIZE)),
-        (unsigned char) (value >> ((PngData::nrChannels - 1 - PngData::alphaChannel ) * sizeof(unsigned char)*BYTESIZE))
+        (unsigned char) (value >> ((PngData::nrChannelsDefault - 1 - PngData::redChannel   ) * sizeof(unsigned char)*BYTESIZE)),
+        (unsigned char) (value >> ((PngData::nrChannelsDefault - 1 - PngData::greenChannel ) * sizeof(unsigned char)*BYTESIZE)),
+        (unsigned char) (value >> ((PngData::nrChannelsDefault - 1 - PngData::blueChannel  ) * sizeof(unsigned char)*BYTESIZE)),
+        (unsigned char) (value >> ((PngData::nrChannelsDefault - 1 - PngData::alphaChannel ) * sizeof(unsigned char)*BYTESIZE))
     );
 
     return color;
@@ -655,6 +663,10 @@ unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width,
     if (data){
         if(filetype == "png")
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        else if (filetype == "pngNA"){
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            
+        }
         else {
             throw std::runtime_error("Bad file type: " + filetype);
         }
@@ -728,7 +740,21 @@ void generate_texture(unsigned int &texture, std::string texture_filepath, std::
     }
     stbi_image_free(data);
 }
-unsigned int create_texture(std::string texture_filepath, std::string filetype){
+unsigned int createPngTexture(std::string texture_filepath)
+{
+    int width, height, nrChannels;
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
+    PngData pngData = PngData(width, height, nrChannels, data);
+    unsigned int texture;
+    if(pngData.nrChannels == 4)
+        texture = useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "png");
+    else
+        texture = useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "pngNA");
+    return texture;
+}
+unsigned int createTexture(std::string texture_filepath, std::string filetype)
+{
     unsigned int texture;
     create_texture(texture, texture_filepath, filetype);
     return texture;
@@ -2283,6 +2309,11 @@ void OpenGLShape::draw(Shader shader)
         drawShape(VAO, EBO, shader, ind_cnt);
 }
 
+void OpenGLShape::draw(Shader shader, std::vector<unsigned int> textures)
+{
+    drawMultipleTexturedShape(VAO, EBO, shader, ind_cnt, textures);
+}
+
 bool cmpShape(const ShapeProperties& a, const ShapeProperties& b){
     return a.coords.z < b.coords.z;
 }
@@ -2580,7 +2611,9 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
         lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", shape.innerColor);
         lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", shape.outerColor);
         lightingEnvironment.object_shader.setUniformF("BORDER_THICKNESS", shape.borderThickness);
-        shapes[shape.type]->draw(lightingEnvironment.object_shader);
+
+
+        shapes[shape.type]->draw(lightingEnvironment.object_shader, std::vector<unsigned int> {shape.texture, shapes[shape.type]->getTexture(1)});
         prelayer = layer;
         i++;
     }
@@ -3086,6 +3119,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     std::vector<std::vector<float>> emotionArrays = readEmotionArray("../data.json");
     
     glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
+
     
     // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -3102,10 +3136,13 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             shareCount++;
         }
         
+        const auto benTexture = createPngTexture("../VisualGen_Ben/V1_255x255/Display.png");
+        
         // Use emotion array to set properties of shapes
         for(int i = 0; i < emotionArrays.size(); i++){
             std::vector<float> emotionArray = emotionArrays[i];
-            glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
+            //glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
+            glm::vec3 emotionRGB = cdata::WHITE_V3;
             float change = (deltaTimer.getDeltaTime()*60.0f);
             float speed = 0.01f;
             float speedRatio = speed*change;
@@ -3172,7 +3209,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                         //glm::vec4 invertedShapeColor = glm::vec4(glm::vec3(1.0f) - emotionRGB, alphaScale);
                         glm::vec4 invertedShapeColor;
                         invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
-                        ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, doFade, doScale, false, borderCase};
+                        ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, doFade, doScale, false, borderCase, benTexture};
                         cubeMatrices.push_front(shape);
                 }
 
@@ -3241,7 +3278,7 @@ int mainDrawCircle(int argc, char *argv[])
     Shader colorShader("Glitter/Shaders/texture-color.vs", "Glitter/Shaders/texture-color.fs");
     colorShader.use();
     colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
-    unsigned int texture5 = create_texture("Glitter/Textures/container2.png", "png");
+    unsigned int texture5 = createTexture("Glitter/Textures/container2.png", "png");
     int width, height, nrChannels;
     std::string texture_filepath = "Glitter/Textures/container2.png";
     std::vector<glm::vec2> borderVertices = borderVerticesFromShape(shapes::rectT.vertices, shapes::rectT.vertCnt, shapes::rectT.getStride());
@@ -3454,10 +3491,14 @@ void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironme
     minimumStartRenderLoop(deltaTimer, glm::vec4(1.0f,1.0f,1.0f,1.0f));
     setupMPVEnvironmentToDraw(lightingEnvironment);
 }
-PngData::PngData(int width, int height) : width{width},  height{height}{
+PngData::PngData(int width, int height) : width{width},  height{height}, nrChannels{PngData::nrChannelsDefault}{
     data = initializePNGTextureData(width, height, nrChannels);
 }
-PngData::~PngData(){
+PngData::PngData(int width, int height, int nrChannels, unsigned char *data) : width{width}, nrChannels{nrChannels}, height{height}, data{data}
+{
+}
+PngData::~PngData()
+{
     freePNGTextureData(data);
 }
 
@@ -3470,7 +3511,10 @@ int floor(int x, int y){ return x/y; }
 
 unsigned int getTextureFromData(const PngData &pngData)
 {
-    return useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "png");
+    if(pngData.nrChannels == 4)
+        return useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "png");
+    else
+        return useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "pngNA");
 }
 
 void generatePNGLineToBordersFromPoint(PngData& pngData, std::vector<glm::vec2> borderVertices, int pointRow, int pointCol, int thickness, cdata::Color color){

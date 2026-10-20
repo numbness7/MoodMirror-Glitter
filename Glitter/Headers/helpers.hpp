@@ -38,12 +38,12 @@
 
 // Header Macros
 #define BYTESIZE 8
-#define MAXIMUM_BATCHES 50
-#define SHAPES_IN_BATCH 50
-#define MID_LAYER   45
+#define MAXIMUM_BATCHES 10
+#define SHAPES_IN_BATCH 3
+#define MID_LAYER   7
 #define SHAPE_INITIAL_SPAWN_TIME 0.01f
 #define BATCHES_SHARE_EMOTION 1 
-#define DESTRUCTION_TIME  0.01f
+#define DESTRUCTION_TIME  0.1f
 
 #define SORT_TIME 0.25f
 #define SHAPE_SPAWN_TIME         0.01f
@@ -64,8 +64,8 @@
 #define SOFTNESS_SCALE 0.25f
 
 #define MAX_SCALE 6.0f
-#define MIN_SCALE 0.5f
-#define AVE_SCALE 1.0f
+#define MIN_SCALE 2.0f
+#define AVE_SCALE 2.0f
 #define DEV_SCALE 1.125f
 
 #define MAX_ALPHA 1.0f
@@ -97,6 +97,7 @@ template<typename T> void mySwap(T& o1, T& o2);
 class PngData{
     public:
         PngData(int width, int height);
+        PngData(int width, int height, int nrChannels, unsigned char* data);
         ~PngData();
         int index(int row, int col, int channel) { return row*width*nrChannels+col*nrChannels+channel; }
         int indexFromGrid(int gridIndex, int channel) { return gridIndex*nrChannels + channel; }
@@ -133,8 +134,9 @@ class PngData{
         static const int alphaChannel = 3;
         const int width;
         const int height;
+        static const int nrChannelsDefault = 4;
         
-        static const int nrChannels = 4;
+        const int nrChannels;
     private:
         unsigned char* data;
 };
@@ -227,6 +229,7 @@ class OpenGLShape {
         OpenGLShape(const shapes::Shape &shape, const std::vector<unsigned int> &textures, const bool hasMultipleTextures);
         OpenGLShape(const shapes::Shape& shape, unsigned int texture, bool hasTexture);
         void draw(Shader shader);
+        void draw(Shader shader, std::vector<unsigned int> textures);
         void setTexture(const unsigned int texture, unsigned const int index=0){ this->textures[index] = texture; }
         void swapTexture(const unsigned int indexA, unsigned const int indexB){ mySwap(textures[indexA], textures[indexB]); }
         void pushTexture(const unsigned int texture){ textures.push_back(texture); }
@@ -272,6 +275,7 @@ struct ShapeProperties2D {
     bool doScale;
     bool doVortex;
     int borderCase;
+    int texture;
 
 };
 
@@ -401,11 +405,7 @@ float emotionArrayToRotation(std::vector<float> array0);
 std::tuple<bool,bool> emotionArrayToFadeScale(std::vector<float> emotionArray);
 std::tuple<bool,bool> emotionArrayToFadeScale(std::vector<float> array0);
 
-
-
-
-unsigned int create_texture(std::string texture_filepath, std::string filetype);
-unsigned char* initializePNGTextureData(int width, int height, int nrChannels);
+// PNG
 void freePNGTextureData(unsigned char* data);
 unsigned int generateTextureSpecified(int width, int height, int nrChannels, std::string filetype);
 void generatePNGData(unsigned char* data, int width, int height, int nrChannels);
@@ -418,12 +418,22 @@ unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickn
 unsigned int obtainPNGBorder(PngData& pngData,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder);
 cdata::Color pngColorFromValue(const unsigned int& value);
 unsigned int valueFromPngColor(cdata::Color color);
-float boundTransformation(float x, float min, float max, float minT, float maxT);
 unsigned int obtainPNGDistanceFromBorder(int width, int height, std::vector<glm::vec2> borderVertices);
-void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices);
+PngData loadPngTexture(std::string texture_filepath);
+
+// Texture
+unsigned int createPngTexture(std::string texture_filepath);
+unsigned int createTexture(std::string texture_filepath, std::string filetype);
+
+
+
 float boundTransformation(float x, std::tuple<float,float> line);
 std::tuple<float,float> linearTransformation(float min, float max, float minT, float maxT);
 float boundTransformation(float x, float slope, float intercept);
+float boundTransformation(float x, float min, float max, float minT, float maxT);
+unsigned char* initializePNGTextureData(int width, int height, int nrChannels);
+
+void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices);
 std::tuple<float,float,float> getLineFromVertices(float xi, float xf, float yi, float yf);
 std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride);
 
