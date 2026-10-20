@@ -3136,7 +3136,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             shareCount++;
         }
         
-        const auto benTexture = createPngTexture("../VisualGen_Ben/V1_255x255/Display.png");
+        const auto benTexture = createPngTexture("../background.png");
         
         // Use emotion array to set properties of shapes
         for(int i = 0; i < emotionArrays.size(); i++){
