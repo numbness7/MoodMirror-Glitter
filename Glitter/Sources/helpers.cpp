@@ -2401,7 +2401,7 @@ int mainCoords(int argc, char * argv[]){
         std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
         
         // Use emotion array to set properties of shapes
-        for(int i = 0; i < emotionArray.size(); i++){
+        for(unsigned int i : EMOTION_INDEXES){
             std::vector<float> array = emotionArray[i];
             glm::vec3 emotionRGB = emotionArrayToColor(array);
             for (int j = 0; j < SHAPES_IN_BATCH; j++){
@@ -2460,7 +2460,7 @@ int mainCoords(int argc, char * argv[]){
             }
         }
         // Delete cubes
-        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*6){
+        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*EMOTION_INDEXES.size()){
             cubeMatrices.pop_back();
         }
 
@@ -2576,7 +2576,7 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
     lightingEnvironment.object_shader.setUniformF("destructionTime", destructionAlarm.getWaitTime());
     lightingEnvironment.object_shader.setUniformF("destructionTimePassed", destructionAlarm.getPassedTime());
     unsigned i = 0;
-    unsigned shapesInLayer = SHAPES_IN_BATCH*6;
+    unsigned shapesInLayer = SHAPES_IN_BATCH*EMOTION_INDEXES.size();
     unsigned shapesInTotal = shapesInLayer*MAXIMUM_BATCHES;
     unsigned maxLayer = (shapesInTotal - 1)/shapesInLayer;
     lightingEnvironment.object_shader.setUniformI("maxLayer", maxLayer);
@@ -2590,13 +2590,12 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
         int layer;
         layer = placement/shapesInLayer;
         lightingEnvironment.object_shader.setUniformM4("model", shape.model);
-        lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && shape.doFade) || (DO_SCALE && length(shape.scale)*(1.0f - scaleDown) < MINIMUM_DRAWN_SCALE) );
+        lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && shape.transitions[FADE]) || (DO_SCALE && length(shape.scale)*(1.0f - scaleDown) < MINIMUM_DRAWN_SCALE) );
         lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
-        assert(shape.doFade || shape.doScale);
 
         lightingEnvironment.object_shader.setUniformI("layer", layer);
 
-        if(shape.doScale){
+        if(shape.transitions[SCALE]){
                 scaleDown = calcFade(destructionAlarm.getPassedTime(), destructionAlarm.getWaitTime(), maxLayer, layer, SHAPE_MIN_FADE_SCALE, SHAPE_MAX_FADE_SCALE);
             model = glm::mat4(1.0f);
             model = glm::translate(model, shape.coords);
@@ -2875,7 +2874,7 @@ int mainCoordsBasic(int argc, char * argv[]){
             }
         }
         // Delete cubes
-        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*6){
+        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*EMOTION_INDEXES.size()){
             cubeMatrices.pop_back();
         }
 
@@ -3027,7 +3026,7 @@ int mainCoordsBasicStream(int argc, char * argv[]){
             }
         }
         // Delete cubes
-        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*6){
+        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*EMOTION_INDEXES.size()){
             cubeMatrices.pop_back();
         }
 
@@ -3121,7 +3120,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
 
     
-    // Rendering Loop
+    // Render Loop
     while (!glfwWindowShouldClose(mWindow)) {
         startMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
         creationAlarm.checkAndUpdate();
@@ -3136,13 +3135,14 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             shareCount++;
         }
         
-        const auto benTexture = createPngTexture("../background.png");
+        //const auto benTexture = createPngTexture("../background.png");
+        const auto benTexture = blankTexture;
         
         // Use emotion array to set properties of shapes
         for(int i = 0; i < emotionArrays.size(); i++){
             std::vector<float> emotionArray = emotionArrays[i];
-            //glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
-            glm::vec3 emotionRGB = cdata::WHITE_V3;
+            glm::vec3 emotionRGB = emotionArrayToColor(emotionArray);
+            //glm::vec3 emotionRGB = cdata::WHITE_V3;
             float change = (deltaTimer.getDeltaTime()*60.0f);
             float speed = 0.01f;
             float speedRatio = speed*change;
@@ -3162,9 +3162,9 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             else if(rotScale < 2*pi) rotScale = pi + 3.0f*pi/4.0f;
 
             SHAPE_TYPE_2D type = emotionArrayToShapeType2D(emotionArray);
-            const auto [doFade, doScale] = emotionArrayToFadeScale(emotionArray);
+            auto transitions = emotionArrayToFadeScale(emotionArray);
             const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(emotionArray);
-            const auto doVortex = rand_range_uniform(0.0f, 1.0f) <= 0.1f;
+            transitions[VORTEX] = rand_range_uniform(0.0f, 1.0f) <= 0.1f;
             const auto emotionAlpha = emotionArrayToAlpha(emotionArray);
 
             float alphaScale = 1.0f;
@@ -3179,11 +3179,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                 float aveScale = AVE_SCALE;
                 float devScale = DEV_SCALE;
                 glm::vec3 scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale) * glm::vec3(1.0f);
-                if(doScale && doFade) scale *= DO_SCALE_SCALE;
-                else if(doScale) scale *= DO_SCALE_SCALE;
-                else if (doFade) scale *= DO_FADE_SCALE;
+                if(transitions[SCALE] && transitions[FADE]) scale *= DO_SCALE_SCALE;
+                else if(transitions[SCALE]) scale *= DO_SCALE_SCALE;
+                else if (transitions[FADE]) scale *= DO_FADE_SCALE;
                 
-                if(doVortex) scale *= DO_VORTEX_SCALE;
+                if(transitions[VORTEX]) scale *= DO_VORTEX_SCALE;
 
                 
                 coords = SCATTER_TO_EMOTION_COORD_RATIO* SCATTER_COORD_SCALE * randCoords()+(1-SCATTER_TO_EMOTION_COORD_RATIO)*EMOTION_COORD_SCALE*emotionCoords3D;
@@ -3209,7 +3209,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                         //glm::vec4 invertedShapeColor = glm::vec4(glm::vec3(1.0f) - emotionRGB, alphaScale);
                         glm::vec4 invertedShapeColor;
                         invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
-                        ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, doFade, doScale, false, borderCase, benTexture};
+                        ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, benTexture};
                         cubeMatrices.push_front(shape);
                 }
 
@@ -3217,7 +3217,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         }
         bool shapeDeleted = false;
         // Delete cubes
-        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*6){
+        while (cubeMatrices.size() > MAXIMUM_BATCHES*SHAPES_IN_BATCH*EMOTION_INDEXES.size()){
             cubeMatrices.pop_back();
             shapeDeleted = true;
         }
@@ -3458,7 +3458,7 @@ void drawCubeMatrices2DFade(LightingEnvironment& lightingEnvironment, std::deque
     lightingEnvironment.object_shader.setUniformF("destructionTimePassed", destructionAlarm.getPassedTime());
     lightingEnvironment.object_shader.setUniformB("DO_FADE", true);
     unsigned i = 0;
-    unsigned shapesInLayer = SHAPES_IN_BATCH*6;
+    unsigned shapesInLayer = SHAPES_IN_BATCH*EMOTION_INDEXES.size();
     unsigned shapesInTotal = shapesInLayer*MAXIMUM_BATCHES;
     unsigned maxLayer = (shapesInTotal - 1)/shapesInLayer;
     lightingEnvironment.object_shader.setUniformI("maxLayer", maxLayer);
@@ -3552,7 +3552,7 @@ void generatePNGLineToBordersFromPoint(PngData& pngData, std::vector<glm::vec2> 
     }
 
 }
-std::tuple<bool,bool> emotionArrayToFadeScale(std::vector<float> emotionArray){
+std::map<TRANSITIONS,bool> emotionArrayToFadeScale(std::vector<float> emotionArray){
     float happiness = emotionArray[HAPPY];
     float sadness   = emotionArray[SAD];
     float anger     = emotionArray[ANGRY];
@@ -3560,16 +3560,16 @@ std::tuple<bool,bool> emotionArrayToFadeScale(std::vector<float> emotionArray){
     float surprise  = emotionArray[SURPRISE];
     float disgust   = emotionArray[DISGUST];
     assert(DO_SCALE | DO_FADE);
-    if (!DO_SCALE) return {true,false};
-    if (!DO_FADE) return {false,true};
+    if (!DO_SCALE) return {{FADE , true}, {SCALE, false}, {VORTEX , false}};
+    if (!DO_FADE) return {{FADE , false}, {SCALE, true}, {VORTEX , false}};
     float scalePotential = (happiness + anger + surprise)/3.0f;
     float fadePotential = (disgust + fear + sadness)/3.0f;
     if (scalePotential >= 0.5f && fadePotential >= 0.5)
-        return {true,true};
+        return {{FADE , true}, {SCALE, true}, {VORTEX , false}};
     else if(scalePotential <  fadePotential)
-        return {true,false};
+        return {{FADE , true}, {SCALE, false}, {VORTEX , false}};
     else
-        return {false,true};
+        return {{FADE , false}, {SCALE, true}, {VORTEX , false}};
 
     
 }

@@ -38,9 +38,9 @@
 
 // Header Macros
 #define BYTESIZE 8
-#define MAXIMUM_BATCHES 10
-#define SHAPES_IN_BATCH 3
-#define MID_LAYER   7
+#define MAXIMUM_BATCHES 50
+#define SHAPES_IN_BATCH 12
+#define MID_LAYER   25
 #define SHAPE_INITIAL_SPAWN_TIME 0.01f
 #define BATCHES_SHARE_EMOTION 1 
 #define DESTRUCTION_TIME  0.1f
@@ -63,9 +63,9 @@
 
 #define SOFTNESS_SCALE 0.25f
 
-#define MAX_SCALE 6.0f
-#define MIN_SCALE 2.0f
-#define AVE_SCALE 2.0f
+#define MAX_SCALE 4.0f
+#define MIN_SCALE 1.0f
+#define AVE_SCALE 1.0f
 #define DEV_SCALE 1.125f
 
 #define MAX_ALPHA 1.0f
@@ -89,6 +89,9 @@
 #define MINIMUM_DRAWN_SCALE 0.00f
 
 #define POINT_LIGHT_COUNT 4
+
+// Header constants
+const std::vector<unsigned int> EMOTION_INDEXES = {0,1,2,3,4,5};
 
 int floor(int x, int y);
 template<typename T> void mySwap(T& o1, T& o2);
@@ -247,12 +250,12 @@ class OpenGLShape {
         std::vector<unsigned int> textures;
 };
 
-// Enums
+// #Enums
 enum SHAPE_TYPE_3D { CUBE, PYRAMID, OCTAHEDRON};
 enum SHAPE_TYPE_2D { TRIANGLE, SQUARE, CIRCLE};
 enum EMOTION {HAPPY=0, SAD=1, ANGRY=2, FEAR=3, SURPRISE=4, DISGUST=5 };
 
-// Structs
+// #Structs
 
 struct ShapeProperties {
     glm::mat4 model;
@@ -262,6 +265,8 @@ struct ShapeProperties {
     float fadeTime;
     glm::vec3 coords;
 };
+enum TRANSITIONS {FADE,SCALE,VORTEX};
+
 struct ShapeProperties2D {
     glm::mat4 model;
     glm::vec4 innerColor;
@@ -271,11 +276,9 @@ struct ShapeProperties2D {
     float rotation;
     glm::vec3 scale;
     float borderThickness;
-    bool doFade;
-    bool doScale;
-    bool doVortex;
+    std::map<TRANSITIONS,bool> transitions;
     int borderCase;
-    int texture;
+    unsigned int texture;
 
 };
 
@@ -287,7 +290,7 @@ struct LightingEnvironment {
     Shader light_shader;
 };
 
-// Main Programs
+// #Main Programs
 int mainCoordsBasic2D(int argc, char * argv[]);
 int mainDrawRectangle(int argc, char* argv[]);
 int mainDrawCircle(int argc, char* argv[]);
@@ -304,7 +307,7 @@ int mainPathRectangle(int argc, char * argv[]);
 int mainSolve(int argc, char * argv[]);
 
 
-// Draw
+// #Draw
 void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
 void drawCubeMatrices2DFade(LightingEnvironment& lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
@@ -402,8 +405,7 @@ float clamp(const float x, const float min, const float max);
 float calcFade(float destructionTimePassed, float destructionTime, int maxLayer, int layer, float shapeMinFade, float shapeMaxFade);
 
 float emotionArrayToRotation(std::vector<float> array0);
-std::tuple<bool,bool> emotionArrayToFadeScale(std::vector<float> emotionArray);
-std::tuple<bool,bool> emotionArrayToFadeScale(std::vector<float> array0);
+std::map<TRANSITIONS,bool> emotionArrayToFadeScale(std::vector<float> emotionArray);
 
 // PNG
 void freePNGTextureData(unsigned char* data);
