@@ -38,9 +38,9 @@
 
 // Header Macros
 #define BYTESIZE 8
-#define MAXIMUM_BATCHES 50
-#define SHAPES_IN_BATCH 12
-#define MID_LAYER   25
+#define TOTAL_LAYERS 50
+#define SHAPES_IN_BATCH 1
+#define MID_LAYER  24 
 #define SHAPE_INITIAL_SPAWN_TIME 0.01f
 #define BATCHES_SHARE_EMOTION 1 
 #define DESTRUCTION_TIME  0.1f
@@ -59,11 +59,11 @@
 #define DO_SCALE true
 #define DO_FADE true
 #define DO_VORTEX false
-#define DO_VORTEX_SCALE 3.0f
+#define DO_VORTEX_SCALE 1.0f
 
-#define SOFTNESS_SCALE 0.25f
+#define SOFTNESS_SCALE 1.00f
 
-#define MAX_SCALE 4.0f
+#define MAX_SCALE 1.0f
 #define MIN_SCALE 1.0f
 #define AVE_SCALE 1.0f
 #define DEV_SCALE 1.125f
@@ -74,7 +74,7 @@
 #define DEV_ALPHA 0.25f
 
 #define DO_SCALE_SCALE 1.0f
-#define DO_FADE_SCALE 0.75f
+#define DO_FADE_SCALE 1.00f
 
 #define SCATTER_TO_EMOTION_COORD_RATIO 1.0f
 
@@ -254,6 +254,7 @@ class OpenGLShape {
 enum SHAPE_TYPE_3D { CUBE, PYRAMID, OCTAHEDRON};
 enum SHAPE_TYPE_2D { TRIANGLE, SQUARE, CIRCLE};
 enum EMOTION {HAPPY=0, SAD=1, ANGRY=2, FEAR=3, SURPRISE=4, DISGUST=5 };
+enum TRANSITIONS {FADE,SCALE,VORTEX, RIGHT_T, LEFT_T};
 
 // #Structs
 
@@ -265,7 +266,6 @@ struct ShapeProperties {
     float fadeTime;
     glm::vec3 coords;
 };
-enum TRANSITIONS {FADE,SCALE,VORTEX};
 
 struct ShapeProperties2D {
     glm::mat4 model;
@@ -402,7 +402,8 @@ void endRenderLoopViewStatic(GLFWwindow*& mWindow, DeltaTimer deltaTimer);
 OpenGLShape create_circle(unsigned int tri_cnt);
 
 float clamp(const float x, const float min, const float max);
-float calcFade(float destructionTimePassed, float destructionTime, int maxLayer, int layer, float shapeMinFade, float shapeMaxFade);
+float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade);
+float calcHorizontalTransition(float destructionTimePassed, float destructionTime, int maxLayer, int layer, float shapeMinFade, float shapeMaxFade);
 
 float emotionArrayToRotation(std::vector<float> array0);
 std::map<TRANSITIONS,bool> emotionArrayToFadeScale(std::vector<float> emotionArray);
@@ -439,7 +440,6 @@ void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> bord
 std::tuple<float,float,float> getLineFromVertices(float xi, float xf, float yi, float yf);
 std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride);
 
-template <typename T> void checkPrint(std::string message, T data, bool check,  bool debugIt=true, std::string end="\n", std::string prefix=": ");
 void checkPrint(std::string message, bool check, bool debugIt);
 bool isInSquare(glm::vec2 point, glm::vec2 center,  float length);
 bool isInSquare(float x, float y, float centerX, float centerY, float length);
@@ -454,4 +454,8 @@ void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor = 
 float emotionArrayToAlpha(std::vector<float> emotionArray);
 void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor);
 int emotionIndex(EMOTION emotion);
+glm::vec2 screenToModelCoords(float x, float y, float width, float height);
+void startDummyMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor);
+void setupDummyMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment);
+float calcDisplacement(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade);
 #endif

@@ -10,8 +10,10 @@ uniform float destructionTimePassed;
 uniform float destructionTime;
 uniform int layer;
 uniform int maxLayer;
-uniform float SHAPE_MAX_FADE;
-uniform float SHAPE_MIN_FADE;
+uniform float ABOVE_SLOPE;
+uniform float BELOW_SLOPE;
+uniform float ABOVE_INTERCEPT;
+uniform float BELOW_INTERCEPT;
 uniform int MID_LAYER;
 uniform bool DO_FADE;
 const float SCALE = 1.0f;
@@ -31,7 +33,7 @@ const float maxColorToDistRatio = (maxColor/maxDistData);
 const float maxDistNormal = sqrt(2);
 
 float getColorDist(float color, float channel);
-float calcFade();
+float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer);
 float distFromCenter(float dist);
 bool isOuter(float dist, float thickness);
 float getDist(vec4 textureColor);
@@ -81,48 +83,13 @@ void main(){
     float fade = 0.0f;
     vec4 fadeColor = borderColor;
     if(DO_FADE){
-        fade = calcFade();
+        fade = calcFade(destructionTimePassed, destructionTime, maxLayer, MID_LAYER, layer);
         fadeColor.a = (1.0f - fade)*fadeColor.a;
     }
 
     FragColor = fadeColor*textureColor;
 }
 
-float calcFade(){
-    float fade = 0.0f;
-    int midLayer = MID_LAYER;
-    int midLayerMinus = maxLayer - midLayer;
-    float timePassed = destructionTimePassed;
-    float normalizer = destructionTime;
-    float timePassedNorm = timePassed/normalizer;
-    float maxFadeLayerRatio;
-    float minFadeLayerRatio;
-    float maxFade;
-    float minFade;
-    float slope;
-    float b;
-    if(layer > midLayer){ // Fade in
-        maxFadeLayerRatio = float(layer - midLayer)/float(midLayerMinus);
-        minFadeLayerRatio = float(layer - midLayer-1)/float(midLayerMinus);
-        maxFade = maxFadeLayerRatio*(SHAPE_MAX_FADE);
-        minFade = minFadeLayerRatio*(SHAPE_MAX_FADE);
-        slope = (minFade - maxFade)/(1.0f - 0.0f);
-        b = minFade - slope*1.0f;
-    }
-    else{ // Fade out
-        maxFadeLayerRatio = float((midLayer) - layer)/float(midLayer);
-        minFadeLayerRatio = float((midLayer-1) - layer)/float(midLayer);
-        maxFade = maxFadeLayerRatio*(SHAPE_MAX_FADE);
-        minFade = minFadeLayerRatio*(SHAPE_MAX_FADE);
-        slope = (maxFade - minFade)/(1.0f - 0.0f);
-        b = maxFade - slope*1.0f;
-    }
-
-    fade = b + slope*timePassedNorm;
-    if(fade > SHAPE_MAX_FADE) fade = SHAPE_MAX_FADE;
-    else if (fade < SHAPE_MIN_FADE) fade = SHAPE_MIN_FADE;
-    return fade;
-}
 float getDist(vec4 textureColor){
         float dist = getColorDist(textureColor.x,redChannel)+getColorDist(textureColor.y,greenChannel)+getColorDist(textureColor.z,blueChannel)+getColorDist(textureColor.a,alphaChannel);
         float distNormalized = dist*maxDistNormal;
@@ -131,4 +98,23 @@ float getDist(vec4 textureColor){
 
 float getColorDist(float color, float channel){
    return color*maxColorToDistRatio*pow(2,(nrChannels-channel-1)*8); 
+}
+float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer){
+    float fade = 0.0f;
+	float timePassed;
+	float b;
+	float slope;
+	if(layer > midLayer){
+		timePassed = destructionTimePassed + destructionTime*(totalLayers - 1 - layer);
+		b = ABOVE_INTERCEPT;
+		slope = ABOVE_SLOPE;
+
+	}
+	else{
+		timePassed = destructionTimePassed + destructionTime*(midLayer - layer);
+		b = BELOW_INTERCEPT;
+		slope = BELOW_SLOPE;
+	}
+    fade = b + slope*timePassed;
+    return fade;
 }
