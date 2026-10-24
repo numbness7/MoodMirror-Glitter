@@ -19,6 +19,8 @@
 #include <limits>
 #include <format>
 #include <color.body.hpp>
+#include <thread>
+#include <mutex>
 // System Headers
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -38,12 +40,12 @@
 
 // Header Macros
 #define BYTESIZE 8
-#define TOTAL_LAYERS 50
-#define SHAPES_IN_BATCH 5
-#define MID_LAYER  25
-#define SHAPE_INITIAL_SPAWN_TIME 0.01f
+#define TOTAL_LAYERS 1000
+#define SHAPES_IN_BATCH 1
+#define MID_LAYER 100
+#define SHAPE_INITIAL_SPAWN_TIME 0.001f
 #define BATCHES_SHARE_EMOTION 1 
-#define DESTRUCTION_TIME  0.1f
+#define DESTRUCTION_TIME         0.01f
 
 #define SORT_TIME 0.25f
 #define SHAPE_SPAWN_TIME         0.01f
@@ -53,7 +55,7 @@
 #define SHAPE_MAX_FADE_SCALE 1.0f
 #define SHAPE_MIN_FADE_SCALE 0.0f
 
-#define SUPER_SMALL_FLOAT 0.00001f
+#define SUPER_SMALL_FLOAT 0.00000000000001f
 #define SMALL_FLOAT 0.002f
 #define NOT_THAT_SMALL_FLOAT 0.01f
 #define DO_SCALE true
@@ -63,14 +65,14 @@
 
 #define SOFTNESS_SCALE 1.00f
 
-#define MAX_SCALE 1.0f
-#define MIN_SCALE 1.0f
-#define AVE_SCALE 1.0f
-#define DEV_SCALE 1.125f
+#define MAX_SCALE 3.0f
+#define MIN_SCALE 0.1f
+#define AVE_SCALE 0.5f
+#define DEV_SCALE 0.125f
 
 #define MAX_ALPHA 1.0f
-#define MIN_ALPHA 1.00f
-#define AVE_ALPHA 0.95f
+#define MIN_ALPHA 0.80f
+#define AVE_ALPHA 0.5f
 #define DEV_ALPHA 0.25f
 
 #define DO_SCALE_SCALE 1.0f
@@ -92,6 +94,11 @@
 
 // Header constants
 const std::vector<unsigned int> EMOTION_INDEXES = {0,1,2,3,4,5};
+
+struct BenImages{
+    std::mutex lock;
+    std::deque<unsigned int> images;
+};
 
 int floor(int x, int y);
 template<typename T> void mySwap(T& o1, T& o2);
@@ -203,7 +210,8 @@ class Alarm{
         Alarm( float waitTime);
         void setWaitTime(float waitTime);
         float getWaitTime(){return waitTime;}
-        float getPassedTime() { return time; }
+        float getPassedTime() const { return time; }
+        float getPassedTimeFrom(float timeStamp) const { return time + timeStamp; }
         float getTimeLeft() { return waitTime - time; }
         bool checkAndUpdate();
         bool check(){ return alarmSounded; }
@@ -281,7 +289,11 @@ struct ShapeProperties2D {
     std::map<TRANSITIONS,bool> transitions;
     int borderCase;
     unsigned int texture;
-
+    glm::mat4 transition;
+    glm::mat4 rotationMatrix;
+    glm::mat4 scaleMatrix;
+    glm::vec3 direction;
+    glm::vec3 rotatedCoords;
 };
 
 struct LightingEnvironment {
@@ -321,7 +333,7 @@ int mainSolve(int argc, char * argv[]);
 
 
 // #Draw
-void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
+void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::deque<ShapeProperties2D>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow);
 void drawCubeMatrices2DFade(LightingEnvironment& lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
@@ -377,7 +389,7 @@ std::vector<std::vector<float>> readEmotionArray(std::string filepath, bool prin
 std::string formatFloat(float f, int digitsBefore, int digitsAfter);
 glm::vec3 emotionArrayToVec3(std::vector<float> emotionArray);
 float emotionArrayToLength(std::vector<std::vector<float>> emotionArray);
-std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray);
+std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray, bool forceSoft=false);
 
 //Manage
 
@@ -415,11 +427,10 @@ void endRenderLoopViewStatic(GLFWwindow*& mWindow, DeltaTimer deltaTimer);
 OpenGLShape create_circle(unsigned int tri_cnt);
 
 float clamp(const float x, const float min, const float max);
-float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade);
-float calcHorizontalTransition(float destructionTimePassed, float destructionTime, int maxLayer, int layer, float shapeMinFade, float shapeMaxFade);
+float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade, bool delay, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow);
 
 float emotionArrayToRotation(std::vector<float> array0);
-std::map<TRANSITIONS,bool> emotionArrayToFadeScale(std::vector<float> emotionArray);
+std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionArray);
 
 // PNG
 void freePNGTextureData(unsigned char* data);
@@ -470,7 +481,9 @@ int emotionIndex(EMOTION emotion);
 glm::vec2 screenToModelCoords(float x, float y, float width, float height);
 void startDummyMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor);
 void setupDummyMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment);
-float calcDisplacement(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade);
+float calcDisplacement(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade, bool delay, std::tuple<float,float> lineAbove, std::tuple<float,float> lineBelow);
 template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable);
 template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
+void keepGettingImages(BenImages* benImages, GLFWwindow* mWindow, bool* notDone);
+void something(std::deque<ShapeProperties2D>* cubeMatrices, const unsigned int* blankTexture, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions);
 #endif
