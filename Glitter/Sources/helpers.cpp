@@ -2143,6 +2143,15 @@ glm::vec2 emotionArrayToVec2(std::vector<float> emotionArray)
     float y = ((surprise + disgust + happiness) - (anger + fear + sadness))/3.0f;
     return glm::vec2(x,y);
 }
+template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable){
+    NUMBER summation = 0;
+    for(auto const number : iterable) summation += number;
+    return summation;
+}
+template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable){
+    NUMBER summation = ssum<NUMBER>(iterable);
+    return summation/iterable.size();
+}
 float emotionArrayToRotation(std::vector<float> emotionArray)
 {
     float happiness = emotionArray[HAPPY];
@@ -2151,8 +2160,18 @@ float emotionArrayToRotation(std::vector<float> emotionArray)
     float fear      = emotionArray[FEAR];
     float surprise  = emotionArray[SURPRISE];
     float disgust   = emotionArray[DISGUST];
+    
+    glm::vec2 happinessDir = dir::UP;
+    glm::vec2 surpriseDir =  dir::UP_RIGHT;
+    glm::vec2 angerDir = dir::RIGHT;
+    glm::vec2 sadnessDir = dir::DOWN;
+    glm::vec2 disgustDir = dir::DOWN_LEFT;
+    glm::vec2 fearDir = dir::LEFT;
+    
+    glm::vec2 combineDir = glm::normalize(happiness*happinessDir + surprise* surpriseDir + anger* angerDir + sadness* sadnessDir + disgust * disgustDir + fear * fearDir);
+    float rotation = glm::atan(combineDir.y, combineDir.x);
+    return rotation;
 
-    return (anger + sadness + fear + happiness + surprise + disgust)/6.0f;
 }
 void initMouse(GLFWwindow* mWindow){
     glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -2580,14 +2599,13 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
     unsigned totalLayers = TOTAL_LAYERS;
     lightingEnvironment.object_shader.setUniformI("maxLayer", totalLayers);
     // Draw cubes
-    int prelayer = -1;
-    float scaleDown = 0.0f;
     const float speed = 4.0f;
     for( auto shape : cubeMatrices ){
         glm::mat4 model(1.0f);
         glm::mat4 transition(1.0f);
         glm::mat4 rotation(1.0f);
         glm::mat4 scale(1.0f);
+        glm::vec3 direction = dir::UP;
         int placement = (shapesInTotal - 1 - i);
         int layer;
         layer = placement/shapesInLayer;
@@ -2602,19 +2620,22 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
         scale = glm::scale(scale, shape.scale);
         rotation = glm::rotate(rotation, shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
         transition = glm::translate(transition, shape.coords);
+        direction  = glm::mat3(rotation) * direction;
+        direction = glm::normalize(direction);
 
 
-        if(shape.transitions[RIGHT_T]){
+
+        if(shape.transitions[BACK_OUT]){
             float dX = calcDisplacement(destructionAlarm.getPassedTime(),destructionAlarm.getWaitTime(),totalLayers,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE);
             transition = glm::mat4(1.0f);
-            transition = glm::translate(transition, glm::vec3(-2.0f, shape.coords.y, shape.coords.z));
-            transition = glm::translate(transition, speed*dX*glm::vec3(1.0f,0.0f, 0.0f));
+            transition = glm::translate(transition, 2.0f*direction);
+            transition = glm::translate(transition, -speed*dX*direction);
         }
-        else if(shape.transitions[LEFT_T]){
+        else if(shape.transitions[MOVE_FORWARD]){
             float dX = calcDisplacement(destructionAlarm.getPassedTime(),destructionAlarm.getWaitTime(),totalLayers,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE);
             transition = glm::mat4(1.0f);
-            transition = glm::translate(transition, glm::vec3(2.0f, shape.coords.y, shape.coords.z));
-            transition = glm::translate(transition, -speed*dX*glm::vec3(1.0f,0.0f, 0.0f));
+            transition = glm::translate(transition, -2.0f*direction);
+            transition = glm::translate(transition, speed*dX*direction);
         }
         
         if(shape.transitions[SCALE]){
@@ -2638,7 +2659,6 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
 
 
         shapes[shape.type]->draw(lightingEnvironment.object_shader, std::vector<unsigned int> {shape.texture, shapes[shape.type]->getTexture(1)});
-        prelayer = layer;
         i++;
     }
     glDepthMask(true);
@@ -3150,7 +3170,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     float elderTimeStamp = 0.0f;
 
     int shareCount = 0;
-    std::vector<std::vector<float>> emotionArrays = readEmotionArray("../data.json", false);
+    std::vector<std::vector<float>> emotionArrays = readEmotionArray("../data.json", true);
     
     glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
 
@@ -3163,7 +3183,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
 
         if(shareCount >= BATCHES_SHARE_EMOTION){
-            emotionArrays = readEmotionArray("../data.json", false);
+            emotionArrays = readEmotionArray("../data.json", true);
             shareCount = 0;
         }
         else {
@@ -3624,11 +3644,11 @@ std::map<TRANSITIONS,bool> emotionArrayToFadeScale(std::vector<float> emotionArr
     std::map<TRANSITIONS,bool> transitions{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
     transitions[FADE] = fadePotential >= 0.5f;
     transitions[SCALE] = scalePotential >= 0.5f;
-    transitions[RIGHT_T] = rightPotential >= 0.95f;
-    transitions[LEFT_T] = leftPotential >= 0.95f;
-    if(transitions[LEFT_T] && transitions[RIGHT_T]){
-        if(leftPotential > rightPotential) transitions[RIGHT_T] = false;
-        else transitions[LEFT_T] = false;
+    transitions[MOVE_FORWARD] = rightPotential >= 0.75f;
+    transitions[BACK_OUT] = leftPotential >= 0.75f;
+    if(transitions[MOVE_FORWARD] && transitions[BACK_OUT]){
+        if(leftPotential > rightPotential) transitions[BACK_OUT] = false;
+        else transitions[MOVE_FORWARD] = false;
     }
     bool isEmpty = true;
     for(auto const value : transitions){

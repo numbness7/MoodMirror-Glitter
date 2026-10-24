@@ -39,8 +39,8 @@
 // Header Macros
 #define BYTESIZE 8
 #define TOTAL_LAYERS 50
-#define SHAPES_IN_BATCH 1
-#define MID_LAYER  24 
+#define SHAPES_IN_BATCH 5
+#define MID_LAYER  25
 #define SHAPE_INITIAL_SPAWN_TIME 0.01f
 #define BATCHES_SHARE_EMOTION 1 
 #define DESTRUCTION_TIME  0.1f
@@ -254,7 +254,9 @@ class OpenGLShape {
 enum SHAPE_TYPE_3D { CUBE, PYRAMID, OCTAHEDRON};
 enum SHAPE_TYPE_2D { TRIANGLE, SQUARE, CIRCLE};
 enum EMOTION {HAPPY=0, SAD=1, ANGRY=2, FEAR=3, SURPRISE=4, DISGUST=5 };
-enum TRANSITIONS {FADE,SCALE,VORTEX, RIGHT_T, LEFT_T};
+enum TRANSITIONS {FADE,SCALE,VORTEX, BACK_OUT, MOVE_FORWARD};
+
+
 
 // #Structs
 
@@ -289,6 +291,17 @@ struct LightingEnvironment {
     Shader object_shader;
     Shader light_shader;
 };
+
+
+// CONSTANTS
+namespace dir{
+    const glm::vec3 UP(0.0f,1.0f,0.0f);
+    const glm::vec3 DOWN(0.0f,-1.0f,0.0f);
+    const glm::vec3 RIGHT(1.0f,0.0f,0.0f);
+    const glm::vec3 LEFT(-1.0f,0.0f,0.0f);
+    const glm::vec3 UP_RIGHT = glm::normalize(UP + RIGHT);
+    const glm::vec3 DOWN_LEFT = glm::normalize(DOWN + LEFT);
+}
 
 // #Main Programs
 int mainCoordsBasic2D(int argc, char * argv[]);
@@ -458,4 +471,6 @@ glm::vec2 screenToModelCoords(float x, float y, float width, float height);
 void startDummyMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor);
 void setupDummyMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment);
 float calcDisplacement(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade);
+template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable);
+template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
 #endif
