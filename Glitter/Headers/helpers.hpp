@@ -101,13 +101,17 @@ struct BenImages{
 };
 
 int floor(int x, int y);
-template<typename T> void mySwap(T& o1, T& o2);
+template <typename T> void mySwap(T t1, T t2){
+    T temp = t1;
+    t1 = t2;
+    t2 = temp;
+}
 
 // Classes
 class PngData{
     public:
         PngData(int width, int height);
-        PngData(int width, int height, int nrChannels, unsigned char* data);
+        PngData(const int width, const int height, const int nrChannels, const unsigned char* data);
         ~PngData();
         int index(int row, int col, int channel) { return row*width*nrChannels+col*nrChannels+channel; }
         int indexFromGrid(int gridIndex, int channel) { return gridIndex*nrChannels + channel; }
@@ -486,4 +490,7 @@ template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable);
 template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
 void keepGettingImages(BenImages* benImages, GLFWwindow* mWindow, bool* notDone);
 void something(std::deque<ShapeProperties2D>* cubeMatrices, const unsigned int* blankTexture, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions);
+PngData* loadPngTextureNew(std::string texture_filepath);
+unsigned int createPngTexture(const PngData* pngData);
+void pngLoader(std::deque<PngData*>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath);
 #endif

@@ -404,6 +404,13 @@ unsigned int obtainPNGDistanceFromBorder(int width, int height, std::vector<glm:
     return texture;
 }
 
+PngData* loadPngTextureNew(std::string texture_filepath)
+{
+    int width, height, nrChannels;
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
+    return new PngData(width, height, nrChannels, data);
+}
 PngData loadPngTexture(std::string texture_filepath)
 {
     int width, height, nrChannels;
@@ -739,6 +746,15 @@ unsigned int createPngTexture(std::string texture_filepath)
         texture = useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "png");
     else
         texture = useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "pngNA");
+    return texture;
+}
+unsigned int createPngTexture(const PngData* pngData)
+{
+    unsigned int texture;
+    if(pngData->nrChannels == 4)
+        texture = useTextureDataToCreateTexture(pngData->getData(), pngData->width, pngData->height, "png");
+    else
+        texture = useTextureDataToCreateTexture(pngData->getData(), pngData->width, pngData->height, "pngNA");
     return texture;
 }
 unsigned int createTexture(std::string texture_filepath, std::string filetype)
@@ -3259,6 +3275,15 @@ void something(std::deque<ShapeProperties2D>* cubeBuffer, const unsigned int* bl
     imageThread.join();
 
 }
+void pngLoader(std::deque<PngData*>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath){
+	while(!*turnOff){
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		std::lock_guard guard(*lock);
+		PngData* pD = loadPngTextureNew(*filePath);
+		datas->push_front(pD);
+	}
+	
+}
 
 int mainCoordsBasic2D(int argc, char * argv[]){
     // Initialize OpenGL
@@ -3345,15 +3370,36 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     int additions = 0;
     std::thread creationThread(something,&cubeBuffer,&blankTexture,&creationAlarm,mWindow,&lock, &notDone, &additions);
 
+	std::deque<PngData*> datas{};
+	std::deque<PngData*> datasStorage{};
+	bool turnOff = false;
+	std::mutex lockImage{};
+    std::string filepath = "../background.png";
+	std::thread imageThread(pngLoader, &datas, &turnOff, &lockImage, &filepath);
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
         startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
         {
+            std::lock_guard guard(lockImage);
+            while(!datas.empty()){
+                const auto& data = datas.front();
+                datasStorage.push_front(new PngData(data->width, data->height, data->nrChannels, data->getData()));
+                datas.pop_front();
+            }
+        }
+        {
             std::lock_guard guard(lock);
             while(!cubeBuffer.empty()){
                 ShapeProperties2D cube = cubeBuffer.front();
                 cubeBuffer.pop_front();
+                if(!datasStorage.empty()){
+                    std::lock_guard guard(lockImage);
+                    const auto& data = datasStorage.front();
+                    unsigned int texture = createPngTexture(data);
+                    cube.texture = texture;
+                    datasStorage.pop_front();
+                }
                 cubeStorage.push_front(cube);
             }
             bool shapeDeleted = true;
@@ -3383,6 +3429,12 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         notDone = false;
     }
     creationThread.join();
+    {
+        std::lock_guard<std::mutex> guard(lockImage);
+        turnOff = true;
+    }
+    imageThread.join();
+
     glfwTerminate();
 
     return EXIT_SUCCESS;
@@ -3650,8 +3702,10 @@ void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironme
 PngData::PngData(int width, int height) : width{width},  height{height}, nrChannels{PngData::nrChannelsDefault}{
     data = initializePNGTextureData(width, height, nrChannels);
 }
-PngData::PngData(int width, int height, int nrChannels, unsigned char *data) : width{width}, nrChannels{nrChannels}, height{height}, data{data}
+PngData::PngData(const int width, const int height, const int nrChannels, const unsigned char *data) : width{width}, nrChannels{nrChannels}, height{height}
 {
+    this->data = (unsigned char*) malloc(sizeof(unsigned char)*width*height*nrChannels);
+    for(int i = 0; i < width*height*nrChannels; i++)  this->data[i] = data[i];
 }
 PngData::~PngData()
 {
