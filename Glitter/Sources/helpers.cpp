@@ -375,7 +375,7 @@ unsigned char getBorderCheckColor(int width, int height, int row, int col, int h
     else return cdata::EMPTY_COLOR_D; 
 
 }
-void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder){
+void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder){
     for(int gI = 0; gI < pngData.gridSize(); gI++){
         if (isOnBorder(width, height, pngData.rFG(gI), pngData.cFG(gI), hThickness, vThickness)){
             if(!ignoreBorder) pngData.setColor(gI, borderColor);
@@ -404,19 +404,13 @@ unsigned int obtainPNGDistanceFromBorder(int width, int height, std::vector<glm:
     return texture;
 }
 
-PngData* loadPngTextureNew(std::string texture_filepath)
-{
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
-    return new PngData(width, height, nrChannels, data);
-}
 PngData loadPngTexture(std::string texture_filepath)
 {
     int width, height, nrChannels;
     stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
-    return PngData(width, height, nrChannels, data);
+    PngData pngData(width, height, nrChannels, data);
+    return pngData;
 }
 /// @brief
 /// @param pngData
@@ -539,17 +533,17 @@ void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> bord
         static const float multiplier = 1.0f;
         unsigned int distanceFloatValueNorm = boundTransformation((unsigned int) minDistance, 0, (unsigned int) multiplier*(unsigned int) maximumPossibleDistance, 0, std::numeric_limits<unsigned int>::max());
         unsigned int distanceValue = static_cast<unsigned int>(distanceFloatValueNorm);
-        cdata::Color colorCodedDistance =  pngColorFromValue(distanceValue);
+        cdata::ColorRGBA colorCodedDistance =  pngColorFromValue(distanceValue);
         pngData.setColor(gI, colorCodedDistance);
         
 
         
         unsigned int maxInt = std::numeric_limits<unsigned int>::max();
-        cdata::Color colorCodedMaxDistance =  pngColorFromValue(maxInt);
+        cdata::ColorRGBA colorCodedMaxDistance =  pngColorFromValue(maxInt);
     }
 
 }
-unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder){
+unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder){
     PngData pngData(width, height);
     generatePNGBorder(pngData, width, height,  hThickness, vThickness, borderColor, innerColor, ignoreInner, ignoreBorder);
     unsigned texture = getTextureFromData(pngData);
@@ -562,7 +556,8 @@ unsigned int obtainPNGBlank(PngData& pngData){
 }
 void generatePNGBlank(PngData& pngData){
     for(int gI = 0; gI < pngData.gridSize(); gI++) {
-        pngData.setColor(gI, cdata::WHITE_D);
+        for(int channel = 0; channel < pngData.nrChannels; channel++)
+            pngData.setData(gI, cdata::FULL_COLOR_D);
     }
 }
 
@@ -577,15 +572,15 @@ bool isOnLine(std::tuple<float, float, float> line, glm::vec2 point)
     return isInRange(actualValue, -SMALL_FLOAT, SMALL_FLOAT);
 }
 
-unsigned int obtainPNGBorder(PngData &pngData, int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder)
+unsigned int obtainPNGBorder(PngData &pngData, int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder)
 {
     generatePNGBorder(pngData, pngData.width, pngData.height,  hThickness, vThickness, borderColor, innerColor, ignoreInner, ignoreBorder);
     unsigned texture = getTextureFromData(pngData);
     return texture;
 }
-cdata::Color pngColorFromValue(const unsigned int &value)
+cdata::ColorRGBA pngColorFromValue(const unsigned int &value)
 {
-    const cdata::Color color(
+    const cdata::ColorRGBA color(
         (unsigned char) (value >> ((PngData::nrChannelsDefault - 1 - PngData::redChannel   ) * sizeof(unsigned char)*BYTESIZE)),
         (unsigned char) (value >> ((PngData::nrChannelsDefault - 1 - PngData::greenChannel ) * sizeof(unsigned char)*BYTESIZE)),
         (unsigned char) (value >> ((PngData::nrChannelsDefault - 1 - PngData::blueChannel  ) * sizeof(unsigned char)*BYTESIZE)),
@@ -594,7 +589,7 @@ cdata::Color pngColorFromValue(const unsigned int &value)
 
     return color;
 }
-unsigned int valueFromPngColor(cdata::Color color)
+unsigned int valueFromPngColor(cdata::ColorRGBA color)
 {
     unsigned int value = 0;
     value = ((color.red  )   << ((PngData::redChannel   ) *sizeof(unsigned char)*BYTESIZE))  |
@@ -740,7 +735,7 @@ unsigned int createPngTexture(std::string texture_filepath)
     int width, height, nrChannels;
     stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
-    PngData pngData = PngData(width, height, nrChannels, data);
+    PngData pngData(width, height, nrChannels, data);
     unsigned int texture;
     if(pngData.nrChannels == 4)
         texture = useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "png");
@@ -755,6 +750,15 @@ unsigned int createPngTexture(const PngData* pngData)
         texture = useTextureDataToCreateTexture(pngData->getData(), pngData->width, pngData->height, "png");
     else
         texture = useTextureDataToCreateTexture(pngData->getData(), pngData->width, pngData->height, "pngNA");
+    return texture;
+}
+unsigned int createPngTexture(const PngData& pngData)
+{
+    unsigned int texture;
+    if(pngData.nrChannels == 4)
+        texture = useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "png");
+    else
+        texture = useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "pngNA");
     return texture;
 }
 unsigned int createTexture(std::string texture_filepath, std::string filetype)
@@ -1998,7 +2002,7 @@ float emotionArrayToAlpha(std::vector<float> emotionArray)
     float disgust  = emotionArray[DISGUST];
     return boundTransformation( (anger + surprise + disgust + happiness - fear - sadness), -2.0f, 4.0f, 0.0f, 1.0f);
 }
-std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray, bool forceSoft)
+std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray, bool noSoft, bool noMiddle, bool noHard)
 {
     float happiness = emotionArray[HAPPY];
     float sadness   = emotionArray[SAD];
@@ -2007,16 +2011,45 @@ std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray, bo
     float surprise  = emotionArray[SURPRISE];
     float disgust   = emotionArray[DISGUST];
     float softness = boundTransformation((0.25*sadness + 0.25*happiness + 0.25f*disgust - 0.25f*fear - 0.25f*anger - 0.25f*surprise), -0.75f, 0.75f, 0.0f, 1.0f);
-    if (softness > 0.50f || forceSoft){
-        return {2,boundTransformation(softness,0.0f,1.0f,0.0f,1.00f)};
-    }
-    else if (softness < 0.3f){
-        return {0,(anger + surprise)/5.0f};
+    float hardness = (anger + surprise)/2.0f;
 
-    }
-    else{
+    if(noHard && noSoft && !noMiddle){
         return {4,softness};
     }
+    if(noHard && !noSoft && noMiddle){
+        return {2,boundTransformation(softness,0.0f,1.0f,0.0f,1.00f)};
+    }
+    if(!noHard && noSoft && noMiddle){
+        return {0,hardness/4.0f};
+    }
+    if(noHard && noSoft && noMiddle){
+        return {4,softness};
+    }
+    if(noMiddle){
+        if(softness > hardness)
+            return {2,boundTransformation(softness,0.0f,1.0f,0.0f,1.00f)};
+        else
+            return {0,hardness/4.0f};
+    }
+    if(noHard){
+        if(softness > 0.5f)
+            return {2,boundTransformation(softness,0.0f,1.0f,0.0f,1.00f)};
+        else
+            return {4,softness};
+    }
+    if(noSoft){
+        if(hardness > 0.5f)
+            return {0,hardness/4.0f};
+        else
+            return {4,softness};
+    }
+    if (softness >= 0.50f){
+        return {2,boundTransformation(softness,0.0f,1.0f,0.0f,1.00f)};
+    }
+    if (softness < 0.50f){
+        return {0,hardness/4.0f};
+    }
+    return {4,softness};
 
 }
 
@@ -2617,23 +2650,18 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
     lightingEnvironment.object_shader.setUniformF("destructionTime", waitTime);
     lightingEnvironment.object_shader.setUniformF("destructionTimePassed", passedTime);
     unsigned i = 0;
-    unsigned shapesInLayer = SHAPES_IN_BATCH*EMOTION_INDEXES.size();
-    unsigned shapesInTotal = shapesInLayer*TOTAL_LAYERS;
-    unsigned totalLayers = TOTAL_LAYERS;
-    lightingEnvironment.object_shader.setUniformI("maxLayer", totalLayers);
+    lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS);
     // Draw cubes
     const float speed = 4.0f;
-    for(auto shape : cubeMatrices){
+    for(auto const& shape : cubeMatrices){
         glm::mat4 model(1.0f);
         glm::mat4 transition(shape.transition);
         glm::mat4 rotation(shape.rotationMatrix);
         glm::mat4 scale(shape.scaleMatrix);
-        int placement = (shapesInTotal - 1 - i);
-        int layer;
-        layer = placement/shapesInLayer;
+        unsigned int layer = getLayer(i);
         lightingEnvironment.object_shader.setUniformM4("model", shape.model);
         //lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && shape.transitions[FADE]));
-        lightingEnvironment.object_shader.setUniformB("DO_FADE", shape.transitions[FADE]);
+        lightingEnvironment.object_shader.setUniformB("DO_FADE", shape.transitions.at(FADE));
         lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
 
         lightingEnvironment.object_shader.setUniformI("layer", layer);
@@ -2642,21 +2670,21 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
 
 
 
-        if(shape.transitions[BACK_OUT]){
-            float dX = calcDisplacement(passedTime,waitTime,totalLayers,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
+        if(shape.transitions.at(BACK_OUT)){
+            float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
             transition = glm::mat4(1.0f);
             transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
             transition = glm::translate(transition, -speed*dX*shape.direction);
         }
-        else if(shape.transitions[MOVE_FORWARD]){
-            float dX = calcDisplacement(passedTime,waitTime,totalLayers,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
+        else if(shape.transitions.at(MOVE_FORWARD)){
+            float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
             transition = glm::mat4(1.0f);
             transition = glm::translate(transition, -2.0f*shape.direction - shape.rotatedCoords);
             transition = glm::translate(transition, speed*dX*shape.direction);
         }
         
-        if(shape.transitions[SCALE]){
-            float scaleDown = calcFade(passedTime,waitTime,totalLayers,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
+        if(shape.transitions.at(SCALE)){
+            float scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
             scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
         }
         
@@ -3112,23 +3140,11 @@ int mainCoordsBasicStream(int argc, char * argv[]){
     
 }
 
-void keepGettingImages(BenImages* benImages, GLFWwindow* mWindow, bool* notDone){
-    while(*notDone){
-        std::this_thread::sleep_for(std::chrono::nanoseconds((int)((DESTRUCTION_TIME + SUPER_SMALL_FLOAT)*1000000000.0f)));
-        std::lock_guard<std::mutex> guard(benImages->lock);
-        unsigned int benTexture = createPngTexture("../background.png");
-        benImages->images.push_front(benTexture);
-    }
 
-}
-
-void something(std::deque<ShapeProperties2D>* cubeBuffer, const unsigned int* blankTexture, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions){
+void something(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions){
 
     int shareCount = 0;
     std::vector<std::vector<float>> emotionArrays = readEmotionArray("../data.json", true);
-    BenImages benImages{std::mutex(), std::deque<unsigned int>{}};
-    bool imageNotDone = true;
-    std::thread imageThread(keepGettingImages, &benImages, mWindow, &imageNotDone);
     bool alarmSounded;
     Alarm printAlarm{1.0f};
     long int iterations = 0;
@@ -3157,11 +3173,7 @@ void something(std::deque<ShapeProperties2D>* cubeBuffer, const unsigned int* bl
             shareCount++;
         }
         
-        unsigned int benTexture;
-        bool shapeDeleted = false;
-        bool useBenTexture = rand_range_uniform(0.0f,1.0f) < 0.00f;
-        if(!useBenTexture)
-            benTexture = *blankTexture;
+        bool useBenTexture = rand_range_uniform(0.0f,1.0f) < 1.00f;
         
         // #Emotion Extraction
         // Use emotion array to set properties of shapes
@@ -3171,10 +3183,7 @@ void something(std::deque<ShapeProperties2D>* cubeBuffer, const unsigned int* bl
                 std::vector<float> emotionArray = emotionArrays[i];
                 glm::vec3 emotionRGB;
 
-                if (useBenTexture) 
-                    emotionRGB = cdata::WHITE_V3;
-                else
-                    emotionRGB = emotionArrayToColor(emotionArray);
+                emotionRGB = emotionArrayToColor(emotionArray);
                 glm::vec2 emotionCoords2D = emotionArrayToVec2(emotionArray);
                 glm::vec3 emotionCoords3D = glm::vec3(emotionCoords2D.x, emotionCoords2D.y, 0.0f);
                 glm::vec3 coords;
@@ -3192,7 +3201,7 @@ void something(std::deque<ShapeProperties2D>* cubeBuffer, const unsigned int* bl
 
                 SHAPE_TYPE_2D type = emotionArrayToShapeType2D(emotionArray);
                 auto transitions = emotionArrayToTransitions(emotionArray);
-                const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(emotionArray, true);
+                const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(emotionArray,false, true, false);
                 transitions[VORTEX] = rand_range_uniform(0.0f, 1.0f) <= 0.1f;
                 //const auto emotionAlpha = emotionArrayToAlpha(emotionArray);
 
@@ -3202,17 +3211,6 @@ void something(std::deque<ShapeProperties2D>* cubeBuffer, const unsigned int* bl
 
 
                 for (int j = 0; j < SHAPES_IN_BATCH; j++){
-
-
-                    if (useBenTexture){
-                        {
-                            std::lock_guard<std::mutex> guard(benImages.lock);
-                            if(benImages.images.size() > 0){
-                                benTexture = benImages.images.front();
-                                benImages.images.pop_front();
-                            }
-                        }
-                    }
                     float maxScale = MAX_SCALE;
                     float minScale = MIN_SCALE;
                     float aveScale = AVE_SCALE;
@@ -3249,15 +3247,18 @@ void something(std::deque<ShapeProperties2D>* cubeBuffer, const unsigned int* bl
                         glm::vec4 shapeColor = glm::vec4(emotionRGB,alphaScale);
                         //glm::vec4 invertedShapeColor = glm::vec4(glm::vec3(1.0f) - emotionRGB, alphaScale);
                         glm::vec4 invertedShapeColor;
-                        invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
-                        ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, benTexture};
+                        if(useBenTexture)
+                            invertedShapeColor = glm::vec4(emotionRGB, alphaScale);
+                        else
+                            invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
+                        ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
                         shape.scaleMatrix = glm::scale(glm::mat4(1.0f), shape.scale);
                         shape.rotationMatrix = glm::rotate(glm::mat4(1.0f), shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
                         shape.transition = glm::translate(glm::mat4(1.0f), shape.coords);
                         shape.direction = dir::UP;
                         shape.direction  = glm::mat3(shape.rotationMatrix) * shape.direction;
                         shape.direction = glm::normalize(shape.direction);
-                        shape.rotatedCoords = glm::mat3(shape.rotation) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
+                        shape.rotatedCoords = glm::mat3(shape.rotationMatrix) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
                         cubeBuffer->push_front(shape);
                         additions++;
                     }
@@ -3268,19 +3269,39 @@ void something(std::deque<ShapeProperties2D>* cubeBuffer, const unsigned int* bl
 
     iterations++;
     }
-    {
-       std::lock_guard<std::mutex> guard(benImages.lock);
-       imageNotDone = false; 
-    }
-    imageThread.join();
 
 }
-void pngLoader(std::deque<PngData*>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath){
+void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath, float* waitTime){
+    static const unsigned int bufferSizeMult = 1;
+    auto& dataBuffer = *datas;
+    PngData pD(255,255,3);
 	while(!*turnOff){
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		std::lock_guard guard(*lock);
-		PngData* pD = loadPngTextureNew(*filePath);
-		datas->push_front(pD);
+
+        bool full;
+        float tempWaitTime;
+        {
+            std::lock_guard guard(*lock);
+            full = dataBuffer.size()>=TOTAL_LAYERS*TOTAL_EMOTIONS*bufferSizeMult;
+            tempWaitTime = *waitTime;
+        }
+
+        if(full){
+            std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*100.0f)));
+        }
+        else{
+            pD = loadPngTexture(*filePath);
+            if(pD.isValid()){
+                std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*1000000000.0f/(EMOTION_INDEXES.size()*bufferSizeMult))));
+                std::lock_guard guard(*lock);
+                for(int i = 0; i < SHAPES_IN_BATCH; i++){
+                    dataBuffer.push_front(pD);
+                }
+            }
+            else{
+                std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+                checkPrint("ERROR: loading image\n", false, DEBUG_IMAGE);
+            }
+        }
 	}
 	
 }
@@ -3296,7 +3317,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     bool shapesFull = false;
     
 
-    PngData blankPNGData(255,255);
+    PngData blankPNGData(255,255, 3);
     const unsigned int blankTexture = obtainPNGBlank(blankPNGData);
 
     std::cout << "Generate triangle" << std::endl;
@@ -3356,8 +3377,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
 
     
-    std::deque<ShapeProperties2D> cubeBuffer{};
-    std::deque<ShapeProperties2D> cubeStorage{};
+    std::deque<ShapeProperties2D> shapesBuffer{};
+    std::deque<ShapeProperties2D> shapesStorage{};
     
 
     float elderTimeStamp = 0.0f;
@@ -3368,54 +3389,91 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
     bool notDone = true;
     int additions = 0;
-    std::thread creationThread(something,&cubeBuffer,&blankTexture,&creationAlarm,mWindow,&lock, &notDone, &additions);
+    float waitTime = creationAlarm.getWaitTime();
+    std::thread creationThread(something,&shapesBuffer,&creationAlarm,mWindow,&lock, &notDone, &additions);
 
-	std::deque<PngData*> datas{};
-	std::deque<PngData*> datasStorage{};
+	std::deque<PngData> pngDataBuffer{};
+	std::deque<PngData> pngDataStorage{};
 	bool turnOff = false;
 	std::mutex lockImage{};
     std::string filepath = "../background.png";
-	std::thread imageThread(pngLoader, &datas, &turnOff, &lockImage, &filepath);
+	std::thread imageThread(pngLoader, &pngDataBuffer, &turnOff, &lockImage, &filepath, &waitTime);
+    unsigned int prev_texture = blankTexture;
+    bool midLayerMet = false;
+    unsigned int shapesCount = 0;
+    unsigned int emotionCount = 0;
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
         startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
+
+        float tempWaitTime;
+        {
+            std::lock_guard guard(lock);
+            tempWaitTime = creationAlarm.getWaitTime();
+        }
         {
             std::lock_guard guard(lockImage);
-            while(!datas.empty()){
-                const auto& data = datas.front();
-                datasStorage.push_front(new PngData(data->width, data->height, data->nrChannels, data->getData()));
-                datas.pop_front();
+            waitTime = tempWaitTime;
+            while(!pngDataBuffer.empty()){
+                const auto& pngDataB = pngDataBuffer.back();
+                pngDataStorage.push_front(pngDataB);
+                pngDataBuffer.pop_back();
             }
         }
         {
             std::lock_guard guard(lock);
-            while(!cubeBuffer.empty()){
-                ShapeProperties2D cube = cubeBuffer.front();
-                cubeBuffer.pop_front();
-                if(!datasStorage.empty()){
-                    std::lock_guard guard(lockImage);
-                    const auto& data = datasStorage.front();
-                    unsigned int texture = createPngTexture(data);
-                    cube.texture = texture;
-                    datasStorage.pop_front();
+            while(!shapesBuffer.empty()){
+                const ShapeProperties2D& shapeB = shapesBuffer.back();
+                ShapeProperties2D shape = shapeB;
+                shapesBuffer.pop_back();
+                if(shape.useBenTexture){
+                    if(!pngDataStorage.empty() && shapesCount == 0){ // Fetch texture if on new layer
+                        auto const& pngData = pngDataStorage.back();
+                        prev_texture = createPngTexture(pngData);
+                        pngDataStorage.pop_back();
+                    }
+                    shape.texture = prev_texture;
+                    shape.innerColor = cdata::WHITE_V4;
+                    // Incrent layer
+                    shapesCount++;
+                    if(shapesCount >= SHAPES_IN_BATCH){
+                        shapesCount = 0;
+                    }
                 }
-                cubeStorage.push_front(cube);
-            }
-            bool shapeDeleted = true;
-            // Delete cubes
-            while (cubeStorage.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*EMOTION_INDEXES.size()){
-                cubeStorage.pop_back();
-                shapeDeleted = true;
-            }
-            if(shapeDeleted && !shapesFull){
-                creationAlarm.setWaitTime(DESTRUCTION_TIME);
-                shapesFull = true;
+                else{
+                    shape.texture = blankTexture;
+                }
+                shapesStorage.push_front(shape);
             }
             
         }
+        bool shapeDeleted = false;
+        // Delete cubes
+        while (shapesStorage.size() > TOTAL_SHAPES){
+            ShapeProperties2D shape = shapesStorage.back();
+            shapesStorage.pop_back();
+            if(shape.texture != blankTexture){
+                if(shape.texture != shapesStorage.back().texture)
+                    glDeleteTextures(1,&shape.texture);
+            }
+            shapeDeleted = true;
+        }
+        while(pngDataStorage.size() > TOTAL_LAYERS*TOTAL_EMOTIONS)
+            pngDataStorage.pop_back();
+        if(shapesStorage.size() >= (MID_LAYER - 0) && !midLayerMet){
+            midLayerMet = true;
+            std::cout << "The middle layer was met!!!" << std::endl;
+
+        }
+        if(shapeDeleted && !shapesFull){
+            std::lock_guard guard(lock);
+            creationAlarm.setWaitTime(DESTRUCTION_TIME);
+            shapesFull = true;
+            std::cout << "Shapes loaded!" << std::endl;
+        }
         // Draw cubes
-        drawCubeMatrices2DScale(lightingEnvironment, cubeStorage, shapeTypes, deltaTimer, creationAlarm, lock, lineAbove, lineBelow);
+        drawCubeMatrices2DScale(lightingEnvironment, shapesStorage, shapeTypes, deltaTimer, creationAlarm, lock, lineAbove, lineBelow);
 
 
 
@@ -3487,7 +3545,7 @@ int mainDrawCircle(int argc, char *argv[])
     std::vector<glm::vec2> borderVertices = borderVerticesFromShape(shapes::rectT.vertices, shapes::rectT.vertCnt, shapes::rectT.getStride());
     
 
-    unsigned int blankTexture = obtainPNGBorder(255,255,50,50, cdata::Color(255,255,255,255),cdata::Color(255,255,255,255), false, false);
+    unsigned int blankTexture = obtainPNGBorder(255,255,50,50, cdata::ColorRGBA(255,255,255,255),cdata::ColorRGBA(255,255,255,255), false, false);
     
     colorShader.setUniformI("ourTexture", 0);
 
@@ -3699,21 +3757,30 @@ void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironme
     minimumStartRenderLoop(deltaTimer, glm::vec4(1.0f,1.0f,1.0f,1.0f));
     setupMPVEnvironmentToDraw(lightingEnvironment);
 }
-PngData::PngData(int width, int height) : width{width},  height{height}, nrChannels{PngData::nrChannelsDefault}{
-    data = initializePNGTextureData(width, height, nrChannels);
+PngData::PngData(const int width, const int height, const int nrChannels): width{width},  height{height}, nrChannels{nrChannels}{
+    this->data = initializePNGTextureData(width, height, nrChannels);
 }
-PngData::PngData(const int width, const int height, const int nrChannels, const unsigned char *data) : width{width}, nrChannels{nrChannels}, height{height}
+PngData::PngData(int width, int height) : width{width},  height{height}, nrChannels{PngData::nrChannelsDefault}{
+    this->data = initializePNGTextureData(width, height, nrChannels);
+}
+PngData::PngData(const int width, const int height, const int nrChannels, unsigned char *data, bool copy) : width{width},  height{height}, nrChannels{nrChannels}
 {
-    this->data = (unsigned char*) malloc(sizeof(unsigned char)*width*height*nrChannels);
-    for(int i = 0; i < width*height*nrChannels; i++)  this->data[i] = data[i];
+    if(copy){
+        this->data = copyInitialize(data, width*height*nrChannels);
+    }
+    else this->data = data;
+}
+PngData::PngData(const PngData &pngData) : width{pngData.width}, height{pngData.height}, nrChannels{pngData.nrChannels}
+{
+    this->data = copyInitialize(pngData.getData(), pngData.size());
 }
 PngData::~PngData()
 {
-    freePNGTextureData(data);
+    freePNGTextureData(this->data);
 }
 
 void PngData::setData(int row, int col, int channel, const unsigned char& byte){
-    data[index(row, col, channel)] = byte;
+    this->data[index(row, col, channel)] = byte;
 }
 
 
@@ -3727,7 +3794,7 @@ unsigned int getTextureFromData(const PngData &pngData)
         return useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "pngNA");
 }
 
-void generatePNGLineToBordersFromPoint(PngData& pngData, std::vector<glm::vec2> borderVertices, int pointRow, int pointCol, int thickness, cdata::Color color){
+void generatePNGLineToBordersFromPoint(PngData& pngData, std::vector<glm::vec2> borderVertices, int pointRow, int pointCol, int thickness, cdata::ColorRGBA color){
     float gridY = pointRow;
     float gridX = pointCol;
     float gridYN = boundTransformation(gridY, 0, pngData.height, -0.5f, 0.5f);
@@ -3808,4 +3875,11 @@ float calcDisplacement(float destructionTimePassed, float destructionTime, int t
                 dX = (1.0f - dX)/2.0f;
         }
         return dX;
+}
+
+unsigned int getLayer(unsigned int i){
+    unsigned int placement = (TOTAL_SHAPES - 1 - i);
+    unsigned int layer;
+    layer = placement/(SHAPES_IN_BATCH*EMOTION_INDEXES.size());
+    return layer;
 }

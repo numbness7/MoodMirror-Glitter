@@ -87,7 +87,10 @@ void main(){
         fadeColor.a = (1.0f - fade)*fadeColor.a;
     }
 
-    FragColor = fadeColor*textureColor;
+    if(borderCase == 0 && isOuter(dist, BORDER_THICKNESS))
+        FragColor = fadeColor;
+    else
+        FragColor = fadeColor*textureColor;
 }
 
 float getDist(vec4 textureColor){

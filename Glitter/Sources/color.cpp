@@ -2,7 +2,7 @@
 
 
 namespace cdata{
-    std::string col2str(Color col){
+    std::string col2str(ColorRGBA col){
         return "(" 
             + std::to_string(static_cast<unsigned int>(col.red  )) + ", "
             + std::to_string(static_cast<unsigned int>(col.green)) + ", "

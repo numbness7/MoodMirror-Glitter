@@ -7,16 +7,22 @@
 #include <iostream>
 #include <string>
 namespace cdata{
-    struct Color{
+    struct ColorRGBA{
         const unsigned char red;
         const unsigned char blue;
         const unsigned char green;
         const unsigned char alpha;
     };
+    struct ColorRGB{
+        const unsigned char red;
+        const unsigned char blue;
+        const unsigned char green;
+    };
     const unsigned char FULL_COLOR_D = 0xFF;
     const unsigned char EMPTY_COLOR_D = 0x00;
-    const Color WHITE_D(FULL_COLOR_D,FULL_COLOR_D,FULL_COLOR_D,FULL_COLOR_D);
-    std::string col2str(Color col);
+    const ColorRGBA WHITE_D_RGBA(FULL_COLOR_D,FULL_COLOR_D,FULL_COLOR_D,FULL_COLOR_D);
+    const ColorRGB WHITE_D_RGB(FULL_COLOR_D,FULL_COLOR_D,FULL_COLOR_D);
+    std::string col2str(ColorRGBA col);
     const glm::vec3 WHITE_V3(1.0f);
     const glm::vec3 RED_V3(1.0f,0.0f,0.0f);
     const glm::vec3 GREEN_V3(0.0f,1.0f,0.0f);

@@ -40,12 +40,14 @@
 
 // Header Macros
 #define BYTESIZE 8
-#define TOTAL_LAYERS 1000
-#define SHAPES_IN_BATCH 1
-#define MID_LAYER 100
-#define SHAPE_INITIAL_SPAWN_TIME 0.001f
+#define TOTAL_LAYERS 100
+#define SHAPES_IN_BATCH 10
+#define MID_LAYER 50
+#define SHAPE_INITIAL_SPAWN_TIME 0.025f
 #define BATCHES_SHARE_EMOTION 1 
-#define DESTRUCTION_TIME         0.01f
+#define DESTRUCTION_TIME         0.075f
+#define TOTAL_EMOTIONS 6
+#define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTIONS*SHAPES_IN_BATCH)
 
 #define SORT_TIME 0.25f
 #define SHAPE_SPAWN_TIME         0.01f
@@ -65,13 +67,13 @@
 
 #define SOFTNESS_SCALE 1.00f
 
-#define MAX_SCALE 3.0f
-#define MIN_SCALE 0.1f
-#define AVE_SCALE 0.5f
-#define DEV_SCALE 0.125f
+#define MAX_SCALE 8.0f
+#define MIN_SCALE 0.05f
+#define AVE_SCALE 0.25f
+#define DEV_SCALE 0.225f
 
 #define MAX_ALPHA 1.0f
-#define MIN_ALPHA 0.80f
+#define MIN_ALPHA 0.75f
 #define AVE_ALPHA 0.5f
 #define DEV_ALPHA 0.25f
 
@@ -87,6 +89,8 @@
 #define DEBUG_BORDER false
 #define DEBUG_DISTANCE false
 #define DEBUG_FUN false
+#define DEBUG_IMAGE true
+
 #define HACKY_COMPILE_MAKER f
 #define MINIMUM_DRAWN_SCALE 0.00f
 
@@ -101,21 +105,35 @@ struct BenImages{
 };
 
 int floor(int x, int y);
-template <typename T> void mySwap(T t1, T t2){
+template <typename T> void mySwap(T& t1, T& t2){
     T temp = t1;
     t1 = t2;
     t2 = temp;
 }
 
+template <typename T> bool doCopy(T array1[], const T array2[], const unsigned int size1, const unsigned int size2){
+    for(unsigned int i = 0; i < size1 && i < size2; i++)
+        array1[i] = array2[i];
+    return size1 == size2;
+}
+
+template <typename T> T* copyInitialize(const T array[], const unsigned int size){
+    T* aCopy = (T*) malloc(sizeof(T)*size);
+    doCopy(aCopy, array, size, size);  
+    return aCopy;
+}
+
 // Classes
 class PngData{
     public:
-        PngData(int width, int height);
-        PngData(const int width, const int height, const int nrChannels, const unsigned char* data);
+        PngData(const int width, const int height);
+        PngData(const int width, const int height, const int nrChannels);
+        PngData(const int width, const int height, const int nrChannels, unsigned char* data, bool copy=false);
+        PngData(const PngData& pngData);
         ~PngData();
         int index(int row, int col, int channel) { return row*width*nrChannels+col*nrChannels+channel; }
         int indexFromGrid(int gridIndex, int channel) { return gridIndex*nrChannels + channel; }
-        int size() { return height*width*nrChannels; }
+        int size() const { return height*width*nrChannels; }
         int gridSize() { return height*width; }
         int row(int index) { return floor(index,(width*nrChannels)); }
         int col(int index) { return floor(index - row(index)*width*nrChannels,nrChannels); }
@@ -129,30 +147,49 @@ class PngData{
         void setData(int row, int col, int channel, const unsigned char& byte);
         void setData(int gridIndex, int channel, const unsigned char& byte) { data[indexFromGrid(gridIndex,channel)] = byte; }
         void setData(int index, const unsigned char& byte) { data[index] = byte; }
-        void setColor(int gridIndex, cdata::Color color){
+        void setColor(int gridIndex, cdata::ColorRGBA color){
             setData(gridIndex, redChannel, color.red);
             setData(gridIndex, blueChannel, color.blue);
             setData(gridIndex, greenChannel, color.green);
             setData(gridIndex, alphaChannel, color.alpha);
         }
-        void setColor(int row, int col, cdata::Color color){
+        void setColor(int gridIndex, cdata::ColorRGB color){
+            setData(gridIndex, redChannel, color.red);
+            setData(gridIndex, blueChannel, color.blue);
+            setData(gridIndex, greenChannel, color.green);
+        }
+        void setColor(int row, int col, cdata::ColorRGBA color){
             setColor(gridIndex(row,col), color);
         }
+        void setColor(int row, int col, cdata::ColorRGB color){
+            setColor(gridIndex(row,col), color);
+        }
+        bool isValid(){
+            return valid;
+        }
         const unsigned char* getData () const { return data; }
+        PngData& operator=(const PngData& pngData) noexcept {
+            valid = (this->width == pngData.width && this->height == pngData.height && this->nrChannels == pngData.nrChannels);
+            if(valid)
+                doCopy(this->data, pngData.getData(), this->size(), pngData.size());
+            return *this;
+        }
+
         
 
         
+        const int width;
+        const int height;
+        const int nrChannels;
+        static const int nrChannelsDefault = 4;
         static const int redChannel = 0;
         static const int greenChannel = 1;
         static const int blueChannel = 2;
         static const int alphaChannel = 3;
-        const int width;
-        const int height;
-        static const int nrChannelsDefault = 4;
         
-        const int nrChannels;
     private:
         unsigned char* data;
+        bool valid = true;
 };
 
 unsigned int getTextureFromData(const PngData& pngData);
@@ -293,6 +330,7 @@ struct ShapeProperties2D {
     std::map<TRANSITIONS,bool> transitions;
     int borderCase;
     unsigned int texture;
+    bool useBenTexture;
     glm::mat4 transition;
     glm::mat4 rotationMatrix;
     glm::mat4 scaleMatrix;
@@ -393,7 +431,7 @@ std::vector<std::vector<float>> readEmotionArray(std::string filepath, bool prin
 std::string formatFloat(float f, int digitsBefore, int digitsAfter);
 glm::vec3 emotionArrayToVec3(std::vector<float> emotionArray);
 float emotionArrayToLength(std::vector<std::vector<float>> emotionArray);
-std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray, bool forceSoft=false);
+std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray, bool noSoft=false, bool noMiddle=false, bool noHard=false);
 
 //Manage
 
@@ -444,11 +482,11 @@ unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width,
 bool isOnBorder(int width, int height, int row, int col, int hThickness, int vThickness);
 unsigned char getBorderCheckColor(int width, int height, int row, int col, int hThickness, int vThickness);
 void generatePNGBorder(unsigned char* data, int width, int height, int nrChannels, int hThickness, int vThickness);
-void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder);
-unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder);
-unsigned int obtainPNGBorder(PngData& pngData,  int hThickness, int vThickness, cdata::Color borderColor, cdata::Color innerColor, bool ignoreInner, bool ignoreBorder);
-cdata::Color pngColorFromValue(const unsigned int& value);
-unsigned int valueFromPngColor(cdata::Color color);
+void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder);
+unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder);
+unsigned int obtainPNGBorder(PngData& pngData,  int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder);
+cdata::ColorRGBA pngColorFromValue(const unsigned int& value);
+unsigned int valueFromPngColor(cdata::ColorRGBA color);
 unsigned int obtainPNGDistanceFromBorder(int width, int height, std::vector<glm::vec2> borderVertices);
 PngData loadPngTexture(std::string texture_filepath);
 
@@ -488,9 +526,9 @@ void setupDummyMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment);
 float calcDisplacement(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade, bool delay, std::tuple<float,float> lineAbove, std::tuple<float,float> lineBelow);
 template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable);
 template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
-void keepGettingImages(BenImages* benImages, GLFWwindow* mWindow, bool* notDone);
-void something(std::deque<ShapeProperties2D>* cubeMatrices, const unsigned int* blankTexture, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions);
+void something(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions);
 PngData* loadPngTextureNew(std::string texture_filepath);
 unsigned int createPngTexture(const PngData* pngData);
-void pngLoader(std::deque<PngData*>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath);
+void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath, float* waitTime);
+unsigned int getLayer(unsigned int i);
 #endif
