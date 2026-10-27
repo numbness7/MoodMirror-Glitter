@@ -1,4 +1,5 @@
-#version 330 core
+#version 300 es
+precision mediump float;
 in vec2 ourTexCoord;
 out vec4 FragColor;
 
@@ -22,15 +23,15 @@ uniform vec4 INNER_COLOR;
 uniform vec4 OUTER_COLOR;
 
 
-const float redChannel = 0;
-const float greenChannel = 1;
-const float blueChannel = 2;
-const float alphaChannel = 3;
-const float nrChannels = 4;
-const float maxColor = pow(2,8) - 1;
-const float maxDistData = pow(2,8*4)-1;
+const float redChannel = 0.0f;
+const float greenChannel = 1.0f;
+const float blueChannel = 2.0f;
+const float alphaChannel = 3.0f;
+const float nrChannels = 4.0f;
+const float maxColor = pow(2.0f,8.0f) - 1.0f;
+const float maxDistData = pow(2.0f,32.0f)-1.0f;
 const float maxColorToDistRatio = (maxColor/maxDistData);
-const float maxDistNormal = sqrt(2);
+const float maxDistNormal = sqrt(2.0f);
 
 float getColorDist(float color, float channel);
 float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer);
@@ -100,7 +101,7 @@ float getDist(vec4 textureColor){
 }
 
 float getColorDist(float color, float channel){
-   return color*maxColorToDistRatio*pow(2,(nrChannels-channel-1)*8); 
+   return color*maxColorToDistRatio*pow(2.0f,(nrChannels-channel-1.0f)*8.0f); 
 }
 float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer){
     float fade = 0.0f;
@@ -108,13 +109,13 @@ float calcFade(float destructionTimePassed, float destructionTime, int totalLaye
 	float b;
 	float slope;
 	if(layer > midLayer){
-		timePassed = destructionTimePassed + destructionTime*(totalLayers - 1 - layer);
+		timePassed = destructionTimePassed + destructionTime*(float(totalLayers - 1 - layer));
 		b = ABOVE_INTERCEPT;
 		slope = ABOVE_SLOPE;
 
 	}
 	else{
-		timePassed = destructionTimePassed + destructionTime*(midLayer - layer);
+		timePassed = destructionTimePassed + destructionTime*(float(midLayer - layer));
 		b = BELOW_INTERCEPT;
 		slope = BELOW_SLOPE;
 	}
