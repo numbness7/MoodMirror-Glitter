@@ -3141,7 +3141,7 @@ int mainCoordsBasicStream(int argc, char * argv[]){
 }
 
 
-void something(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions){
+void LayerGenerator(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions){
 
     int shareCount = 0;
     std::vector<std::vector<float>> emotionArrays = readEmotionArray("../data.json", true);
@@ -3281,7 +3281,7 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
         float tempWaitTime;
         {
             std::lock_guard guard(*lock);
-            full = dataBuffer.size()>=TOTAL_LAYERS*TOTAL_EMOTIONS*bufferSizeMult;
+            full = dataBuffer.size()>=TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*bufferSizeMult;
             tempWaitTime = *waitTime;
         }
 
@@ -3390,7 +3390,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     bool notDone = true;
     int additions = 0;
     float waitTime = creationAlarm.getWaitTime();
-    std::thread creationThread(something,&shapesBuffer,&creationAlarm,mWindow,&lock, &notDone, &additions);
+    std::thread creationThread(LayerGenerator,&shapesBuffer,&creationAlarm,mWindow,&lock, &notDone, &additions);
 
 	std::deque<PngData> pngDataBuffer{};
 	std::deque<PngData> pngDataStorage{};
@@ -3459,7 +3459,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             }
             shapeDeleted = true;
         }
-        while(pngDataStorage.size() > TOTAL_LAYERS*TOTAL_EMOTIONS)
+        while(pngDataStorage.size() > TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
             pngDataStorage.pop_back();
         if(shapesStorage.size() >= (MID_LAYER - 0) && !midLayerMet){
             midLayerMet = true;

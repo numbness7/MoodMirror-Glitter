@@ -46,8 +46,8 @@
 #define SHAPE_INITIAL_SPAWN_TIME 0.025f
 #define BATCHES_SHARE_EMOTION 1 
 #define DESTRUCTION_TIME         0.075f
-#define TOTAL_EMOTIONS 6
-#define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTIONS*SHAPES_IN_BATCH)
+#define TOTAL_EMOTION_LAYERS 6
+#define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 
 #define SORT_TIME 0.25f
 #define SHAPE_SPAWN_TIME         0.01f
@@ -526,7 +526,7 @@ void setupDummyMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment);
 float calcDisplacement(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade, bool delay, std::tuple<float,float> lineAbove, std::tuple<float,float> lineBelow);
 template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable);
 template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
-void something(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions);
+void LayerGenerator(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions);
 PngData* loadPngTextureNew(std::string texture_filepath);
 unsigned int createPngTexture(const PngData* pngData);
 void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath, float* waitTime);
