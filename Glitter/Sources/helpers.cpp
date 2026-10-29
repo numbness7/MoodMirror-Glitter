@@ -2468,7 +2468,7 @@ int mainCoords(int argc, char * argv[]){
         std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
         
         // Use emotion array to set properties of shapes
-        for(unsigned int i = 0; i < TOTAL_EMOTIONS; i++){
+        for(unsigned int i = 0; i < TOTAL_EMOTION_LAYERS; i++){
             std::vector<float> array = emotionArray[i];
             glm::vec3 emotionRGB = emotionArrayToColor(array);
             for (int j = 0; j < SHAPES_IN_BATCH; j++){
@@ -2527,7 +2527,7 @@ int mainCoords(int argc, char * argv[]){
             }
         }
         // Delete cubes
-        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*TOTAL_EMOTIONS){
+        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*TOTAL_EMOTION_LAYERS){
             cubeMatrices.pop_back();
         }
 
@@ -2984,7 +2984,7 @@ int mainCoordsBasic(int argc, char * argv[]){
             }
         }
         // Delete cubes
-        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*TOTAL_EMOTIONS){
+        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*TOTAL_EMOTION_LAYERS){
             cubeMatrices.pop_back();
         }
 
@@ -3136,7 +3136,7 @@ int mainCoordsBasicStream(int argc, char * argv[]){
             }
         }
         // Delete cubes
-        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*TOTAL_EMOTIONS){
+        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*TOTAL_EMOTION_LAYERS){
             cubeMatrices.pop_back();
         }
 
@@ -3161,11 +3161,7 @@ int mainCoordsBasicStream(int argc, char * argv[]){
 }
 
 
-<<<<<<< Updated upstream
-void LayerGenerator(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions){
-=======
 void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm,  std::mutex* lock, bool* notDone, int* additions){
->>>>>>> Stashed changes
 
     std::deque<EmotionLayer> emotionArrays{};
     bool alarmSounded;
@@ -3174,7 +3170,7 @@ void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm, 
     PngData blankPNGData(255,255, 3);
     generatePNGBlank(blankPNGData);
     std::deque<EmotionLayer> emotionLayers{};
-    for(int i = 0; i < TOTAL_EMOTIONS; i++)
+    for(int i = 0; i < TOTAL_EMOTION_LAYERS; i++)
         emotionLayers.push_front({std::vector<float>{1,1,1,1,1,1},blankPNGData});
     float timePassed;
 
@@ -3209,7 +3205,7 @@ void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm, 
             imageWaitTime = waitTime;
         }
         {
-            while(pngDataStorage.size() < TOTAL_EMOTIONS){
+            while(pngDataStorage.size() < TOTAL_EMOTION_LAYERS){
                 std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)((100.0f))));
                 {
                     std::lock_guard<std::mutex> guard(lockImage);
@@ -3344,11 +3340,7 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
         float tempWaitTime;
         {
             std::lock_guard guard(*lock);
-<<<<<<< Updated upstream
-            full = dataBuffer.size()>=TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*bufferSizeMult;
-=======
-            full = dataBuffer.size()>=TOTAL_EMOTIONS*bufferSizeMult;
->>>>>>> Stashed changes
+            full = dataBuffer.size()>=TOTAL_EMOTION_LAYERS*bufferSizeMult;
             tempWaitTime = *waitTime;
         }
 
@@ -3358,7 +3350,7 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
         else{
             pD = loadPngTexture(*filePath);
             if(pD.isValid()){
-                std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*1000000000.0f/(TOTAL_EMOTIONS*bufferSizeMult))));
+                std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*1000000000.0f/(TOTAL_EMOTION_LAYERS*bufferSizeMult))));
                 std::lock_guard guard(*lock);
                 dataBuffer.push_front(pD);
             }
@@ -3454,12 +3446,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
     bool notDone = true;
     int additions = 0;
-<<<<<<< Updated upstream
-    float waitTime = creationAlarm.getWaitTime();
-    std::thread creationThread(LayerGenerator,&shapesBuffer,&creationAlarm,mWindow,&lock, &notDone, &additions);
-=======
     std::thread creationThread(something,&shapeLayersBuffer,&creationAlarm,&shapeLock, &notDone, &additions);
->>>>>>> Stashed changes
 
     bool midLayerMet = false;
     
@@ -3492,13 +3479,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             shapeDeleted = true;
             shapeLayersStorage.pop_back();
         }
-<<<<<<< Updated upstream
-        while(pngDataStorage.size() > TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
-            pngDataStorage.pop_back();
-        if(shapesStorage.size() >= (MID_LAYER - 0) && !midLayerMet){
-=======
         if(shapeLayersStorage.size() >= (MID_LAYER - 0) && !midLayerMet){
->>>>>>> Stashed changes
             midLayerMet = true;
             std::cout << "The middle layer was met!!!" << std::endl;
 

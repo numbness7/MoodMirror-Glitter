@@ -43,7 +43,7 @@
 #define TOTAL_LAYERS 50
 #define SHAPES_IN_BATCH 1
 #define MID_LAYER 25
-#define SHAPE_INITIAL_SPAWN_TIME 1.000f
+#define SHAPE_INITIAL_SPAWN_TIME 0.075f
 #define BATCHES_SHARE_EMOTION 1 
 #define DESTRUCTION_TIME         0.075f
 #define TOTAL_EMOTION_LAYERS 6
@@ -261,7 +261,7 @@ class Alarm{
         float getPassedTimeFrom(float timeStamp) const { return getElapsedTime() - timeStamp; }
         unsigned int getPrevTimesSounded() const { return prevTimesSounded; }
         unsigned int getTimesSounded() const { return floorWrap((getElapsedTime() - startTime),getWaitTime()); }
-        unsigned int getNexTimesSounded() const { return ceilWrap((getElapsedTime() - startTime),getWaitTime()); }
+        unsigned int getNextTimesSounded() const { return prevTimesSounded + 1; }
         unsigned int sync(unsigned int timesSounded);
 
         float getTimeLeft() const { return waitTime - getPassedTime(); }
