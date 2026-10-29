@@ -248,30 +248,21 @@ class DeltaTimer{
         float lastframe_time = 0.0f;
         float deltatime = 0.0f;
 };
-
 class Alarm{
     public:
         Alarm( float waitTime);
-        Alarm( float waitTime, float startTime);
         void setWaitTime(float waitTime);
-        float getWaitTime() const {return waitTime;}
-        float getLastAlarmSoundedTime() const { return getWaitTime()*floorWrap((getElapsedTime() - startTime),getWaitTime()); }
-        float getNextAlarmSoundedTime() const { return getWaitTime()*ceilWrap((getElapsedTime() - startTime),getWaitTime()); }
-        float getPassedTime() const { return getElapsedTime() - getLastAlarmSoundedTime(); }
-        float getPassedTimeFrom(float timeStamp) const { return getElapsedTime() - timeStamp; }
-        unsigned int getPrevTimesSounded() const { return prevTimesSounded; }
-        unsigned int getTimesSounded() const { return floorWrap((getElapsedTime() - startTime),getWaitTime()); }
-        unsigned int getNextTimesSounded() const { return prevTimesSounded + 1; }
-        unsigned int sync(unsigned int timesSounded);
-
-        float getTimeLeft() const { return waitTime - getPassedTime(); }
+        float getWaitTime(){return waitTime;}
+        float getPassedTime() const { return time; }
+        float getPassedTimeFrom(float timeStamp) const { return time + timeStamp; }
+        float getTimeLeft() { return waitTime - time; }
         bool checkAndUpdate();
-        bool check() const { return alarmSounded; }
+        bool check(){ return alarmSounded; }
     private:
         float waitTime;
-        float startTime;
-        unsigned int prevTimesSounded;
+        float time;
         bool alarmSounded;
+        DeltaTimer timer{};
 };
 
 

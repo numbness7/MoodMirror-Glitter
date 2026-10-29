@@ -2568,44 +2568,26 @@ glm::vec3 randCoords(){
     }
     return coords;
 }
-
-Alarm::Alarm(float waitTime) : waitTime(waitTime), prevTimesSounded(0), alarmSounded(false)
-{
-    startTime = getElapsedTime();
-}
-
-Alarm::Alarm(float waitTime, float startTime) : waitTime(waitTime), startTime(startTime), prevTimesSounded(0), alarmSounded(false)
+Alarm::Alarm(float waitTime) : waitTime(waitTime)
 {
 }
-
 
 void Alarm::setWaitTime(float waitTime)
 {
     this->waitTime = waitTime;
-}
-
-unsigned int Alarm::sync(unsigned int timesSounded)
-{
-    unsigned int prevTimesSounded = getPrevTimesSounded();
-    this->prevTimesSounded = timesSounded;
-    return timesSounded - prevTimesSounded;
+    this->time = 0.0f;
 }
 
 bool Alarm::checkAndUpdate()
 {
-    int timesSounded = getTimesSounded();
-    int prevTimesSounded = getPrevTimesSounded();
-    assert(prevTimesSounded <= timesSounded);
-    if(prevTimesSounded < timesSounded){
+    time += timer.getDeltaTime(true);
+    if (time >= waitTime) {
+        time = 0.0f;
         alarmSounded = true;
-        prevTimesSounded = timesSounded;
     }
-    else{
-        alarmSounded = false;
-    }
+    else alarmSounded = false;
     return alarmSounded;
 }
-
 
 std::vector<float> vec3ToVector(glm::vec3 a){
     return std::vector<float>{a.x,a.y,a.z};
