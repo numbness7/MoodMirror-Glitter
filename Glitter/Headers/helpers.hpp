@@ -40,10 +40,10 @@
 
 // Header Macros
 #define BYTESIZE 8
-#define TOTAL_LAYERS 100
-#define SHAPES_IN_BATCH 10
-#define MID_LAYER 50
-#define SHAPE_INITIAL_SPAWN_TIME 0.025f
+#define TOTAL_LAYERS 50
+#define SHAPES_IN_BATCH 1
+#define MID_LAYER 25
+#define SHAPE_INITIAL_SPAWN_TIME 1.000f
 #define BATCHES_SHARE_EMOTION 1 
 #define DESTRUCTION_TIME         0.075f
 #define TOTAL_EMOTION_LAYERS 6
@@ -73,12 +73,12 @@
 #define DEV_SCALE 0.225f
 
 #define MAX_ALPHA 1.0f
-#define MIN_ALPHA 0.75f
+#define MIN_ALPHA 1.0f
 #define AVE_ALPHA 0.5f
-#define DEV_ALPHA 0.25f
+#define DEV_ALPHA 0.55f
 
 #define DO_SCALE_SCALE 1.0f
-#define DO_FADE_SCALE 1.00f
+#define DO_FADE_SCALE 0.50f
 
 #define SCATTER_TO_EMOTION_COORD_RATIO 1.0f
 
@@ -96,15 +96,17 @@
 
 #define POINT_LIGHT_COUNT 4
 
-// Header constants
-const std::vector<unsigned int> EMOTION_INDEXES = {0,1,2,3,4,5};
+float getElapsedTime();
 
 struct BenImages{
     std::mutex lock;
     std::deque<unsigned int> images;
 };
 
-int floor(int x, int y);
+float floorWrap(float x, float y);
+float ceilWrap(float x, float y);
+int floorWrap(int x, int y);
+int ceilWrap(int x, int y);
 template <typename T> void mySwap(T& t1, T& t2){
     T temp = t1;
     t1 = t2;
@@ -124,6 +126,8 @@ template <typename T> T* copyInitialize(const T array[], const unsigned int size
 }
 
 // Classes
+
+
 class PngData{
     public:
         PngData(const int width, const int height);
@@ -135,14 +139,14 @@ class PngData{
         int indexFromGrid(int gridIndex, int channel) { return gridIndex*nrChannels + channel; }
         int size() const { return height*width*nrChannels; }
         int gridSize() { return height*width; }
-        int row(int index) { return floor(index,(width*nrChannels)); }
-        int col(int index) { return floor(index - row(index)*width*nrChannels,nrChannels); }
-        int rowFromGrid(int gridIndex) { return floor(gridIndex,(width)); }
+        int row(int index) { return floorWrap(index,(width*nrChannels)); }
+        int col(int index) { return floorWrap(index - row(index)*width*nrChannels,nrChannels); }
+        int rowFromGrid(int gridIndex) { return floorWrap(gridIndex,(width)); }
         int colFromGrid(int gridIndex) { return gridIndex - rowFromGrid(gridIndex)*width; }
         int rFG(int gridIndex) { return rowFromGrid(gridIndex); }
         int cFG(int gridIndex) { return colFromGrid(gridIndex); }
         int gridIndex(int row, int col){ return width*row + col; }
-        int gridIndex(int index){ return floor(index,nrChannels); }
+        int gridIndex(int index){ return floorWrap(index,nrChannels); }
         int channel(int index) { return index - row(index)*width*nrChannels - col(index)*nrChannels; }
         void setData(int row, int col, int channel, const unsigned char& byte);
         void setData(int gridIndex, int channel, const unsigned char& byte) { data[indexFromGrid(gridIndex,channel)] = byte; }
@@ -237,7 +241,6 @@ class DeltaTimer{
     public:
         DeltaTimer();
         float getDeltaTime(bool do_update = false);
-        float getElapsedTime(bool do_update = false) { if (do_update) updateDeltaTime(); return elapsed_time; }
         float timePassed(float timeStamp){return getElapsedTime() - timeStamp;}
         void  updateDeltaTime();
     private:
@@ -249,18 +252,26 @@ class DeltaTimer{
 class Alarm{
     public:
         Alarm( float waitTime);
+        Alarm( float waitTime, float startTime);
         void setWaitTime(float waitTime);
-        float getWaitTime(){return waitTime;}
-        float getPassedTime() const { return time; }
-        float getPassedTimeFrom(float timeStamp) const { return time + timeStamp; }
-        float getTimeLeft() { return waitTime - time; }
+        float getWaitTime() const {return waitTime;}
+        float getLastAlarmSoundedTime() const { return getWaitTime()*floorWrap((getElapsedTime() - startTime),getWaitTime()); }
+        float getNextAlarmSoundedTime() const { return getWaitTime()*ceilWrap((getElapsedTime() - startTime),getWaitTime()); }
+        float getPassedTime() const { return getElapsedTime() - getLastAlarmSoundedTime(); }
+        float getPassedTimeFrom(float timeStamp) const { return getElapsedTime() - timeStamp; }
+        unsigned int getPrevTimesSounded() const { return prevTimesSounded; }
+        unsigned int getTimesSounded() const { return floorWrap((getElapsedTime() - startTime),getWaitTime()); }
+        unsigned int getNexTimesSounded() const { return ceilWrap((getElapsedTime() - startTime),getWaitTime()); }
+        unsigned int sync(unsigned int timesSounded);
+
+        float getTimeLeft() const { return waitTime - getPassedTime(); }
         bool checkAndUpdate();
-        bool check(){ return alarmSounded; }
+        bool check() const { return alarmSounded; }
     private:
         float waitTime;
-        float time;
+        float startTime;
+        unsigned int prevTimesSounded;
         bool alarmSounded;
-        DeltaTimer timer{};
 };
 
 
@@ -346,6 +357,19 @@ struct LightingEnvironment {
     Shader light_shader;
 };
 
+struct ShapeBatch{
+    std::deque<ShapeProperties2D> shapes;
+    PngData pngData;
+    unsigned int texture;
+};
+
+struct EmotionLayer{
+    std::vector<float> emotionArray;
+    PngData pngData;
+};
+
+typedef std::deque<ShapeBatch> ShapeLayer;
+
 
 // CONSTANTS
 namespace dir{
@@ -375,7 +399,7 @@ int mainSolve(int argc, char * argv[]);
 
 
 // #Draw
-void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::deque<ShapeProperties2D>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow);
+void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow);
 void drawCubeMatrices2DFade(LightingEnvironment& lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm);
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
@@ -529,6 +553,7 @@ template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
 void LayerGenerator(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions);
 PngData* loadPngTextureNew(std::string texture_filepath);
 unsigned int createPngTexture(const PngData* pngData);
+void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm,  std::mutex* lock, bool* notDone, int* additions);
 void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath, float* waitTime);
 unsigned int getLayer(unsigned int i);
 #endif

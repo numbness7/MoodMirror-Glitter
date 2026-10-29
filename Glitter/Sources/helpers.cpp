@@ -1669,7 +1669,7 @@ int mainTurning(int argc, char * argv[]){
         
         // Use emotion array to set properties of shapes
         glm::vec3 emotionRGB = emotionArrayToColor(emotionArrays[0]);
-        glm::vec3 rotationAxis = glm::vec3(sin(deltaTimer.getElapsedTime()*1.0f + M_1_PI),-sin(deltaTimer.getElapsedTime()*1.0f/2.7865432f + M_1_PI/2),sin(deltaTimer.getElapsedTime()*1.0f/3.125105f + M_1_PI/3));
+        glm::vec3 rotationAxis = glm::vec3(sin(getElapsedTime()*1.0f + M_1_PI),-sin(getElapsedTime()*1.0f/2.7865432f + M_1_PI/2),sin(getElapsedTime()*1.0f/3.125105f + M_1_PI/3));
         rotatedModel = glm::rotate(glm::mat4(1.0f), (float)(1.0f*((float)(M_PI))), rotationAxis);
 
         
@@ -2026,7 +2026,7 @@ std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray, bo
         return {4,softness};
     }
     if(noMiddle){
-        if(softness > hardness)
+        if(softness > hardness/8.0f)
             return {2,boundTransformation(softness,0.0f,1.0f,0.0f,1.00f)};
         else
             return {0,hardness/4.0f};
@@ -2053,7 +2053,7 @@ std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray, bo
 
 }
 
-glm::vec3 emotionArrayToColor(std::vector<float> emotionArray){
+glm::vec3 emotionArrayToColor(const std::vector<float> emotionArray){
     
     float happiness = emotionArray[HAPPY];
     float sadness   = emotionArray[SAD];
@@ -2468,7 +2468,7 @@ int mainCoords(int argc, char * argv[]){
         std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
         
         // Use emotion array to set properties of shapes
-        for(unsigned int i : EMOTION_INDEXES){
+        for(unsigned int i = 0; i < TOTAL_EMOTIONS; i++){
             std::vector<float> array = emotionArray[i];
             glm::vec3 emotionRGB = emotionArrayToColor(array);
             for (int j = 0; j < SHAPES_IN_BATCH; j++){
@@ -2516,7 +2516,7 @@ int mainCoords(int argc, char * argv[]){
                 // Create and delete cubes
                 if(alarm.check()){
                         cubesChanged = true;
-                        ShapeProperties shape = ShapeProperties{model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.0f, scaledCoordinates};
+                        ShapeProperties shape = ShapeProperties{model,glm::vec4(emotionRGB,1.0f),type,getElapsedTime(),0.0f, scaledCoordinates};
                         cubeMatrices.push_front(shape);
                     if(!shapesFull) {
                         shapesFull = true;
@@ -2527,7 +2527,7 @@ int mainCoords(int argc, char * argv[]){
             }
         }
         // Delete cubes
-        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*EMOTION_INDEXES.size()){
+        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*TOTAL_EMOTIONS){
             cubeMatrices.pop_back();
         }
 
@@ -2569,26 +2569,43 @@ glm::vec3 randCoords(){
     return coords;
 }
 
-Alarm::Alarm(float waitTime) : waitTime(waitTime)
+Alarm::Alarm(float waitTime) : waitTime(waitTime), prevTimesSounded(0), alarmSounded(false)
+{
+    startTime = getElapsedTime();
+}
+
+Alarm::Alarm(float waitTime, float startTime) : waitTime(waitTime), startTime(startTime), prevTimesSounded(0), alarmSounded(false)
 {
 }
+
 
 void Alarm::setWaitTime(float waitTime)
 {
     this->waitTime = waitTime;
-    this->time = 0.0f;
+}
+
+unsigned int Alarm::sync(unsigned int timesSounded)
+{
+    unsigned int prevTimesSounded = getPrevTimesSounded();
+    this->prevTimesSounded = timesSounded;
+    return timesSounded - prevTimesSounded;
 }
 
 bool Alarm::checkAndUpdate()
 {
-    time += timer.getDeltaTime(true);
-    if (time >= waitTime) {
-        time = 0.0f;
+    int timesSounded = getTimesSounded();
+    int prevTimesSounded = getPrevTimesSounded();
+    assert(prevTimesSounded <= timesSounded);
+    if(prevTimesSounded < timesSounded){
         alarmSounded = true;
+        prevTimesSounded = timesSounded;
     }
-    else alarmSounded = false;
+    else{
+        alarmSounded = false;
+    }
     return alarmSounded;
 }
+
 
 std::vector<float> vec3ToVector(glm::vec3 a){
     return std::vector<float>{a.x,a.y,a.z};
@@ -2636,81 +2653,85 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
     return forwardDistance(a.coords) < forwardDistance(b.coords);
 }
 
-void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::deque<ShapeProperties2D>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
+void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
 
     glDepthMask(false);
     float passedTime;
     float waitTime;
     {
-        std::lock_guard guard(lock);
-        passedTime = destructionAlarm.getPassedTimeFrom(deltaTimer.getDeltaTime());
+        passedTime = destructionAlarm.getPassedTime();
         waitTime = destructionAlarm.getWaitTime();
     }
     lightingEnvironment.object_shader.use();
     lightingEnvironment.object_shader.setUniformF("destructionTime", waitTime);
     lightingEnvironment.object_shader.setUniformF("destructionTimePassed", passedTime);
-    unsigned i = 0;
+    unsigned layerCount = 0;
     lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS);
     // Draw cubes
     const float speed = 4.0f;
-    for(auto const& shape : cubeMatrices){
-        glm::mat4 model(1.0f);
-        glm::mat4 transition(shape.transition);
-        glm::mat4 rotation(shape.rotationMatrix);
-        glm::mat4 scale(shape.scaleMatrix);
-        unsigned int layer = getLayer(i);
-        lightingEnvironment.object_shader.setUniformM4("model", shape.model);
-        //lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && shape.transitions[FADE]));
-        lightingEnvironment.object_shader.setUniformB("DO_FADE", shape.transitions.at(FADE));
-        lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
+    for(auto const& shapeLayer : cubeMatrices){
+        unsigned int layer = TOTAL_LAYERS - 1 - layerCount;
+        unsigned int batchCount = 0;
+        for(auto const& shapeBatch : shapeLayer){
+            for(auto const& shape : shapeBatch.shapes){
+                glm::mat4 model(1.0f);
+                glm::mat4 transition(shape.transition);
+                glm::mat4 rotation(shape.rotationMatrix);
+                glm::mat4 scale(shape.scaleMatrix);
+                lightingEnvironment.object_shader.setUniformM4("model", shape.model);
+                //lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && shape.transitions[FADE]));
+                lightingEnvironment.object_shader.setUniformB("DO_FADE", shape.transitions.at(FADE));
+                lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
 
-        lightingEnvironment.object_shader.setUniformI("layer", layer);
-        
+                lightingEnvironment.object_shader.setUniformI("layer", layer);
+                
 
 
 
 
-        if(shape.transitions.at(BACK_OUT)){
-            float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
-            transition = glm::mat4(1.0f);
-            transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
-            transition = glm::translate(transition, -speed*dX*shape.direction);
+                if(shape.transitions.at(BACK_OUT)){
+                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
+                    transition = glm::mat4(1.0f);
+                    transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
+                    transition = glm::translate(transition, -speed*dX*shape.direction);
+                }
+                else if(shape.transitions.at(MOVE_FORWARD)){
+                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
+                    transition = glm::mat4(1.0f);
+                    transition = glm::translate(transition, -2.0f*shape.direction - shape.rotatedCoords);
+                    transition = glm::translate(transition, speed*dX*shape.direction);
+                }
+                
+                if(shape.transitions.at(SCALE)){
+                    float scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
+                    scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
+                }
+                
+                
+                assert(layer < TOTAL_LAYERS);
+                
+                
+                //model = scale*rotation*transition;
+                model = transition*rotation*scale;
+
+
+                lightingEnvironment.object_shader.setUniformM4("model", model);
+                lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", shape.innerColor);
+                lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", shape.outerColor);
+                lightingEnvironment.object_shader.setUniformF("BORDER_THICKNESS", shape.borderThickness);
+
+
+                shapes[shape.type]->draw(lightingEnvironment.object_shader, {shapeBatch.texture, shapes[shape.type]->getTexture(1)});
+            }
+            batchCount++;
         }
-        else if(shape.transitions.at(MOVE_FORWARD)){
-            float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
-            transition = glm::mat4(1.0f);
-            transition = glm::translate(transition, -2.0f*shape.direction - shape.rotatedCoords);
-            transition = glm::translate(transition, speed*dX*shape.direction);
-        }
-        
-        if(shape.transitions.at(SCALE)){
-            float scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
-            scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
-        }
-        
-        
-        assert(layer >= 0);
-        assert(layer < TOTAL_LAYERS);
-        
-        
-        //model = scale*rotation*transition;
-        model = transition*rotation*scale;
-
-
-        lightingEnvironment.object_shader.setUniformM4("model", model);
-        lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", shape.innerColor);
-        lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", shape.outerColor);
-        lightingEnvironment.object_shader.setUniformF("BORDER_THICKNESS", shape.borderThickness);
-
-
-        shapes[shape.type]->draw(lightingEnvironment.object_shader, std::vector<unsigned int> {shape.texture, shapes[shape.type]->getTexture(1)});
-        i++;
+        layerCount++;
     }
     glDepthMask(true);
 }
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
 
-    lightingEnvironment.object_shader.setUniformF("elapsedTime", (float)deltaTimer.getElapsedTime());
+    lightingEnvironment.object_shader.setUniformF("elapsedTime", (float)getElapsedTime());
     // Draw cubes
     glDepthMask(false);
     for( ShapeProperties shape : cubeMatrices){
@@ -2734,7 +2755,6 @@ void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera){
         for(float time : deltaTimes){
             sum+=time;
         }
-        float average = sum/deltaTimes.size();
         std::cout << "FPS: " << ((float)loopCount)/((float)sum) << std::endl;
         deltaTimes.clear();
         loopCount = 1;
@@ -2952,7 +2972,7 @@ int mainCoordsBasic(int argc, char * argv[]){
                 // Create and delete cubes
                 if(alarm.check()){
                         cubesChanged = true;
-                        ShapeProperties shape = ShapeProperties{model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.0f, scaledCoordinates};
+                        ShapeProperties shape = ShapeProperties{model,glm::vec4(emotionRGB,1.0f),type,getElapsedTime(),0.0f, scaledCoordinates};
                         cubeMatrices.push_front(shape);
                         frontToBack.push_back(shape);
                     if(!shapesFull) {
@@ -2964,7 +2984,7 @@ int mainCoordsBasic(int argc, char * argv[]){
             }
         }
         // Delete cubes
-        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*EMOTION_INDEXES.size()){
+        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*TOTAL_EMOTIONS){
             cubeMatrices.pop_back();
         }
 
@@ -3105,7 +3125,7 @@ int mainCoordsBasicStream(int argc, char * argv[]){
                 // Create and delete cubes
                 if(alarm.check()){
                         cubesChanged = true;
-                        ShapeProperties shape = ShapeProperties{model,glm::vec4(emotionRGB,1.0f),type,deltaTimer.getElapsedTime(),0.0f, scaledCoordinates};
+                        ShapeProperties shape = ShapeProperties{model,glm::vec4(emotionRGB,1.0f),type,getElapsedTime(),0.0f, scaledCoordinates};
                         cubeMatrices.push_front(shape);
                     if(!shapesFull) {
                         shapesFull = true;
@@ -3116,7 +3136,7 @@ int mainCoordsBasicStream(int argc, char * argv[]){
             }
         }
         // Delete cubes
-        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*EMOTION_INDEXES.size()){
+        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*TOTAL_EMOTIONS){
             cubeMatrices.pop_back();
         }
 
@@ -3141,15 +3161,36 @@ int mainCoordsBasicStream(int argc, char * argv[]){
 }
 
 
+<<<<<<< Updated upstream
 void LayerGenerator(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAlarm, GLFWwindow* mWindow, std::mutex* lock, bool* notDone, int* additions){
+=======
+void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm,  std::mutex* lock, bool* notDone, int* additions){
+>>>>>>> Stashed changes
 
-    int shareCount = 0;
-    std::vector<std::vector<float>> emotionArrays = readEmotionArray("../data.json", true);
+    std::deque<EmotionLayer> emotionArrays{};
     bool alarmSounded;
     Alarm printAlarm{1.0f};
     long int iterations = 0;
-    double timePassed;
-    double waitTime;
+    PngData blankPNGData(255,255, 3);
+    generatePNGBlank(blankPNGData);
+    std::deque<EmotionLayer> emotionLayers{};
+    for(int i = 0; i < TOTAL_EMOTIONS; i++)
+        emotionLayers.push_front({std::vector<float>{1,1,1,1,1,1},blankPNGData});
+    float timePassed;
+
+    float waitTime;
+    {
+        std::lock_guard guard(*lock);
+        waitTime = creationAlarm->getWaitTime();
+    }
+    float imageWaitTime = waitTime;
+	std::deque<PngData> pngDataBuffer{};
+	std::deque<PngData> pngDataStorage{};
+	bool turnOff = false;
+	std::mutex lockImage{};
+    std::string filepath = "../background.png";
+	std::thread imageThread(pngLoader, &pngDataBuffer, &turnOff, &lockImage, &filepath, &imageWaitTime);
+
     while(*notDone){
         bool printAlarmSounded = printAlarm.checkAndUpdate();
         if(printAlarmSounded){
@@ -3157,30 +3198,42 @@ void LayerGenerator(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAl
             iterations = 0;
         }
         {
-            std::lock_guard guard(*lock);
+            std::lock_guard<std::mutex> guard(*lock);
             alarmSounded = true;
             creationAlarm->checkAndUpdate();
             timePassed = creationAlarm->getPassedTime();
             waitTime = creationAlarm->getWaitTime();
+        }
+        {
+            std::lock_guard<std::mutex> guard(lockImage);
+            imageWaitTime = waitTime;
+        }
+        {
+            while(pngDataStorage.size() < TOTAL_EMOTIONS){
+                std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)((100.0f))));
+                {
+                    std::lock_guard<std::mutex> guard(lockImage);
+                    while(!pngDataBuffer.empty()){
+                        pngDataStorage.push_front(pngDataBuffer.back());
+                        pngDataBuffer.pop_back();
+                    }
+                }
+            }
+        }
+        emotionLayers.push_front({readEmotionArray("../data.json",false)[0],pngDataStorage.back()});
+        emotionLayers.pop_back();
+        pngDataStorage.pop_back();
 
-        }
-        std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)((waitTime - timePassed)*1000000000.0f)));
-        if(shareCount >= BATCHES_SHARE_EMOTION){
-            emotionArrays = readEmotionArray("../data.json", printAlarmSounded);
-            shareCount = 0;
-        }
-        else {
-            shareCount++;
-        }
         
-        bool useBenTexture = rand_range_uniform(0.0f,1.0f) < 1.00f;
+        bool useBenTexture = rand_range_uniform(0.0f,1.0f) < 0.50f;
         
         // #Emotion Extraction
         // Use emotion array to set properties of shapes
         if(alarmSounded){
-            for(int i : EMOTION_INDEXES){
+            ShapeLayer shapeLayer{};
+            for(auto const& emotionLayer : emotionLayers){
+                auto const& emotionArray = emotionLayer.emotionArray;
 
-                std::vector<float> emotionArray = emotionArrays[i];
                 glm::vec3 emotionRGB;
 
                 emotionRGB = emotionArrayToColor(emotionArray);
@@ -3209,6 +3262,7 @@ void LayerGenerator(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAl
                 alphaScale = clamp(rand_range_normal(AVE_ALPHA, DEV_ALPHA), MIN_ALPHA, MAX_ALPHA);
                 //alphaScale = (1.0f - 0.0)*alphaScale + (0.0)*emotionAlpha;
 
+                ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, 0};
 
                 for (int j = 0; j < SHAPES_IN_BATCH; j++){
                     float maxScale = MAX_SCALE;
@@ -3241,34 +3295,43 @@ void LayerGenerator(std::deque<ShapeProperties2D>* cubeBuffer, Alarm* creationAl
                     
 
                     
-                    {
-                        std::lock_guard<std::mutex> guard(*lock);
-                        // Create and delete cubes
-                        glm::vec4 shapeColor = glm::vec4(emotionRGB,alphaScale);
-                        //glm::vec4 invertedShapeColor = glm::vec4(glm::vec3(1.0f) - emotionRGB, alphaScale);
-                        glm::vec4 invertedShapeColor;
-                        if(useBenTexture)
-                            invertedShapeColor = glm::vec4(emotionRGB, alphaScale);
-                        else
-                            invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
-                        ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
-                        shape.scaleMatrix = glm::scale(glm::mat4(1.0f), shape.scale);
-                        shape.rotationMatrix = glm::rotate(glm::mat4(1.0f), shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
-                        shape.transition = glm::translate(glm::mat4(1.0f), shape.coords);
-                        shape.direction = dir::UP;
-                        shape.direction  = glm::mat3(shape.rotationMatrix) * shape.direction;
-                        shape.direction = glm::normalize(shape.direction);
-                        shape.rotatedCoords = glm::mat3(shape.rotationMatrix) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
-                        cubeBuffer->push_front(shape);
-                        additions++;
+                    // Create and delete cubes
+                    glm::vec4 shapeColor = glm::vec4(emotionRGB,alphaScale);
+                    //glm::vec4 invertedShapeColor = glm::vec4(glm::vec3(1.0f) - emotionRGB, alphaScale);
+                    glm::vec4 invertedShapeColor;
+                    if(useBenTexture){
+                        invertedShapeColor = glm::vec4(emotionRGB, alphaScale);
+                        shapeColor = cdata::WHITE_V4;
                     }
-
+                    else{
+                        invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
+                    }
+                    ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
+                    shape.scaleMatrix = glm::scale(glm::mat4(1.0f), shape.scale);
+                    shape.rotationMatrix = glm::rotate(glm::mat4(1.0f), shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
+                    shape.transition = glm::translate(glm::mat4(1.0f), shape.coords);
+                    shape.direction = dir::UP;
+                    shape.direction  = glm::mat3(shape.rotationMatrix) * shape.direction;
+                    shape.direction = glm::normalize(shape.direction);
+                    shape.rotatedCoords = glm::mat3(shape.rotationMatrix) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
+                    shapeBatch.shapes.push_front(shape);
+                    additions++;
                 }
+                shapeLayer.push_front(shapeBatch);
+            }
+            {
+                std::lock_guard<std::mutex> guard(*lock);
+                shapeLayersBuffer->push_front(shapeLayer);
             }
         }
 
     iterations++;
     }
+    {
+        std::lock_guard<std::mutex> guard(lockImage);
+        turnOff = true;
+    }
+    imageThread.join();
 
 }
 void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath, float* waitTime){
@@ -3281,7 +3344,11 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
         float tempWaitTime;
         {
             std::lock_guard guard(*lock);
+<<<<<<< Updated upstream
             full = dataBuffer.size()>=TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*bufferSizeMult;
+=======
+            full = dataBuffer.size()>=TOTAL_EMOTIONS*bufferSizeMult;
+>>>>>>> Stashed changes
             tempWaitTime = *waitTime;
         }
 
@@ -3291,11 +3358,9 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
         else{
             pD = loadPngTexture(*filePath);
             if(pD.isValid()){
-                std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*1000000000.0f/(EMOTION_INDEXES.size()*bufferSizeMult))));
+                std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*1000000000.0f/(TOTAL_EMOTIONS*bufferSizeMult))));
                 std::lock_guard guard(*lock);
-                for(int i = 0; i < SHAPES_IN_BATCH; i++){
-                    dataBuffer.push_front(pD);
-                }
+                dataBuffer.push_front(pD);
             }
             else{
                 std::this_thread::sleep_for(std::chrono::nanoseconds(1));
@@ -3314,6 +3379,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     
     DeltaTimer deltaTimer{};
     Alarm creationAlarm(SHAPE_INITIAL_SPAWN_TIME);
+    Alarm otherAlarm(SHAPE_INITIAL_SPAWN_TIME);
     bool shapesFull = false;
     
 
@@ -3377,103 +3443,75 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
 
     
-    std::deque<ShapeProperties2D> shapesBuffer{};
-    std::deque<ShapeProperties2D> shapesStorage{};
-    
+    std::deque<ShapeLayer> shapeLayersBuffer{};
+    std::deque<ShapeLayer> shapeLayersStorage{};
+    std::deque<ShapeLayer> shapeLayersDraw{};
 
-    float elderTimeStamp = 0.0f;
 
     
     glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
-    std::mutex lock{};
+    std::mutex shapeLock{};
 
     bool notDone = true;
     int additions = 0;
+<<<<<<< Updated upstream
     float waitTime = creationAlarm.getWaitTime();
     std::thread creationThread(LayerGenerator,&shapesBuffer,&creationAlarm,mWindow,&lock, &notDone, &additions);
+=======
+    std::thread creationThread(something,&shapeLayersBuffer,&creationAlarm,&shapeLock, &notDone, &additions);
+>>>>>>> Stashed changes
 
-	std::deque<PngData> pngDataBuffer{};
-	std::deque<PngData> pngDataStorage{};
-	bool turnOff = false;
-	std::mutex lockImage{};
-    std::string filepath = "../background.png";
-	std::thread imageThread(pngLoader, &pngDataBuffer, &turnOff, &lockImage, &filepath, &waitTime);
-    unsigned int prev_texture = blankTexture;
     bool midLayerMet = false;
-    unsigned int shapesCount = 0;
-    unsigned int emotionCount = 0;
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
         startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
 
-        float tempWaitTime;
-        {
-            std::lock_guard guard(lock);
-            tempWaitTime = creationAlarm.getWaitTime();
-        }
-        {
-            std::lock_guard guard(lockImage);
-            waitTime = tempWaitTime;
-            while(!pngDataBuffer.empty()){
-                const auto& pngDataB = pngDataBuffer.back();
-                pngDataStorage.push_front(pngDataB);
-                pngDataBuffer.pop_back();
-            }
-        }
-        {
-            std::lock_guard guard(lock);
-            while(!shapesBuffer.empty()){
-                const ShapeProperties2D& shapeB = shapesBuffer.back();
-                ShapeProperties2D shape = shapeB;
-                shapesBuffer.pop_back();
-                if(shape.useBenTexture){
-                    if(!pngDataStorage.empty() && shapesCount == 0){ // Fetch texture if on new layer
-                        auto const& pngData = pngDataStorage.back();
-                        prev_texture = createPngTexture(pngData);
-                        pngDataStorage.pop_back();
-                    }
-                    shape.texture = prev_texture;
-                    shape.innerColor = cdata::WHITE_V4;
-                    // Incrent layer
-                    shapesCount++;
-                    if(shapesCount >= SHAPES_IN_BATCH){
-                        shapesCount = 0;
-                    }
+        if (otherAlarm.checkAndUpdate()){
+            std::lock_guard guard(shapeLock);
+            while(!shapeLayersBuffer.empty()){
+                auto shapeLayerB = shapeLayersBuffer.back();
+                ShapeLayer shapeLayer = shapeLayerB;
+                for(auto& shapeBatch : shapeLayer){
+                    shapeBatch.texture = createPngTexture(shapeBatch.pngData);
                 }
-                else{
-                    shape.texture = blankTexture;
-                }
-                shapesStorage.push_front(shape);
+
+                shapeLayersStorage.push_front(shapeLayer);
+                shapeLayersBuffer.pop_back();
             }
             
         }
         bool shapeDeleted = false;
         // Delete cubes
-        while (shapesStorage.size() > TOTAL_SHAPES){
-            ShapeProperties2D shape = shapesStorage.back();
-            shapesStorage.pop_back();
-            if(shape.texture != blankTexture){
-                if(shape.texture != shapesStorage.back().texture)
-                    glDeleteTextures(1,&shape.texture);
+        while (shapeLayersStorage.size() > TOTAL_LAYERS){
+            auto const shapeLayer = shapeLayersStorage.back();
+            for(auto const& shapeBatch : shapeLayer){
+                if(shapeBatch.texture != blankTexture)
+                    glDeleteTextures(1, &shapeBatch.texture);
             }
             shapeDeleted = true;
+            shapeLayersStorage.pop_back();
         }
+<<<<<<< Updated upstream
         while(pngDataStorage.size() > TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
             pngDataStorage.pop_back();
         if(shapesStorage.size() >= (MID_LAYER - 0) && !midLayerMet){
+=======
+        if(shapeLayersStorage.size() >= (MID_LAYER - 0) && !midLayerMet){
+>>>>>>> Stashed changes
             midLayerMet = true;
             std::cout << "The middle layer was met!!!" << std::endl;
 
         }
         if(shapeDeleted && !shapesFull){
-            std::lock_guard guard(lock);
+            std::lock_guard guard(shapeLock);
             creationAlarm.setWaitTime(DESTRUCTION_TIME);
+            otherAlarm.setWaitTime(DESTRUCTION_TIME);
             shapesFull = true;
             std::cout << "Shapes loaded!" << std::endl;
         }
         // Draw cubes
-        drawCubeMatrices2DScale(lightingEnvironment, shapesStorage, shapeTypes, deltaTimer, creationAlarm, lock, lineAbove, lineBelow);
+        drawCubeMatrices2DScale(lightingEnvironment, shapeLayersStorage, shapeTypes, deltaTimer, otherAlarm, shapeLock, lineAbove, lineBelow);
 
 
 
@@ -3483,15 +3521,10 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     }   
 
     {
-        std::lock_guard<std::mutex> guard(lock);
+        std::lock_guard<std::mutex> guard(shapeLock);
         notDone = false;
     }
     creationThread.join();
-    {
-        std::lock_guard<std::mutex> guard(lockImage);
-        turnOff = true;
-    }
-    imageThread.join();
 
     glfwTerminate();
 
@@ -3713,32 +3746,6 @@ float calcFade(float destructionTimePassed, float destructionTime, int totalLaye
     return fade;
 }
 
-void drawCubeMatrices2DFade(LightingEnvironment& lightingEnvironment, std::deque<ShapeProperties2D> cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm){
-    glDepthMask(false);
-    lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniformF("destructionTime", destructionAlarm.getWaitTime());
-    lightingEnvironment.object_shader.setUniformF("destructionTimePassed", destructionAlarm.getPassedTime());
-    lightingEnvironment.object_shader.setUniformB("DO_FADE", true);
-    unsigned i = 0;
-    unsigned shapesInLayer = SHAPES_IN_BATCH*EMOTION_INDEXES.size();
-    unsigned shapesInTotal = shapesInLayer*TOTAL_LAYERS;
-    unsigned maxLayer = (shapesInTotal - 1)/shapesInLayer;
-    lightingEnvironment.object_shader.setUniformI("maxLayer", maxLayer);
-    // Draw cubes
-    for( auto shape : cubeMatrices ){
-        int placement = (shapesInTotal - 1 - i);
-        int layer;
-        layer = placement/shapesInLayer;
-        //float fade = calcFade(destructionAlarm.getPassedTime(),destructionAlarm.getWaitTime(),maxLayer,layer);
-        lightingEnvironment.object_shader.setUniformI("layer", layer);
-        lightingEnvironment.object_shader.setUniformM4("model", shape.model);
-        lightingEnvironment.object_shader.setUniformV4("aColor", shape.innerColor);
-        shapes[shape.type]->draw(lightingEnvironment.object_shader);
-        i++;
-    }
-    glDepthMask(true);
-}
-
 void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor){
     deltaTimer.updateDeltaTime();
     // Background Fill Color
@@ -3783,8 +3790,32 @@ void PngData::setData(int row, int col, int channel, const unsigned char& byte){
     this->data[index(row, col, channel)] = byte;
 }
 
+float floorWrap(float x, float y)
+{
+    return floor(x/y);
+}
 
-int floor(int x, int y){ return x/y; }
+float ceilWrap(float x, float y)
+{
+    return ceil(x/y);
+}
+
+int floorWrap(int x, int y) {
+    int mod = x % y;
+    if(mod == 0)
+        return x/y;
+    else
+        return (x-mod)/y;
+}
+
+int ceilWrap(int x, int y)
+{
+    int mod = x % y;
+    if(mod == 0)
+        return x/y;
+    else
+        return (x-mod)/y + 1;
+}
 
 unsigned int getTextureFromData(const PngData &pngData)
 {
@@ -3841,8 +3872,8 @@ std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionA
     float rightPotential = (happiness + anger - sadness)/2.0f;
     float leftPotential = (disgust + fear - sadness)/2.0f;
     std::map<TRANSITIONS,bool> transitions{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
-    transitions[FADE] = fadePotential >= 0.5f;
-    transitions[SCALE] = scalePotential >= 0.5f;
+    transitions[FADE] = fadePotential >= 0.5f && DO_FADE;
+    transitions[SCALE] = scalePotential >= 0.5f && DO_SCALE;
     transitions[MOVE_FORWARD] = rightPotential >= 0.85f;
     transitions[BACK_OUT] = leftPotential >= 0.85f;
     if(transitions[MOVE_FORWARD] && transitions[BACK_OUT]){
@@ -3877,9 +3908,6 @@ float calcDisplacement(float destructionTimePassed, float destructionTime, int t
         return dX;
 }
 
-unsigned int getLayer(unsigned int i){
-    unsigned int placement = (TOTAL_SHAPES - 1 - i);
-    unsigned int layer;
-    layer = placement/(SHAPES_IN_BATCH*EMOTION_INDEXES.size());
-    return layer;
+float getElapsedTime(){
+    return glfwGetTime();
 }
