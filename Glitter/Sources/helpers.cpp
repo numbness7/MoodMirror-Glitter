@@ -3347,13 +3347,27 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
 	
 }
 
-int startSimulator(){
-    return runCommand("(cd ../Emotion_Gen_Sim && source venv/bin/activate && echo -e \"0.1\nc\" | python emotion_generator.py)");
+int startSimulator(float frequency, bool cycle, bool random){
+    assert(cycle || random);
+    char simulationType;
+    if (cycle)
+        simulationType = 'c';
+    if (random)
+        simulationType = 'r';
+
+        return runCommand("(cd ../Emotion_Gen_Sim && source venv/bin/activate && echo -e \"" + std::to_string(frequency) + "\n" + simulationType +"\" | nohup python emotion_generator.py)");
 }
 
-int startColorGenerator(){
+int startColorGenerator(float frequency, int width, int height, bool doDisplay){
+
+    char display;
+    if (doDisplay)
+        display = 'y';
+    else
+        display = 'n';
     
-    return runCommand("(cd ../VisualGen_Ben/V1_255x255/ && source venv/bin/activate && echo -e \"255\n255\n0.025\nn\" | python Gener2.py)");
+    return runCommand("(cd ../VisualGen_Ben/V1_255x255/ && source venv/bin/activate && echo -e \"" + std::to_string(width) + "\n" 
+        + std::to_string(height) + "\n" + std::to_string(frequency) + "\n" + display + "\" | nohup python Gener2.py)");
 }
 
 int mainCoordsBasic2D(int argc, char * argv[]){
@@ -3434,8 +3448,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     bool notDone = true;
     int additions = 0;
 
-    int simPID = startSimulator();
-    int colPID = startColorGenerator();
+    int simPID = startSimulator(0.1f);
+    int colPID = startColorGenerator(0.025f);
 
 
     std::thread creationThread(something,&shapeLayersBuffer,&creationAlarm,&shapeLock, &notDone, &additions);

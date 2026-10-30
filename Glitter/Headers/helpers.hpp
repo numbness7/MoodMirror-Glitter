@@ -569,4 +569,6 @@ unsigned int createPngTexture(const PngData* pngData);
 void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm,  std::mutex* lock, bool* notDone, int* additions);
 void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath, float* waitTime);
 unsigned int getLayer(unsigned int i);
+int startColorGenerator(float frequency, int width=255, int height=255, bool doDisplay=false);
+int startSimulator(float frequency, bool cycle = true, bool random = false);
 #endif
