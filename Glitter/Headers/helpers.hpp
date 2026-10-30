@@ -751,4 +751,7 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
 int startBensVisualGenerationProgram(float frequency, int width=255, int height=255, bool doDisplay=false);
 int startBensEmotionSimulator(float frequency, bool cycle = true, bool random = false);
 
+// #Unordered -------------------------------------------------------------
+ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, glm::vec3 emotionCoords3D, glm::vec3 rotAxis, float rotScale, glm::vec3 emotionRGB, float alphaScale, bool useBenTexture, SHAPE_TYPE_2D type, float softnessOrThickness, unsigned int borderCase);
+
 #endif

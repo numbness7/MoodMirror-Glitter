@@ -1813,56 +1813,8 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
 
                 ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, 0};
 
-                for (int j = 0; j < SHAPES_IN_BATCH; j++){
-                    float maxScale = MAX_SCALE;
-                    float minScale = MIN_SCALE;
-                    float aveScale = AVE_SCALE;
-                    float devScale = DEV_SCALE;
-                    glm::vec3 scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale) * glm::vec3(1.0f);
-                    if(transitions[SCALE] && transitions[FADE]) scale *= DO_SCALE_SCALE;
-                    else if(transitions[SCALE]) scale *= DO_SCALE_SCALE;
-                    else if (transitions[FADE]) scale *= DO_FADE_SCALE;
-                    
-                    if(transitions[VORTEX]) scale *= DO_VORTEX_SCALE;
-
-                    
-                    coords = SCATTER_TO_EMOTION_COORD_RATIO* SCATTER_COORD_SCALE * randCoords()+(1-SCATTER_TO_EMOTION_COORD_RATIO)*EMOTION_COORD_SCALE*emotionCoords3D;
-                    coords.z = 0.0f;
-
-
-                    
-                    glm::mat4 model = glm::mat4(1.0f);
-                    float xCoordScale = 1.0f;
-                    float yCoordScale = 1.0f;
-                    glm::vec3 scaledCoordinates(1.0f);
-                    scaledCoordinates.x = coords.x*xCoordScale;
-                    scaledCoordinates.y = coords.y*yCoordScale;
-                    scaledCoordinates.z = 0.0f;
-                    model = glm::translate(model, scaledCoordinates);
-                    model = glm::scale(model, scale);
-                    model = glm::rotate(model, rotScale, rotAxis);
-                    
-
-                    
-                    // Create and delete cubes
-                    glm::vec4 shapeColor = glm::vec4(emotionRGB,alphaScale);
-                    //glm::vec4 invertedShapeColor = glm::vec4(glm::vec3(1.0f) - emotionRGB, alphaScale);
-                    glm::vec4 invertedShapeColor;
-                    if(useBenTexture){
-                        invertedShapeColor = glm::vec4(emotionRGB, alphaScale);
-                        shapeColor = cdata::WHITE_V4;
-                    }
-                    else{
-                        invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
-                    }
-                    ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
-                    shape.scaleMatrix = glm::scale(glm::mat4(1.0f), shape.scale);
-                    shape.rotationMatrix = glm::rotate(glm::mat4(1.0f), shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
-                    shape.transition = glm::translate(glm::mat4(1.0f), shape.coords);
-                    shape.direction = dir::UP;
-                    shape.direction  = glm::mat3(shape.rotationMatrix) * shape.direction;
-                    shape.direction = glm::normalize(shape.direction);
-                    shape.rotatedCoords = glm::mat3(shape.rotationMatrix) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
+                for (int shapeIndex = 0; shapeIndex < SHAPES_IN_BATCH; shapeIndex++){
+                    auto shape = generateShape2D(transitions, coords, emotionCoords3D, rotAxis, rotScale, emotionRGB, alphaScale, useBenTexture, type, softnessOrThickness, borderCase);
                     shapeBatch.shapes.push_front(shape);
                     shapeAdditions++;
                 }
@@ -3912,4 +3864,60 @@ float calcDisplacement(float destructionTimePassed, float destructionTime, int t
 
 float getElapsedTime(){
     return glfwGetTime();
+}
+
+// #Unordered -------------------------------------------------------------
+
+ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, glm::vec3 emotionCoords3D, glm::vec3 rotAxis, float rotScale, glm::vec3 emotionRGB, float alphaScale, bool useBenTexture, SHAPE_TYPE_2D type, float softnessOrThickness, unsigned int borderCase){
+    
+    float maxScale = MAX_SCALE;
+    float minScale = MIN_SCALE;
+    float aveScale = AVE_SCALE;
+    float devScale = DEV_SCALE;
+    glm::vec3 scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale) * glm::vec3(1.0f);
+    if(transitions[SCALE] && transitions[FADE]) scale *= DO_SCALE_SCALE;
+    else if(transitions[SCALE]) scale *= DO_SCALE_SCALE;
+    else if (transitions[FADE]) scale *= DO_FADE_SCALE;
+    
+    if(transitions[VORTEX]) scale *= DO_VORTEX_SCALE;
+
+    
+    coords = SCATTER_TO_EMOTION_COORD_RATIO* SCATTER_COORD_SCALE * randCoords()+(1-SCATTER_TO_EMOTION_COORD_RATIO)*EMOTION_COORD_SCALE*emotionCoords3D;
+    coords.z = 0.0f;
+
+
+    
+    glm::mat4 model = glm::mat4(1.0f);
+    float xCoordScale = 1.0f;
+    float yCoordScale = 1.0f;
+    glm::vec3 scaledCoordinates(1.0f);
+    scaledCoordinates.x = coords.x*xCoordScale;
+    scaledCoordinates.y = coords.y*yCoordScale;
+    scaledCoordinates.z = 0.0f;
+    model = glm::translate(model, scaledCoordinates);
+    model = glm::scale(model, scale);
+    model = glm::rotate(model, rotScale, rotAxis);
+    
+
+    
+    // Create and delete cubes
+    glm::vec4 shapeColor = glm::vec4(emotionRGB,alphaScale);
+    //glm::vec4 invertedShapeColor = glm::vec4(glm::vec3(1.0f) - emotionRGB, alphaScale);
+    glm::vec4 invertedShapeColor;
+    if(useBenTexture){
+        invertedShapeColor = glm::vec4(emotionRGB, alphaScale);
+        shapeColor = cdata::WHITE_V4;
+    }
+    else{
+        invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
+    }
+    ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
+    shape.scaleMatrix = glm::scale(glm::mat4(1.0f), shape.scale);
+    shape.rotationMatrix = glm::rotate(glm::mat4(1.0f), shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
+    shape.transition = glm::translate(glm::mat4(1.0f), shape.coords);
+    shape.direction = dir::UP;
+    shape.direction  = glm::mat3(shape.rotationMatrix) * shape.direction;
+    shape.direction = glm::normalize(shape.direction);
+    shape.rotatedCoords = glm::mat3(shape.rotationMatrix) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
+    return shape;
 }
