@@ -102,49 +102,10 @@ glm::vec4 randRGBA(){
 
 
 
-void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2){
-    shader.use();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texture2);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glDrawElements(GL_TRIANGLES, vert_cnt, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-}
 unsigned int getGL_TextureX(unsigned int index){
     return GL_TEXTURE0 + index;
 }
-void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures){
-    shader.use();
-    for(int i = 0; i < textures.size(); i++){
-        unsigned int GL_TEXTUREX = getGL_TextureX(i);
-        glActiveTexture(GL_TEXTUREX);
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
-    }
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glDrawElements(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-}
 
-void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, unsigned int texture){
-    shader.use();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glDrawElements(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-}
-void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt){
-    shader.use();
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glDrawElements(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-}
 
 void processInput(GLFWwindow* mWindow){
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -1403,37 +1364,6 @@ void setupMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment){
     lightingEnvironment.object_shader.setUniformM4("view",lightingEnvironment.view);
     lightingEnvironment.object_shader.setUniformM4("projection",lightingEnvironment.projection);
 }
-void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights){
-
-    lightingEnvironment.projection = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-    lightingEnvironment.view = camera.GetViewMatrix();
-    
-    
-    
-
-    lightingEnvironment.light_shader.use();
-    lightingEnvironment.light_shader.setUniformM4("projection",lightingEnvironment.projection);
-    lightingEnvironment.light_shader.setUniformM4("view",lightingEnvironment.view);
-
-    if (drawLights){
-        for(int i = 0; i < POINT_LIGHT_COUNT; i++){
-            lightingEnvironment.model = glm::mat4(1.0f);
-            lightingEnvironment.model = glm::translate(lightingEnvironment.model, light_positions[i]);
-            lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.2f));
-            lightingEnvironment.light_shader.setUniformM4("model", lightingEnvironment.model);
-            lightingEnvironment.light_shader.setUniformV3("aColor", diffuses[i]);
-            lightShape.draw(lightingEnvironment.light_shader);
-        }
-    }
-
-    lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniformM4("view",lightingEnvironment.view);
-    lightingEnvironment.object_shader.setUniformM4("projection",lightingEnvironment.projection);
-    lightingEnvironment.object_shader.setUniformV3("view_pos", camera.Position);
-   lightingEnvironment.object_shader.setUniformV3("spot_light.position", camera.Position);
-   lightingEnvironment.object_shader.setUniformV3("spot_light.direction", camera.Front);
-   lightingEnvironment.object_shader.setUniformB("spot_light.is_on", (bool)flash_light);
-}
 
 bool cmpShape(const ShapeProperties& a, const ShapeProperties& b){
     return a.coords.z < b.coords.z;
@@ -1500,96 +1430,6 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
     return forwardDistance(a.coords) < forwardDistance(b.coords);
 }
 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
-
-    glDepthMask(false);
-    float passedTime;
-    float waitTime;
-    {
-        std::lock_guard guard(lock);
-        passedTime = deltaTimer.getDeltaTime();
-        waitTime = destructionAlarm.getWaitTime();
-    }
-    lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniformF("destructionTime", waitTime);
-    lightingEnvironment.object_shader.setUniformF("destructionTimePassed", passedTime);
-    unsigned layerCount = 0;
-    lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS);
-    // Draw cubes
-    const float speed = 4.0f;
-    for(auto const& shapeLayer : cubeMatrices){
-        unsigned int layer = TOTAL_LAYERS - 1 - layerCount;
-        unsigned int batchCount = 0;
-        for(auto const& shapeBatch : shapeLayer.batches){
-            for(auto const& shape : shapeBatch.shapes){
-                glm::mat4 model(1.0f);
-                glm::mat4 transition(shape.transition);
-                glm::mat4 rotation(shape.rotationMatrix);
-                glm::mat4 scale(shape.scaleMatrix);
-                lightingEnvironment.object_shader.setUniformM4("model", shape.model);
-                //lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && shape.transitions[FADE]));
-                lightingEnvironment.object_shader.setUniformB("DO_FADE", shape.transitions.at(FADE));
-                lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
-
-                lightingEnvironment.object_shader.setUniformI("layer", layer);
-                
-
-
-
-
-                if(shape.transitions.at(BACK_OUT)){
-                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
-                    transition = glm::mat4(1.0f);
-                    transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
-                    transition = glm::translate(transition, -speed*dX*shape.direction);
-                }
-                else if(shape.transitions.at(MOVE_FORWARD)){
-                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
-                    transition = glm::mat4(1.0f);
-                    transition = glm::translate(transition, -2.0f*shape.direction - shape.rotatedCoords);
-                    transition = glm::translate(transition, speed*dX*shape.direction);
-                }
-                
-                if(shape.transitions.at(SCALE)){
-                    float scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
-                    scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
-                }
-                
-                
-                assert(layer < TOTAL_LAYERS);
-                
-                
-                //model = scale*rotation*transition;
-                model = transition*rotation*scale;
-
-
-                lightingEnvironment.object_shader.setUniformM4("model", model);
-                lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", shape.innerColor);
-                lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", shape.outerColor);
-                lightingEnvironment.object_shader.setUniformF("BORDER_THICKNESS", shape.borderThickness);
-
-
-                shapes[shape.type]->draw(lightingEnvironment.object_shader, {shapeBatch.texture, shapes[shape.type]->getTexture(1)});
-            }
-            batchCount++;
-        }
-        layerCount++;
-    }
-    glDepthMask(true);
-}
-void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
-
-    lightingEnvironment.object_shader.setUniformF("elapsedTime", (float)getElapsedTime());
-    // Draw cubes
-    glDepthMask(false);
-    for( ShapeProperties shape : cubeMatrices){
-        lightingEnvironment.object_shader.setUniformF("creationDate", (float)shape.creationTimeStamp);
-        lightingEnvironment.object_shader.setUniformM4("model", shape.model);
-        lightingEnvironment.object_shader.setUniformV4("aColor", shape.color);
-        shapes[shape.type]->draw(lightingEnvironment.object_shader);
-    }
-    glDepthMask(true);
-}
 void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera){
     static int loopCount = 1;
     static std::vector<float> deltaTimes{};
@@ -3818,6 +3658,142 @@ int mainSolve(int argc, char *argv[])
 
     return 0;
 }
+
+// #Draw -------------------------------------------------------------
+
+
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
+
+    glDepthMask(false);
+    float passedTime;
+    float waitTime;
+    {
+        std::lock_guard guard(lock);
+        passedTime = deltaTimer.getDeltaTime();
+        waitTime = destructionAlarm.getWaitTime();
+    }
+    lightingEnvironment.object_shader.use();
+    lightingEnvironment.object_shader.setUniformF("destructionTime", waitTime);
+    lightingEnvironment.object_shader.setUniformF("destructionTimePassed", passedTime);
+    unsigned layerCount = 0;
+    lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS);
+    // Draw cubes
+    const float speed = 4.0f;
+    for(auto const& shapeLayer : cubeMatrices){
+        unsigned int layer = TOTAL_LAYERS - 1 - layerCount;
+        unsigned int batchCount = 0;
+        for(auto const& shapeBatch : shapeLayer.batches){
+            for(auto const& shape : shapeBatch.shapes){
+                glm::mat4 model(1.0f);
+                glm::mat4 transition(shape.transition);
+                glm::mat4 rotation(shape.rotationMatrix);
+                glm::mat4 scale(shape.scaleMatrix);
+                lightingEnvironment.object_shader.setUniformM4("model", shape.model);
+                //lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && shape.transitions[FADE]));
+                lightingEnvironment.object_shader.setUniformB("DO_FADE", shape.transitions.at(FADE));
+                lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
+
+                lightingEnvironment.object_shader.setUniformI("layer", layer);
+                
+
+
+
+
+                if(shape.transitions.at(BACK_OUT)){
+                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
+                    transition = glm::mat4(1.0f);
+                    transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
+                    transition = glm::translate(transition, -speed*dX*shape.direction);
+                }
+                else if(shape.transitions.at(MOVE_FORWARD)){
+                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
+                    transition = glm::mat4(1.0f);
+                    transition = glm::translate(transition, -2.0f*shape.direction - shape.rotatedCoords);
+                    transition = glm::translate(transition, speed*dX*shape.direction);
+                }
+                
+                if(shape.transitions.at(SCALE)){
+                    float scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
+                    scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
+                }
+                
+                
+                assert(layer < TOTAL_LAYERS);
+                
+                
+                //model = scale*rotation*transition;
+                model = transition*rotation*scale;
+
+
+                lightingEnvironment.object_shader.setUniformM4("model", model);
+                lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", shape.innerColor);
+                lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", shape.outerColor);
+                lightingEnvironment.object_shader.setUniformF("BORDER_THICKNESS", shape.borderThickness);
+
+
+                shapes[shape.type]->draw(lightingEnvironment.object_shader, {shapeBatch.texture, shapes[shape.type]->getTexture(1)});
+            }
+            batchCount++;
+        }
+        layerCount++;
+    }
+    glDepthMask(true);
+}
+void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures){
+    shader.use();
+    for(int i = 0; i < textures.size(); i++){
+        unsigned int GL_TEXTUREX = getGL_TextureX(i);
+        glActiveTexture(GL_TEXTUREX);
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+    }
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glDrawElements(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
+
+    lightingEnvironment.object_shader.setUniformF("elapsedTime", (float)getElapsedTime());
+    // Draw cubes
+    glDepthMask(false);
+    for( ShapeProperties shape : cubeMatrices){
+        lightingEnvironment.object_shader.setUniformF("creationDate", (float)shape.creationTimeStamp);
+        lightingEnvironment.object_shader.setUniformM4("model", shape.model);
+        lightingEnvironment.object_shader.setUniformV4("aColor", shape.color);
+        shapes[shape.type]->draw(lightingEnvironment.object_shader);
+    }
+    glDepthMask(true);
+}
+void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt){
+    shader.use();
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glDrawElements(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+
+void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, unsigned int texture){
+    shader.use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glDrawElements(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2){
+    shader.use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture1);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, texture2);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glDrawElements(GL_TRIANGLES, vert_cnt, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+
+// #Create -------------------------------------------------------------
 
 unsigned int getTextureFromData(const PngData &pngData)
 {
