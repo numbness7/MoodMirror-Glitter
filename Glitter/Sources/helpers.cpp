@@ -1,8 +1,4 @@
-
 #include <helpers.hpp>
-
-
-// Macros
 
 glm::vec3 cameraFront(0.0f,0.0f,-1.0f);
 float yaw = -90.0f;
@@ -19,12 +15,64 @@ Camera camera(glm::vec3(0.0f,0.0f,6.2f), glm::vec3(0.0f,1.0f,0.0f), -90, 0);
 //Camera camera(glm::vec3(1.0f,1.3f,3.0f), glm::vec3(0.0f,1.0f,0.0f), -100, -20);
 
 
-struct Material {
-    unsigned int diffuse;
-    unsigned int specular;
-    float shininess;
-};
+// #Simple Math Operations ----------------------------------------
+template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable){
+    NUMBER summation = 0;
+    for(auto const number : iterable) summation += number;
+    return summation;
+}
+template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable){
+    NUMBER summation = ssum<NUMBER>(iterable);
+    return summation/iterable.size();
+}
+float clamp(const float x, const float min, const float max){
+    if(x < min) return min;
+    if(x > max) return max;
+    return x;
+}
+float floorWrap(float x, float y)
+{
+    return floor(x/y);
+}
 
+float ceilWrap(float x, float y)
+{
+    return ceil(x/y);
+}
+
+int floorWrap(int x, int y) {
+    int mod = x % y;
+    if(mod == 0)
+        return x/y;
+    else
+        return (x-mod)/y;
+}
+
+int ceilWrap(int x, int y)
+{
+    int mod = x % y;
+    if(mod == 0)
+        return x/y;
+    else
+        return (x-mod)/y + 1;
+}
+
+// #Variable Manipulation
+template <typename V> std::vector<V> average(std::vector<std::vector<V>> vec){
+    std::vector<V> averages{};
+    const int rowSize = vec.size();
+    assert(rowSize > 0);
+    const int colSize = vec[0].size();
+    for(int col = 0; col < colSize; col++){
+        averages.push_back(0);
+        for(int row = 0; row < rowSize; row++){
+            assert(vec[row].size() == colSize);
+            averages[col] += vec[row][col];
+        }
+        averages[col] /= colSize;
+    }
+    return averages;
+}
 
 std::random_device rd;
 std::mt19937 gen(rd());
@@ -318,7 +366,7 @@ void create_textured_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& E
         glVertexAttribPointer(1, tex_dimensions, GL_FLOAT, GL_FALSE, total * sizeof(float), (void*)((total-tex_dimensions)*sizeof(float)));
         glEnableVertexAttribArray(1);
     }
-void create_colored_textued_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
+void create_colored_textured_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
     float vert[], unsigned int vert_cnt, unsigned int ind[], 
     unsigned int ind_cnt){
     
@@ -375,7 +423,7 @@ unsigned char getBorderCheckColor(int width, int height, int row, int col, int h
     else return cdata::EMPTY_COLOR_D; 
 
 }
-void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder){
+void generatePNGBorder(PngData& pngData, const int width, const int height,  const int hThickness, const int vThickness, const cdata::ColorRGBA borderColor, const cdata::ColorRGBA innerColor, const bool ignoreInner, const bool ignoreBorder){
     for(int gI = 0; gI < pngData.gridSize(); gI++){
         if (isOnBorder(width, height, pngData.rFG(gI), pngData.cFG(gI), hThickness, vThickness)){
             if(!ignoreBorder) pngData.setColor(gI, borderColor);
@@ -386,10 +434,9 @@ void generatePNGBorder(PngData& pngData, int width, int height,  int hThickness,
     }
 }
 void generatePNGBorder(unsigned char* data, int width, int height, int nrChannels, int hThickness, int vThickness){
-    for(PngDataIterator pDI(width, height, nrChannels); pDI.isNotDone(); pDI.iterate()){
-        pDI.setChannelByte( PngDataIterator::redChannel, getBorderCheckColor(width, height, pDI.row, pDI.col, hThickness, vThickness), data[pDI.index()]);
-        pDI.setChannelByte( PngDataIterator::alphaChannel, getBorderCheckColor(width, height, pDI.row, pDI.col, hThickness, vThickness), data[pDI.index()]);
-    }
+    PngData pngData(width, height, nrChannels);
+    generatePNGBorder(pngData, width, height, hThickness, vThickness, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
+    doCopy(data, pngData.getData(), pngData.size(), pngData.size());
 }
 
 /// @brief 
@@ -837,222 +884,15 @@ int initOpenGL(GLFWwindow *&mWindow, int width, int height)
     return return_status;
 }
 
-DeltaTimer::DeltaTimer(){
-    updateDeltaTime();
-}
-float DeltaTimer::getDeltaTime(bool do_update){
-    if(do_update) 
-        updateDeltaTime();
-    return deltatime;
-}
-void DeltaTimer::updateDeltaTime(){
-    elapsed_time = glfwGetTime();
-    deltatime = elapsed_time - lastframe_time;
-    lastframe_time = elapsed_time;
-}
 
 
 // learnopgl start
 
-int mainGenerateTexturesCubes(int argc, char * argv[]){
-    
-    // Initialize OpenGL
-    int return_status = EXIT_SUCCESS;
-    GLFWwindow*  mWindow; 
-    initOpenGL(mWindow, return_status, mWidth, mHeight);
-    if(return_status != EXIT_SUCCESS) return return_status;
-    
-    DeltaTimer deltaTimer{};
-    
-
-    
-    unsigned int texture1;
-    generate_texture(texture1, "Glitter/Textures/awesomeface.png", "png");
-
-
-
-    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp.vs", "Glitter/Shaders/texture-mvp.fs");
-    
-    unsigned int VBO_T, VAO_T, EBO_T;
-    
-    
-    
-    
-    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_cube, 5*36, shapes::cube_ind, 36);
-    
-    
-
-    shaderTextureMVP.use();
-    shaderTextureMVP.setUniformI("ourTexture1",(unsigned int)0);
-    shaderTextureMVP.setUniformI("ourTexture2",(unsigned int)1);
-    
-    glm::mat4 proj;
-    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-
-    glm::mat4 view(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
-
-    glm::mat4 model(1.0f);
-
-    shaderTextureMVP.setUniformM4("projection", proj);
-    shaderTextureMVP.setUniformM4("view", view);
-    shaderTextureMVP.setUniformM4("model",model);
-    
-    
-    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
-    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
-    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
-    
-    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
-    glm::vec3 up(0.0f,1.0f,0.0f);
-    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
-    
-    
-    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(mWindow, mouse_callback);
-    glfwSetScrollCallback(mWindow, scroll_callback);
-
-
-    
-    
-    // #Rendering Loop
-    while (!glfwWindowShouldClose(mWindow)) {
-
-        // Background Fill Color
-        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-
-        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        shaderTextureMVP.setUniformM4("projection",proj);
-        
-
-        view = camera.GetViewMatrix();
-        shaderTextureMVP.setUniformM4("view",view);
-
-
-        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, shapes::cubePositions[i]);
-            model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
-            shaderTextureMVP.setUniformM4("model",model);
-            drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
-
-        }
-        
-
-
-        // Flip Buffers and Draw
-        glfwSwapBuffers(mWindow);
-        glfwPollEvents();
-        processInput(mWindow, camera, deltaTimer.getDeltaTime(false));
-        
-
-        
-    }   glfwTerminate();
-    return EXIT_SUCCESS;
-}
 
 glm::vec2 screenToModelCoords(float x, float y, float width, float height){
     return glm::vec2(boundTransformation(x, 0.0f, width, -1.0f, 1.0f),boundTransformation(y, 0.0f, height, -1.0f, 1.0f));
 }
 
-int mainCubes(int argc, char * argv[]){
-    
-    // Initialize OpenGL
-    int return_status = EXIT_SUCCESS;
-    GLFWwindow*  mWindow; 
-initOpenGL(mWindow, return_status, mWidth, mHeight);
-    if(return_status != EXIT_SUCCESS) return return_status;
-    
-    DeltaTimer deltaTimer{};
-    
-
-    
-    unsigned int texture2;
-    create_texture(texture2, "Glitter/Textures/awesomeface.png", "png");
-
-
-    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
-    
-    
-    
-    
-    OpenGLShape cube(36,36,shapes::textured_cube,shapes::cube_ind,std::vector<unsigned>{3,2},texture2,true);
-
-    
-    
-    
-
-    shaderTextureMVP.use();
-    shaderTextureMVP.setUniformI("ourTexture1",(unsigned int)0);
-    
-    glm::mat4 proj;
-    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-
-    glm::mat4 view(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
-
-    glm::mat4 model(1.0f);
-
-    shaderTextureMVP.setUniformM4("projection", proj);
-    shaderTextureMVP.setUniformM4("view", view);
-    shaderTextureMVP.setUniformM4("model",model);
-    shaderTextureMVP.setUniformV4("aColor", glm::vec4(0.6));
-    
-    
-    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
-    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
-    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
-    
-    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
-    glm::vec3 up(0.0f,1.0f,0.0f);
-    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
-    
-    
-    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(mWindow, mouse_callback);
-    glfwSetScrollCallback(mWindow, scroll_callback);
-
-
-    proj = glm::mat4(1.0f);
-    shaderTextureMVP.setUniformM4("projection",proj);
-    view = glm::mat4(1.0f);
-    shaderTextureMVP.setUniformM4("view",view);
-    
-    // Rendering Loop
-    while (!glfwWindowShouldClose(mWindow)) {
-
-        // Background Fill Color
-        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        deltaTimer.updateDeltaTime();
-        
-
-        
-
-
-
-        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, shapes::cubePositions[i]);
-            model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
-            shaderTextureMVP.setUniformM4("model",model);
-            cube.draw(shaderTextureMVP);
-        }
-        
-
-
-        // Flip Buffers and Draw
-        glfwSwapBuffers(mWindow);
-        glfwPollEvents();
-        processInput(mWindow, camera, deltaTimer.getDeltaTime());
-        
-
-        
-    }   glfwTerminate();
-    return EXIT_SUCCESS;
-}
 
 
 // learnopgl end
@@ -1082,500 +922,12 @@ void scroll_callback(GLFWwindow* mWindow, double xoffset, double yoffset){
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
 
-int mainLight(int argc, char * argv[]){
-    
-    // Initialize OpenGL
-    int return_status = EXIT_SUCCESS;
-    GLFWwindow*  mWindow; 
-initOpenGL(mWindow, return_status, mWidth, mHeight);
-    if(return_status != EXIT_SUCCESS) return return_status;
-    
-    DeltaTimer deltaTimer{};
-    
 
     
-
-
-    
-    unsigned int VBO_O, VAO_O, EBO_O;
-    unsigned int VAO_T;
-    unsigned int diffuse_sampler_2d;
-    unsigned int specular_sampler_2d;
-    create_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
-    create_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
-    
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
-
-
-    
-    create_lamp_and_light_object(VAO_O, VAO_T, VBO_O, EBO_O, shapes::normal_textured_triangle_pyramid, 8*36, shapes::normal_textured_triangle_pyramid_ind, 36);
-    
-    
-    
-    
-
-    
-    glm::mat4 proj;
-    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-
-    glm::mat4 view(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
-
-    glm::mat4 model(1.0f);
-    glm::vec3 light_positions[4] = {
-        glm::vec3(-10.2f,1.0f,2.0f),
-        glm::vec3(0.0f,-10.0f,2.0f),
-        glm::vec3(1.2f,0.0f,-10.0f),
-        glm::vec3(1.2f,1.0f,2.0f),
-    };
-
-    Shader object_shader("Glitter/Shaders/light-object.vs", "Glitter/Shaders/light-object.fs");
-    Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
-    object_shader.use();
-    object_shader.setUniformM4("projection", proj);
-    object_shader.setUniformM4("view", view);
-    object_shader.setUniformM4("model",model);
-    
-    Material material;
-    material.diffuse = 0;
-    material.specular = 1;
-    material.shininess  = 128.0f*0.25; 
-
-   object_shader.setUniformI("material.diffuse",   material.diffuse);
-   object_shader.setUniformI("material.specular",  material.specular);
-   object_shader.setUniformF("material.shininess", material.shininess); 
-   object_shader.setUniformF("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
-   object_shader.setUniformF("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
-
-
-    object_shader.setUniformV3("dir_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniformV3("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
-    object_shader.setUniformV3("dir_light.specular", glm::vec3(0.2f)); 
-    object_shader.setUniformV3("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
-    
-    object_shader.setUniformV3("spot_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniformV3("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
-    object_shader.setUniformV3("spot_light.specular", glm::vec3(1.0f)); 
-    glm::vec3 diffuses[4] = {
-        glm::vec3(1.0f,0.0f,0.0f),
-        glm::vec3(0.0f,1.0f,0.0f),
-        glm::vec3(0.0f,0.0f,1.0f),
-        glm::vec3(0.3f,0.3f,0.3f),
-    };
-
-    std::stringstream s ("");
-    for(int i = 0; i < 4; i ++){
-        s << "point_lights" << "[" << i << "]";
-        object_shader.setUniformV3(s.str() + ".ambient",  glm::vec3(0.1f));
-        object_shader.setUniformV3(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
-        object_shader.setUniformV3(s.str() + ".specular", diffuses[i]); 
-        object_shader.setUniformV3(s.str() + ".position", light_positions[i]);
-        object_shader.setUniformF(s.str() + ".constant", 1.0f);
-        object_shader.setUniformF(s.str() + ".linear", .09f);
-        object_shader.setUniformF(s.str() + ".quadratic", .032f);
-        s.str("");
-        s.clear();
-    }
-    
-    light_shader.use();
-    
-    light_shader.setUniformM4("projection", proj);
-    light_shader.setUniformM4("view", view);
-    light_shader.setUniformM4("model",model);
-    light_shader.setUniformV3("aColor",glm::vec3(0.0f,1.0f,0.0f));
-
-    
-    
-    
-    
-    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(mWindow, mouse_callback);
-    glfwSetScrollCallback(mWindow, scroll_callback);
-
-
-    
-    
-    // Rendering Loop
-    while (!glfwWindowShouldClose(mWindow)) {
-
-        // Background Fill Color
-        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        deltaTimer.updateDeltaTime();
-        
-
-        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        
-
-        view = camera.GetViewMatrix();
-        
-        
-        
-
-        light_shader.use();
-        light_shader.setUniformM4("projection",proj);
-        light_shader.setUniformM4("view",view);
-
-        for(int i = 0; i < 4; i++){
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, light_positions[i]);
-            model = glm::scale(model, glm::vec3(0.2f));
-            light_shader.setUniformM4("model", model);
-            light_shader.setUniformV3("aColor", diffuses[i]);
-            drawShape(VAO_T, EBO_O, light_shader, 36);
-        }
-
-        object_shader.use();
-        object_shader.setUniformM4("view",view);
-        object_shader.setUniformM4("projection",proj);
-        object_shader.setUniformV3("view_pos", camera.Position);
-       object_shader.setUniformV3("spot_light.position", camera.Position);
-       object_shader.setUniformV3("spot_light.direction", camera.Front);
-       object_shader.setUniformB("spot_light.is_on", (bool)flash_light);
-
-        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, shapes::cubePositions[i]);
-            //model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
-            object_shader.setUniformM4("model", model);
-            drawTexturedShape(VAO_O, EBO_O, object_shader, 36, diffuse_sampler_2d);
-        }
-        
-        
-
-
-
-        // Flip Buffers and Draw
-        glfwSwapBuffers(mWindow);
-        glfwPollEvents();
-        processInput(mWindow, camera, deltaTimer.getDeltaTime());
-        
-
-        
-    }   glfwTerminate();
-    return EXIT_SUCCESS;
-}
-
-    
-int mainTextureGenerate(int argc, char * argv[]){
-    
-    // Initialize OpenGL
-    int return_status = EXIT_SUCCESS;
-    GLFWwindow*  mWindow; 
-initOpenGL(mWindow, return_status, mWidth, mHeight);
-    if(return_status != EXIT_SUCCESS) return return_status;
-    
-    DeltaTimer deltaTimer{};
-    
-
-    
-
-
-    
-    unsigned int VBO_O, VAO_O, EBO_O;
-    unsigned int VAO_T;
-    unsigned int diffuse_sampler_2d;
-    unsigned int specular_sampler_2d;
-    generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
-    create_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
-    
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
-
-
-    
-    create_lamp_and_light_object(VAO_O, VAO_T, VBO_O, EBO_O, shapes::normal_textured_cube, 8*36, shapes::cube_ind, 36);
-    
-    
-    
-    
-
-    
-    glm::mat4 proj;
-    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-
-    glm::mat4 view(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
-
-    glm::mat4 model(1.0f);
-    glm::vec3 light_positions[4] = {
-        glm::vec3(-10.2f,1.0f,2.0f),
-        glm::vec3(0.0f,-10.0f,2.0f),
-        glm::vec3(1.2f,0.0f,-10.0f),
-        glm::vec3(1.2f,1.0f,2.0f),
-    };
-
-    Shader object_shader("Glitter/Shaders/light-object.vs", "Glitter/Shaders/light-object.fs");
-    Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
-    object_shader.use();
-    object_shader.setUniformM4("projection", proj);
-    object_shader.setUniformM4("view", view);
-    object_shader.setUniformM4("model",model);
-    
-    Material material;
-    material.diffuse = 0;
-    material.specular = 1;
-    material.shininess  = 128.0f*0.25; 
-
-   object_shader.setUniformI("material.diffuse",   material.diffuse);
-   object_shader.setUniformI("material.specular",  material.specular);
-   object_shader.setUniformF("material.shininess", material.shininess); 
-   object_shader.setUniformF("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
-   object_shader.setUniformF("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
-
-
-    object_shader.setUniformV3("dir_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniformV3("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
-    object_shader.setUniformV3("dir_light.specular", glm::vec3(0.2f)); 
-    object_shader.setUniformV3("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
-    
-    object_shader.setUniformV3("spot_light.ambient",  glm::vec3(0.1f));
-    object_shader.setUniformV3("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
-    object_shader.setUniformV3("spot_light.specular", glm::vec3(1.0f)); 
-    glm::vec3 diffuses[4] = {
-        glm::vec3(1.0f,0.0f,0.0f),
-        glm::vec3(0.0f,1.0f,0.0f),
-        glm::vec3(0.0f,0.0f,1.0f),
-        glm::vec3(0.3f,0.3f,0.3f),
-    };
-
-    std::stringstream s ("");
-    for(int i = 0; i < 4; i ++){
-        s << "point_lights" << "[" << i << "]";
-        object_shader.setUniformV3(s.str() + ".ambient",  glm::vec3(0.1f));
-        object_shader.setUniformV3(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
-        object_shader.setUniformV3(s.str() + ".specular", diffuses[i]); 
-        object_shader.setUniformV3(s.str() + ".position", light_positions[i]);
-        object_shader.setUniformF(s.str() + ".constant", 1.0f);
-        object_shader.setUniformF(s.str() + ".linear", .09f);
-        object_shader.setUniformF(s.str() + ".quadratic", .032f);
-        s.str("");
-        s.clear();
-    }
-    
-    light_shader.use();
-    
-    light_shader.setUniformM4("projection", proj);
-    light_shader.setUniformM4("view", view);
-    light_shader.setUniformM4("model",model);
-    light_shader.setUniformV3("aColor",glm::vec3(0.0f,1.0f,0.0f));
-
-    
-    
-    
-    
-    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(mWindow, mouse_callback);
-    glfwSetScrollCallback(mWindow, scroll_callback);
-
-
-    
-    
-    // Rendering Loop
-    while (!glfwWindowShouldClose(mWindow)) {
-
-        // Background Fill Color
-        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-
-        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        
-
-        view = camera.GetViewMatrix();
-        
-        
-        
-
-        light_shader.use();
-        light_shader.setUniformM4("projection",proj);
-        light_shader.setUniformM4("view",view);
-
-        for(int i = 0; i < 4; i++){
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, light_positions[i]);
-            model = glm::scale(model, glm::vec3(0.2f));
-            light_shader.setUniformM4("model", model);
-            light_shader.setUniformV3("aColor", diffuses[i]);
-            drawShape(VAO_T, EBO_O, light_shader, 36);
-        }
-
-        object_shader.use();
-        object_shader.setUniformM4("view",view);
-        object_shader.setUniformM4("projection",proj);
-        object_shader.setUniformV3("view_pos", camera.Position);
-       object_shader.setUniformV3("spot_light.position", camera.Position);
-       object_shader.setUniformV3("spot_light.direction", camera.Front);
-       object_shader.setUniformB("spot_light.is_on", (bool)flash_light);
-
-        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, shapes::cubePositions[i]);
-            model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
-            object_shader.setUniformM4("model", model);
-            drawTexturedShape(VAO_O, EBO_O, object_shader, 36, diffuse_sampler_2d);
-        }
-        
-        
-
-
-
-        // Flip Buffers and Draw
-        glfwSwapBuffers(mWindow);
-        glfwPollEvents();
-        processInput(mWindow, camera, deltaTimer.getDeltaTime());
-        
-
-        
-    }   glfwTerminate();
-    return EXIT_SUCCESS;
-}
 
 #define ProgressMargin 0.0001f
     
-void StraightPath::setProgress(float prog, bool loop) { 
-    if (loop){
-        if( prog < 0){
-            progress = 1.0f;
-        }
-        else if( prog > 1){
-            progress = 0.0f;
-        }
-        else{
-            progress = prog; 
-        }
-    }
-    else if (prog >= 0.0f && prog <= 1.0f + ProgressMargin )
-        progress = prog; 
-    else{
-        throw std::runtime_error("Error: Invalid progress: " + std::to_string(prog) + ", should be between 0 and 1!");
-    }
-}
 
-glm::vec3 StraightPath::getPositionOnPath(){
-    int numPoints = points.size();
-    // Find start point
-    float point_progress = float(progress*(float)(numPoints-1));
-    int start_point_index = (int)point_progress;
-    if(start_point_index >= numPoints - 1){
-        return points.back();
-    }
-    int end_point_index = start_point_index + 1;
-    glm::vec3 start_point = points[start_point_index];
-    glm::vec3 end_point = points[end_point_index];
-    glm::vec3 direction = glm::normalize(end_point-start_point);
-    float distance = glm::distance(end_point,start_point);
-    float left_over_point_progress = point_progress - (float) start_point_index;
-    glm::vec3 change_vector = direction * distance * left_over_point_progress;
-    glm::vec3 point_on_path = start_point + change_vector;
-    return start_point + change_vector;
-}
-
-int mainPathCube(int argc, char * argv[]){
-    
-    // Initialize OpenGL
-    int return_status = EXIT_SUCCESS;
-    GLFWwindow*  mWindow; 
-initOpenGL(mWindow, return_status, mWidth, mHeight);
-    if(return_status != EXIT_SUCCESS) return return_status;
-    
-    DeltaTimer deltaTimer{};
-    
-
-    
-    unsigned int texture1;
-    generate_texture(texture1, "Glitter/Textures/awesomeface.png", "png");
-
-
-
-    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp.vs", "Glitter/Shaders/texture-mvp.fs");
-    
-    unsigned int VBO_T, VAO_T, EBO_T;
-    
-    
-    
-    
-    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_triangle_pyramid, 5*36, shapes::triangle_pyramid_ind, 36);
-    
-    
-
-    shaderTextureMVP.use();
-    shaderTextureMVP.setUniformI("ourTexture",(unsigned int)0);
-    
-    glm::mat4 proj;
-    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-
-    glm::mat4 view(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
-
-    glm::mat4 model(1.0f);
-
-    shaderTextureMVP.setUniformM4("projection", proj);
-    shaderTextureMVP.setUniformM4("view", view);
-    shaderTextureMVP.setUniformM4("model",model);
-    
-    
-    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
-    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
-    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
-    
-    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
-    glm::vec3 up(0.0f,1.0f,0.0f);
-    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
-    
-    
-    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(mWindow, mouse_callback);
-    glfwSetScrollCallback(mWindow, scroll_callback);
-
-    StraightPath path(std::vector<glm::vec3>{glm::vec3(10,10,0), glm::vec3(0, 10, 0), glm::vec3(0,0,0), glm::vec3(10, 0, 0), glm::vec3(10,10,0)}, 0);
-
-    DeltaTimer delta_timer{};
-    float timer = 0.0f;
-    
-    
-    // Rendering Loop
-    while (!glfwWindowShouldClose(mWindow)) {
-
-        // Background Fill Color
-        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-
-        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        shaderTextureMVP.setUniformM4("projection",proj);
-        
-
-        view = camera.GetViewMatrix();
-        shaderTextureMVP.setUniformM4("view",view);
-        timer += delta_timer.getDeltaTime();
-        if(timer > 1.0f) {
-            timer = timer - 1.0f;
-        }
-        path.setProgress(timer);
-
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, path.getPositionOnPath());
-        shaderTextureMVP.setUniformM4("model",model);
-        drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
-        
-
-
-        // Flip Buffers and Draw
-        glfwSwapBuffers(mWindow);
-        glfwPollEvents();
-        processInput(mWindow, camera, deltaTimer.getDeltaTime());
-        
-
-        
-    }   glfwTerminate();
-    return EXIT_SUCCESS;
-}
 
 void generateSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sampler_2d){
     
@@ -1598,235 +950,7 @@ void setupSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sa
     glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
 }
 
-int mainTurning(int argc, char * argv[]){
-    // Initialize OpenGL
-    int return_status = EXIT_SUCCESS;
-    GLFWwindow*  mWindow; 
-    initOpenGL(mWindow, return_status, mWidth, mHeight);
-    if(return_status != EXIT_SUCCESS) return return_status;
-    
-    DeltaTimer deltaTimer{};
-    
-    unsigned int diffuse_sampler_2d;
-    unsigned int specular_sampler_2d;
-    generateSampler2Ds(diffuse_sampler_2d, specular_sampler_2d);
 
-
-    
-    
-    std::vector<unsigned int> lightSizes{};
-    lightSizes.push_back(3);
-    OpenGLShape lightShape((unsigned int) 36, (unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
-    std::vector<unsigned int> objectSizes{3,3,2};
-    OpenGLShape objectShape((unsigned int) 36, (unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
-    
-    
-    glm::vec3 light_positions[POINT_LIGHT_COUNT] = {
-        glm::vec3(-10.2f,1.0f,2.0f),
-        glm::vec3(0.0f,-10.0f,2.0f),
-        glm::vec3(1.2f,0.0f,-10.0f),
-        glm::vec3(1.2f,1.0f,2.0f),
-    };
-
-    glm::vec3 diffuses[POINT_LIGHT_COUNT] = {
-        glm::vec3(1.0f,0.0f,0.0f),
-        glm::vec3(0.0f,1.0f,0.0f),
-        glm::vec3(0.0f,0.0f,1.0f),
-        glm::vec3(0.3f,0.3f,0.3f),
-    };
-    
-    LightingEnvironment lightingEnvironment = initLighting(light_positions, diffuses);
-
-    
-    
-    
-    
-    initMouse(mWindow);
-
-
-    
-    std::deque<ShapeProperties> cubeMatrices{};
-    
-
-    glm::mat4 rotatedModel(1.0f);
-    float length = 3.0f;
-
-    
-    
-    // Rendering Loop
-    while (!glfwWindowShouldClose(mWindow)) {
-
-        // Background Fill Color
-        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-        
-        setupLightingEnvironmentToDraw(lightingEnvironment, light_positions, diffuses, lightShape);
-
-
-
-        std::vector<std::vector<float>> emotionArrays = readEmotionArray("../data.json");
-        
-        // Use emotion array to set properties of shapes
-        glm::vec3 emotionRGB = emotionArrayToColor(emotionArrays[0]);
-        glm::vec3 rotationAxis = glm::vec3(sin(getElapsedTime()*1.0f + M_1_PI),-sin(getElapsedTime()*1.0f/2.7865432f + M_1_PI/2),sin(getElapsedTime()*1.0f/3.125105f + M_1_PI/3));
-        rotatedModel = glm::rotate(glm::mat4(1.0f), (float)(1.0f*((float)(M_PI))), rotationAxis);
-
-        
-        // Stationary Cube
-        lightingEnvironment.model = glm::mat4(1.0f);
-        lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.2f));
-        
-        // Rotating Rod
-        glm::vec4 color = glm::vec4(1.0f,1.0f,1.0f,1.0f);
-        lightingEnvironment.object_shader.setUniformM4("model",lightingEnvironment.model);
-        lightingEnvironment.object_shader.setUniformV4("aColor", color);
-        objectShape.draw(lightingEnvironment.object_shader);
-        lightingEnvironment.model = glm::mat4(rotatedModel);
-        lightingEnvironment.model = glm::translate(lightingEnvironment.model, glm::vec3(length/2,0.0f,0.0f));
-        lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(length,0.1f,0.1f));
-        lightingEnvironment.object_shader.setUniformM4("model",lightingEnvironment.model);
-        lightingEnvironment.object_shader.setUniformV4("aColor", color);
-        objectShape.draw(lightingEnvironment.object_shader);
-        
-        // Create cube at location rod is pointing to
-        lightingEnvironment.model = glm::mat4(rotatedModel);
-        lightingEnvironment.model = glm::translate(lightingEnvironment.model, glm::vec3(length,0.0f,0.0f));
-        lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.10f));
-
-        cubeMatrices.push_front(ShapeProperties{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f)});
-        
-        // Delete a cube
-        if (cubeMatrices.size() > 10000){
-            cubeMatrices.pop_back();
-        }
-
-        // Draw cubes
-        for( ShapeProperties cubePair : cubeMatrices){
-            lightingEnvironment.object_shader.setUniformM4("model",cubePair.model);
-            lightingEnvironment.object_shader.setUniformV4("aColor", cubePair.color);
-            objectShape.draw(lightingEnvironment.object_shader);
-        }
-        
-
-
-
-        // Flip Buffers and Draw
-        glfwSwapBuffers(mWindow);
-        glfwPollEvents();
-        std::cout << "FPS: " << 1/deltaTimer.getDeltaTime() << std::endl;
-        processInput(mWindow, camera, deltaTimer.getDeltaTime());
-        deltaTimer.updateDeltaTime();
-
-        
-    }   glfwTerminate();
-    return EXIT_SUCCESS;
-    
-    
-    
-}
-
-int mainPathRectangle(int argc, char * argv[]){
-    
-    // Initialize OpenGL
-    int return_status = EXIT_SUCCESS;
-    GLFWwindow*  mWindow; 
-initOpenGL(mWindow, return_status, mWidth, mHeight);
-    if(return_status != EXIT_SUCCESS) return return_status;
-    
-    DeltaTimer deltaTimer{};
-    
-
-    
-    unsigned int texture1;
-    generate_texture(texture1, "Glitter/Textures/awesomeface.png", "png");
-
-
-
-    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp.vs", "Glitter/Shaders/texture-mvp.fs");
-    
-    unsigned int VBO_T, VAO_T, EBO_T;
-    
-    
-    
-    
-    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::rect_t, 5*6, shapes::rect_ind, 6);
-    
-    
-
-    shaderTextureMVP.use();
-    shaderTextureMVP.setUniformI("ourTexture",(unsigned int)0);
-    
-    glm::mat4 proj;
-    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-
-    glm::mat4 view(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
-
-    glm::mat4 model(1.0f);
-
-    shaderTextureMVP.setUniformM4("projection", proj);
-    shaderTextureMVP.setUniformM4("view", view);
-    shaderTextureMVP.setUniformM4("model",model);
-    
-    
-    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
-    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
-    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
-    
-    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
-    glm::vec3 up(0.0f,1.0f,0.0f);
-    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
-    
-    
-    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(mWindow, mouse_callback);
-    glfwSetScrollCallback(mWindow, scroll_callback);
-
-    StraightPath path(std::vector<glm::vec3>{glm::vec3(10,10,0), glm::vec3(0, 10, 0), glm::vec3(0,0,0), glm::vec3(10, 0, 0), glm::vec3(10,10,0)}, 0);
-
-    DeltaTimer delta_timer{};
-    float timer = 0.0f;
-    
-    
-    // Rendering Loop
-    while (!glfwWindowShouldClose(mWindow)) {
-
-        // Background Fill Color
-        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-
-        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        shaderTextureMVP.setUniformM4("projection",proj);
-        
-
-        view = camera.GetViewMatrix();
-        shaderTextureMVP.setUniformM4("view",view);
-        timer += delta_timer.getDeltaTime();
-        if(timer > 1.0f) {
-            timer = timer - 1.0f;
-        }
-        std::cout << "timer: " << timer << std::endl;
-        path.setProgress(timer);
-
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, path.getPositionOnPath());
-        shaderTextureMVP.setUniformM4("model",model);
-        drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
-        
-
-
-        // Flip Buffers and Draw
-        glfwSwapBuffers(mWindow);
-        glfwPollEvents();
-        processInput(mWindow, camera, deltaTimer.getDeltaTime());
-        
-
-        
-    }   glfwTerminate();
-    return EXIT_SUCCESS;
-}
 unsigned int boundTransformation(unsigned int x, unsigned int min, unsigned int max, unsigned int minT, unsigned int maxT){
     unsigned int slope = (maxT - minT)/(max - min);
     unsigned int intercept = minT - slope*min;
@@ -1859,37 +983,6 @@ float boundTransformation(float x, float slope, float intercept){
     return x*slope + intercept;
 }
 
-int mainSolve(int argc, char *argv[])
-{
-    float min = 1.0f/2.0f;
-    float max = 5.0f/4.0f;
-    float minT = -1.0f;
-    float maxT = 1.0f;
-    //std::vector<float> solution = solve(std::vector<std::vector<float>> {{min, 1},{max,1}}, std::vector<float> {minT, maxT});
-    //float slope = (minT - maxT)/(min - max);
-    //float intercept = (min*maxT - minT*max)/(min - max);
-    std::tuple<float,float> line = linearTransformation(min, max, minT, maxT);
-    const auto [slope, intercept] = line;
-    std::cout << "S1: " << slope << std::endl;
-    std::cout << "S2: " << intercept << std::endl;
-    std::cout << "max: " << max << std::endl;
-    std::cout << "min: " << min << std::endl;
-    float mid = (max+min)/2.0f;
-    std::cout << "mid: " << mid << std::endl;
-    std::cout << "maxT: " << maxT << std::endl;
-    std::cout << "minT: " << minT << std::endl;
-    float midT = (maxT+minT)/2.0f;
-    std::cout << "midT: " <<  midT << std::endl;
-    
-    std::cout << "maxS: " << slope*max + intercept << std::endl;
-    std::cout << "minS: " << slope*min + intercept << std::endl;
-    std::cout << "midS: " << slope*mid + intercept << std::endl;
-    float x = 0.33f;
-    std::cout << "x: " << x << std::endl;
-    std::cout << "xS: " << boundTransformation(x, line)  << std::endl;
-
-    return 0;
-}
 nlohmann::json readjsonfile(std::string filepath)
 {
 
@@ -2192,15 +1285,6 @@ glm::vec2 emotionArrayToVec2(std::vector<float> emotionArray)
     float y = ((surprise + disgust + happiness) - (anger + fear + sadness))/3.0f;
     return glm::vec2(x,y);
 }
-template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable){
-    NUMBER summation = 0;
-    for(auto const number : iterable) summation += number;
-    return summation;
-}
-template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable){
-    NUMBER summation = ssum<NUMBER>(iterable);
-    return summation/iterable.size();
-}
 float emotionArrayToRotation(std::vector<float> emotionArray)
 {
     float happiness = emotionArray[HAPPY];
@@ -2350,209 +1434,11 @@ void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, gl
    lightingEnvironment.object_shader.setUniformV3("spot_light.direction", camera.Front);
    lightingEnvironment.object_shader.setUniformB("spot_light.is_on", (bool)flash_light);
 }
-OpenGLShape::OpenGLShape(unsigned int vert_cnt, unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture){
-    this->ind_cnt = ind_cnt;
-    this->vert_cnt = vert_cnt;
-    this->textures = std::vector<unsigned int>{texture};
-    this->hasTextures = hasTexture;
-    create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, this->vert_cnt, vertices, indices, attributeSizes);
-}
-OpenGLShape::OpenGLShape(const shapes::Shape &shape, unsigned int texture, bool hasTexture) : OpenGLShape(shape.vertCnt, shape.indCnt, shape.vertices, shape.indices, shape.attributeSizes, texture, hasTexture)
-{
-}
-OpenGLShape::OpenGLShape(const shapes::Shape &shape, const std::vector<unsigned int> &textures, const bool hasMultipleTextures)
-{
-    this->ind_cnt = shape.indCnt;
-    this->vert_cnt = shape.vertCnt;
-    this->hasTextures = hasMultipleTextures;
-    setTextures(textures);
-    create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, this->vert_cnt, shape.vertices, shape.indices, shape.attributeSizes);
-}
-void OpenGLShape::draw(Shader shader)
-{
-    if(hasTextures)
-        drawMultipleTexturedShape(VAO, EBO, shader, ind_cnt, textures);
-    else
-        drawShape(VAO, EBO, shader, ind_cnt);
-}
-
-void OpenGLShape::draw(Shader shader, std::vector<unsigned int> textures)
-{
-    drawMultipleTexturedShape(VAO, EBO, shader, ind_cnt, textures);
-}
 
 bool cmpShape(const ShapeProperties& a, const ShapeProperties& b){
     return a.coords.z < b.coords.z;
 }
 
-int mainCoords(int argc, char * argv[]){
-    // Initialize OpenGL
-    int return_status;
-    GLFWwindow*  mWindow; 
-    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
-    
-    DeltaTimer deltaTimer{};
-    Alarm alarm(SHAPE_SPAWN_TIME);
-    bool shapesFull = false;
-    
-    unsigned int diffuse_sampler_2d;
-    unsigned int specular_sampler_2d;
-    generateSampler2Ds(diffuse_sampler_2d, specular_sampler_2d);
-
-
-    
-    
-    std::vector<unsigned int> lightSizes{};
-    lightSizes.push_back(3);
-    OpenGLShape lightShape((unsigned int) 36, (unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
-    std::vector<unsigned int> objectSizes{3,3,2};
-    OpenGLShape cubeShape((unsigned int) 36, (unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
-    OpenGLShape pyramidShape((unsigned int) 12, (unsigned int)12, shapes::normal_textured_triangle_pyramid, shapes::triangle_pyramid_ind, objectSizes, diffuse_sampler_2d, true);
-    OpenGLShape octahedronShape((unsigned int) 24, (unsigned int)24, shapes::octahedron, shapes::octahedron_ind, objectSizes, diffuse_sampler_2d, false);
-    
-    
-    std::map<SHAPE_TYPE_3D, OpenGLShape*> shapeTypes{{CUBE , &cubeShape}, {PYRAMID, &pyramidShape}, {OCTAHEDRON, &octahedronShape}};
-    
-    
-    glm::vec3 light_positions[POINT_LIGHT_COUNT] = {
-        glm::vec3(4.0f,0.0f,0.0f),
-        glm::vec3(0.0f,0.0f,4.0f),
-        glm::vec3(0.0f,0.0f,-4.0f),
-        glm::vec3(-4.0f,0.0f,0.0f),
-    };
-
-    glm::vec3 diffuses[POINT_LIGHT_COUNT] = {
-        glm::vec3(0.5f,0.5f,0.5f),
-        glm::vec3(0.5f,0.5f,0.5f),
-        glm::vec3(0.5f,0.5f,0.5f),
-        glm::vec3(0.5f,0.5f,0.5f),
-    };
-    
-    LightingEnvironment lightingEnvironment = initLighting(light_positions, diffuses);
-
-    lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniformF("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
-    lightingEnvironment.object_shader.setUniformF("MAXIMUM_BATCHES", (float) TOTAL_LAYERS);
-    lightingEnvironment.object_shader.setUniformF("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
-    glm::mat4 model(1.0f);
-    
-    
-    
-    
-    initMouse(mWindow);
-
-
-    
-    std::deque<ShapeProperties> cubeMatrices{};
-    
-    std::vector<ShapeProperties> frontToBack{};
-
-
-    
-    
-    // Rendering Loop
-    while (!glfwWindowShouldClose(mWindow)) {
-        bool cubesChanged = false;
-        alarm.checkAndUpdate();
-
-        deltaTimer.updateDeltaTime();
-        // Background Fill Color
-        glClearColor(0.50f, 0.50f, 0.50f, 0.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-        
-        setupLightingEnvironmentToDraw(lightingEnvironment, light_positions, diffuses, lightShape, false);
-
-
-
-        std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
-        
-        // Use emotion array to set properties of shapes
-        for(unsigned int i = 0; i < TOTAL_EMOTION_LAYERS; i++){
-            std::vector<float> array = emotionArray[i];
-            glm::vec3 emotionRGB = emotionArrayToColor(array);
-            for (int j = 0; j < SHAPES_IN_BATCH; j++){
-
-                glm::vec3 coords = randCoords();
-                float maxScale = 10.0f;
-                glm::vec3 rotAxis = randCoords();
-                float rotScale = rand_range_uniform(0.0f, 1.0f);
-
-
-                // glm::vec3 scale = randScale(1.0f,maxScale);
-                glm::vec3 scale = rand_range_uniform(1.0f, maxScale)*glm::vec3(1.0f);
-                unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 2);
-                SHAPE_TYPE_3D type;
-                switch (typeNum){
-                    case 0:
-                        type = CUBE;
-                        break;
-                    case 1:
-                        type = PYRAMID;
-                        break;
-                    case 2:
-                        type = OCTAHEDRON;
-                        break;
-                }
-
-                
-                model = glm::mat4(1.0f);
-                float xCoordScale = 50.0f;
-                float yCoordScale = 50.0f;
-                glm::vec3 scaledCoordinates(1.0f);
-                float zCoordScale = 50.0f;
-                float afterZScale = 4.0f;
-                float zCoordOffset = -6.0f; //- 8.0f*(scale.x*scale.y*scale.z)/(glm::pow(maxScale,2.0f));
-                scaledCoordinates.x = coords.x*xCoordScale;
-                scaledCoordinates.y = coords.y*yCoordScale;
-                scaledCoordinates.z = coords.z*zCoordScale;
-                scaledCoordinates.z += -zCoordScale+zCoordOffset-maxScale;
-                // model = glm::rotate(model, rotScale, rotAxis);
-                model = glm::translate(model, scaledCoordinates);
-                model = glm::scale(model, scale);
-                
-
-                
-                // Create and delete cubes
-                if(alarm.check()){
-                        cubesChanged = true;
-                        ShapeProperties shape = ShapeProperties{model,glm::vec4(emotionRGB,1.0f),type,getElapsedTime(),0.0f, scaledCoordinates};
-                        cubeMatrices.push_front(shape);
-                    if(!shapesFull) {
-                        shapesFull = true;
-                        alarm.setWaitTime(SHAPE_SPAWN_TIME);
-                    }
-                }
-
-            }
-        }
-        // Delete cubes
-        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*TOTAL_EMOTION_LAYERS){
-            cubeMatrices.pop_back();
-        }
-
-        if (cubesChanged){
-            frontToBack = {};
-            for (ShapeProperties shape : cubeMatrices){
-                frontToBack.push_back(shape);
-            }
-            std::sort(frontToBack.begin(),frontToBack.end(),compareShapeForwardDistance);
-
-
-        }
-        // Draw cubes
-        drawCubeMatrices(lightingEnvironment, frontToBack, shapeTypes, deltaTimer);        
-
-
-
-        endRenderLoop(mWindow,deltaTimer,camera);
-
-        
-    }   glfwTerminate();
-    return EXIT_SUCCESS;
-    
-    
-}
 
 glm::vec3 randScale(float min, float max){
     glm::vec3 coords(0.0f);
@@ -2568,27 +1454,6 @@ glm::vec3 randCoords(){
     }
     return coords;
 }
-Alarm::Alarm(float waitTime) : waitTime(waitTime)
-{
-}
-
-void Alarm::setWaitTime(float waitTime)
-{
-    this->waitTime = waitTime;
-    this->time = 0.0f;
-}
-
-bool Alarm::checkAndUpdate()
-{
-    time += timer.getDeltaTime(true);
-    if (time >= waitTime) {
-        time = 0.0f;
-        alarmSounded = true;
-    }
-    else alarmSounded = false;
-    return alarmSounded;
-}
-
 std::vector<float> vec3ToVector(glm::vec3 a){
     return std::vector<float>{a.x,a.y,a.z};
 }
@@ -2635,7 +1500,7 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
     return forwardDistance(a.coords) < forwardDistance(b.coords);
 }
 
-void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
 
     glDepthMask(false);
     float passedTime;
@@ -2847,6 +1712,910 @@ std::vector<float> solve(std::vector<std::vector<float>> coefficients, std::vect
 	return constants;
 }
 
+
+
+void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm,  std::mutex* lock, bool* notDone, int* shapeAdditions){
+
+    bool alarmSounded;
+    Alarm printAlarm{1.0f};
+    long int iterations = 0;
+    PngData blankPNGData(255,255, 3);
+    generatePNGBlank(blankPNGData);
+    std::deque<EmotionLayer> emotionLayers{};
+    for(int i = 0; i < TOTAL_EMOTION_LAYERS; i++)
+        emotionLayers.push_front({std::vector<float>{1,1,1,1,1,1},blankPNGData});
+
+    float waitTime;
+    {
+        std::lock_guard guard(*lock);
+        waitTime = creationAlarm->getWaitTime();
+    }
+    float imageWaitTime = waitTime;
+	std::deque<PngData> pngDataBuffer{};
+	std::deque<PngData> pngDataStorage{};
+	bool turnOff = false;
+	std::mutex lockImage{};
+    std::string filepath = "../background.png";
+	std::thread imageThread(pngLoader, &pngDataBuffer, &turnOff, &lockImage, &filepath, &imageWaitTime);
+
+    while(*notDone){
+        bool printAlarmSounded = printAlarm.checkAndUpdate();
+        if(printAlarmSounded){
+            std::cout << "iterations per second: " << iterations << std::endl;
+            iterations = 0;
+        }
+        {
+            std::lock_guard<std::mutex> guard(*lock);
+            alarmSounded = true;
+            creationAlarm->checkAndUpdate();
+            waitTime = creationAlarm->getWaitTime();
+        }
+        {
+            std::lock_guard<std::mutex> guard(lockImage);
+            imageWaitTime = waitTime;
+        }
+        {
+            while(pngDataStorage.size() < TOTAL_EMOTION_LAYERS){
+                std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)((100.0f))));
+                {
+                    std::lock_guard<std::mutex> guard(lockImage);
+                    while(!pngDataBuffer.empty()){
+                        pngDataStorage.push_front(pngDataBuffer.back());
+                        pngDataBuffer.pop_back();
+                    }
+                }
+            }
+        }
+        emotionLayers.push_front({readEmotionArray("../data.json",false)[0],pngDataStorage.back()});
+        emotionLayers.pop_back();
+        pngDataStorage.pop_back();
+
+        
+        bool useBenTexture = rand_range_uniform(0.0f,1.0f) < 0.50f;
+        
+        // #Emotion Extraction
+        // Use emotion array to set properties of shapes
+        if(alarmSounded){
+            ShapeLayer shapeLayer{};
+            std::vector<std::vector<float>> emotionArrays{};
+            for(auto const& emotionLayer : emotionLayers){
+                auto const& emotionArray = emotionLayer.emotionArray;
+                emotionArrays.push_back(emotionArray);
+
+
+                glm::vec3 emotionRGB;
+
+                emotionRGB = emotionArrayToColor(emotionArray);
+                glm::vec2 emotionCoords2D = emotionArrayToVec2(emotionArray);
+                glm::vec3 emotionCoords3D = glm::vec3(emotionCoords2D.x, emotionCoords2D.y, 0.0f);
+                glm::vec3 coords;
+                glm::vec3 rotAxis = glm::vec3(0.0f,0.0f,-1.0f);
+                float pi = std::numbers::pi;
+                float rotScale = 2*pi*emotionArrayToRotation(emotionArray);
+                if(rotScale < pi/4.0f) rotScale = 0.0f;
+                else if(rotScale < pi/2.0f) rotScale = pi/4.0f;
+                else if(rotScale < 3.0f*pi/4.0f) rotScale = pi/2.0f;
+                else if(rotScale < pi) rotScale = 3.0f*pi/4.0f;
+                else if(rotScale < pi + pi/4.0f) rotScale = pi;
+                else if(rotScale < pi + pi/2.0f) rotScale = pi + pi/4.0f;
+                else if(rotScale < pi + 3*pi/4.0f) rotScale = pi + pi/2.0f;
+                else if(rotScale < 2*pi) rotScale = pi + 3.0f*pi/4.0f;
+
+                SHAPE_TYPE_2D type = emotionArrayToShapeType2D(emotionArray);
+                auto transitions = emotionArrayToTransitions(emotionArray);
+                const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(emotionArray,false, true, false);
+                transitions[VORTEX] = rand_range_uniform(0.0f, 1.0f) <= 0.1f;
+                //const auto emotionAlpha = emotionArrayToAlpha(emotionArray);
+
+                float alphaScale = 1.0f;
+                alphaScale = clamp(rand_range_normal(AVE_ALPHA, DEV_ALPHA), MIN_ALPHA, MAX_ALPHA);
+                //alphaScale = (1.0f - 0.0)*alphaScale + (0.0)*emotionAlpha;
+
+                ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, 0};
+
+                for (int j = 0; j < SHAPES_IN_BATCH; j++){
+                    float maxScale = MAX_SCALE;
+                    float minScale = MIN_SCALE;
+                    float aveScale = AVE_SCALE;
+                    float devScale = DEV_SCALE;
+                    glm::vec3 scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale) * glm::vec3(1.0f);
+                    if(transitions[SCALE] && transitions[FADE]) scale *= DO_SCALE_SCALE;
+                    else if(transitions[SCALE]) scale *= DO_SCALE_SCALE;
+                    else if (transitions[FADE]) scale *= DO_FADE_SCALE;
+                    
+                    if(transitions[VORTEX]) scale *= DO_VORTEX_SCALE;
+
+                    
+                    coords = SCATTER_TO_EMOTION_COORD_RATIO* SCATTER_COORD_SCALE * randCoords()+(1-SCATTER_TO_EMOTION_COORD_RATIO)*EMOTION_COORD_SCALE*emotionCoords3D;
+                    coords.z = 0.0f;
+
+
+                    
+                    glm::mat4 model = glm::mat4(1.0f);
+                    float xCoordScale = 1.0f;
+                    float yCoordScale = 1.0f;
+                    glm::vec3 scaledCoordinates(1.0f);
+                    scaledCoordinates.x = coords.x*xCoordScale;
+                    scaledCoordinates.y = coords.y*yCoordScale;
+                    scaledCoordinates.z = 0.0f;
+                    model = glm::translate(model, scaledCoordinates);
+                    model = glm::scale(model, scale);
+                    model = glm::rotate(model, rotScale, rotAxis);
+                    
+
+                    
+                    // Create and delete cubes
+                    glm::vec4 shapeColor = glm::vec4(emotionRGB,alphaScale);
+                    //glm::vec4 invertedShapeColor = glm::vec4(glm::vec3(1.0f) - emotionRGB, alphaScale);
+                    glm::vec4 invertedShapeColor;
+                    if(useBenTexture){
+                        invertedShapeColor = glm::vec4(emotionRGB, alphaScale);
+                        shapeColor = cdata::WHITE_V4;
+                    }
+                    else{
+                        invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
+                    }
+                    ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
+                    shape.scaleMatrix = glm::scale(glm::mat4(1.0f), shape.scale);
+                    shape.rotationMatrix = glm::rotate(glm::mat4(1.0f), shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
+                    shape.transition = glm::translate(glm::mat4(1.0f), shape.coords);
+                    shape.direction = dir::UP;
+                    shape.direction  = glm::mat3(shape.rotationMatrix) * shape.direction;
+                    shape.direction = glm::normalize(shape.direction);
+                    shape.rotatedCoords = glm::mat3(shape.rotationMatrix) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
+                    shapeBatch.shapes.push_front(shape);
+                    shapeAdditions++;
+                }
+                shapeLayer.batches.push_front(shapeBatch);
+            }
+            shapeLayer.emotionArray = average(emotionArrays);
+            {
+                std::lock_guard<std::mutex> guard(*lock);
+                shapeLayersBuffer->push_front(shapeLayer);
+            }
+        }
+
+    iterations++;
+    }
+    {
+        std::lock_guard<std::mutex> guard(lockImage);
+        turnOff = true;
+    }
+    imageThread.join();
+
+}
+void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath, float* waitTime){
+    static const unsigned int bufferSizeMult = 1;
+    auto& dataBuffer = *datas;
+    PngData pD(255,255,3);
+	while(!*turnOff){
+
+        bool full;
+        float tempWaitTime;
+        {
+            std::lock_guard guard(*lock);
+            full = dataBuffer.size()>=TOTAL_EMOTION_LAYERS*bufferSizeMult;
+            tempWaitTime = *waitTime;
+        }
+
+        if(full){
+            std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*100.0f)));
+        }
+        else{
+            pD = loadPngTexture(*filePath);
+            if(pD.isValid()){
+                std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*1000000000.0f/(TOTAL_EMOTION_LAYERS*bufferSizeMult))));
+                std::lock_guard guard(*lock);
+                dataBuffer.push_front(pD);
+            }
+            else{
+                std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+                checkPrint("ERROR: loading image\n", false, DEBUG_IMAGE);
+            }
+        }
+	}
+	
+}
+
+int startBensEmotionSimulator(float frequency, bool cycle, bool random){
+    assert(cycle || random);
+    char simulationType;
+    if (cycle)
+        simulationType = 'c';
+    if (random)
+        simulationType = 'r';
+
+        return runCommand("(cd ../Emotion_Gen_Sim && source venv/bin/activate && echo -e \"" + std::to_string(frequency) + "\n" + simulationType +"\" | nohup python emotion_generator.py)");
+}
+
+int startBensVisualGenerationProgram(float frequency, int width, int height, bool doDisplay){
+
+    char display;
+    if (doDisplay)
+        display = 'y';
+    else
+        display = 'n';
+    
+    return runCommand("(cd ../VisualGen_Ben/V1_255x255/ && source venv/bin/activate && echo -e \"" + std::to_string(width) + "\n" 
+        + std::to_string(height) + "\n" + std::to_string(frequency) + "\n" + display + "\" | nohup python Gener2.py)");
+}
+
+
+OpenGLShape create_circle(unsigned int tri_cnt, PngData& pngData){
+
+    std::vector<float> circle{};
+    std::vector<unsigned> ind{};
+    unsigned int index = 0;
+    std::vector<glm::vec2> border;
+
+    for(unsigned int tri = 0; tri < tri_cnt; tri++){
+       
+        
+        for(int vi = 0; vi<3;vi++){
+
+            glm::vec3 vert;
+            if(vi > 0){
+                glm::mat4 transform(1.0f);
+                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
+                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
+                glm::vec3 radius_vec(0.5f,0.0f,0.0f);
+                glm::vec4 radius_vec4(radius_vec,1.0f);
+                radius_vec4 = transform * radius_vec4;
+                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
+                assert(vert.x != 0.0f || vert.y != 0.0f);
+                if(vi == 1)
+                    border.push_back(glm::vec2(vert.x,vert.y));
+            }
+            else{
+                vert = glm::vec3(0.0f,0.0f,0.0f); // Center Vertex
+            }
+            circle.push_back(vert.x);
+            circle.push_back(vert.y);
+            circle.push_back(vert.z);
+            circle.push_back(boundTransformation(vert.x, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
+            circle.push_back(boundTransformation(vert.y, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
+            
+            for(unsigned int i = 0; i<3; i++){
+                ind.push_back(index);
+                index++;
+            }
+        }
+    }
+    
+    unsigned int texture = obtainPNGDistanceFromBorder(pngData, border);
+    
+    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, texture, true);
+}
+void pngDataSavePng(const std::string filepath, const PngData& pngData){
+    
+    stbi_write_png(filepath.c_str(), pngData.width, pngData.height, pngData.nrChannels, pngData.getData(), pngData.nrChannels * pngData.width);
+}
+OpenGLShape create_circle(unsigned int tri_cnt)
+{
+
+    std::vector<float> circle{};
+    std::vector<unsigned> ind{};
+    unsigned int index = 0;
+    std::vector<glm::vec2> border;
+
+    for(unsigned int tri = 0; tri < tri_cnt; tri++){
+       
+        
+        for(int vi = 0; vi<3;vi++){
+
+            glm::vec3 vert;
+            if(vi > 0){
+                glm::mat4 transform(1.0f);
+                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
+                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
+                glm::vec3 radius_vec(0.5f,0.0f,0.0f);
+                glm::vec4 radius_vec4(radius_vec,1.0f);
+                radius_vec4 = transform * radius_vec4;
+                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
+                assert(vert.x != 0.0f || vert.y != 0.0f);
+                if(vi == 1)
+                    border.push_back(glm::vec2(vert.x,vert.y));
+            }
+            else{
+                vert = glm::vec3(0.0f,0.0f,0.0f); // Center Vertex
+            }
+            circle.push_back(vert.x);
+            circle.push_back(vert.y);
+            circle.push_back(vert.z);
+            circle.push_back(boundTransformation(vert.x, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
+            circle.push_back(boundTransformation(vert.y, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
+            
+            for(unsigned int i = 0; i<3; i++){
+                ind.push_back(index);
+                index++;
+            }
+        }
+    }
+    
+    unsigned int texture = obtainPNGDistanceFromBorder(255,255, border);
+    
+    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, texture, true);
+}
+
+
+float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade, bool delay, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
+    float fade = 0.0f;
+	assert(totalLayers != 0);
+	assert(midLayer != 0);
+	assert(destructionTime != 0);
+	float timePassed;
+	float b;
+	float slope;
+    
+    if(delay){
+        if(layer > midLayer) return 0;
+        totalLayers = midLayer + 1;
+        midLayer = 1*midLayer/4;
+    }
+
+	if(layer > midLayer){
+		timePassed = destructionTimePassed + destructionTime*(totalLayers - 1 - layer);
+		if(timePassed < 0) 
+			std::cout << "<0 above" << std::endl;
+		auto const [slopeT, interceptT] = lineAbove;
+		b = interceptT;
+		slope = slopeT;
+
+	}
+	else{
+		timePassed = destructionTimePassed + destructionTime*(midLayer - layer);
+		if(timePassed < 0) 
+			std::cout << "<0 below" << std::endl;
+		auto const [slopeT, interceptT] = lineBelow;
+		b = interceptT;
+		slope = slopeT;
+	}
+    fade = b + slope*timePassed;
+    return fade;
+}
+
+void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor){
+    deltaTimer.updateDeltaTime();
+    // Background Fill Color
+    glClearColor(backgroundColor.x,backgroundColor.y,backgroundColor.z,backgroundColor.a);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+void startDummyMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor){
+    minimumStartRenderLoop(deltaTimer, backgroundColor);
+    setupDummyMPVEnvironmentToDraw(lightingEnvironment);
+}
+void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor){
+    minimumStartRenderLoop(deltaTimer, backgroundColor);
+    setupMPVEnvironmentToDraw(lightingEnvironment);
+}
+void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment){
+    minimumStartRenderLoop(deltaTimer, glm::vec4(1.0f,1.0f,1.0f,1.0f));
+    setupMPVEnvironmentToDraw(lightingEnvironment);
+}
+
+// #Classes -------------------------------------------------------------
+// #PngData Class Functions ------------------------------------------------------------
+
+PngData::PngData(const int width, const int height, const int nrChannels): width{width},  height{height}, nrChannels{nrChannels}{
+    this->data = initializePNGTextureData(width, height, nrChannels);
+}
+PngData::PngData(int width, int height) : width{width},  height{height}, nrChannels{PngData::nrChannelsDefault}{
+    this->data = initializePNGTextureData(width, height, nrChannels);
+}
+PngData::PngData(const int width, const int height, const int nrChannels, unsigned char *data, bool copy) : width{width},  height{height}, nrChannels{nrChannels}
+{
+    if(copy){
+        this->data = copyInitialize(data, width*height*nrChannels);
+    }
+    else this->data = data;
+}
+PngData::PngData(const PngData &pngData) : width{pngData.width}, height{pngData.height}, nrChannels{pngData.nrChannels}
+{
+    this->data = copyInitialize(pngData.getData(), pngData.size());
+}
+PngData::~PngData()
+{
+    freePNGTextureData(this->data);
+}
+
+void PngData::setData(int row, int col, int channel, const unsigned char& byte){
+    this->data[index(row, col, channel)] = byte;
+}
+DeltaTimer::DeltaTimer(){
+    updateDeltaTime();
+}
+float DeltaTimer::getDeltaTime(bool do_update){
+    if(do_update) 
+        updateDeltaTime();
+    return deltatime;
+}
+void DeltaTimer::updateDeltaTime(){
+    elapsed_time = glfwGetTime();
+    deltatime = elapsed_time - lastframe_time;
+    lastframe_time = elapsed_time;
+}
+Alarm::Alarm(float waitTime) : waitTime(waitTime)
+{
+}
+
+void Alarm::setWaitTime(float waitTime)
+{
+    this->waitTime = waitTime;
+    this->time = 0.0f;
+}
+
+bool Alarm::checkAndUpdate()
+{
+    time += timer.getDeltaTime(true);
+    if (time >= waitTime) {
+        time = 0.0f;
+        alarmSounded = true;
+    }
+    else alarmSounded = false;
+    return alarmSounded;
+}
+
+void StraightPath::setProgress(float prog, bool loop) { 
+    if (loop){
+        if( prog < 0){
+            progress = 1.0f;
+        }
+        else if( prog > 1){
+            progress = 0.0f;
+        }
+        else{
+            progress = prog; 
+        }
+    }
+    else if (prog >= 0.0f && prog <= 1.0f + ProgressMargin )
+        progress = prog; 
+    else{
+        throw std::runtime_error("Error: Invalid progress: " + std::to_string(prog) + ", should be between 0 and 1!");
+    }
+}
+
+glm::vec3 StraightPath::getPositionOnPath(){
+    int numPoints = points.size();
+    // Find start point
+    float point_progress = float(progress*(float)(numPoints-1));
+    int start_point_index = (int)point_progress;
+    if(start_point_index >= numPoints - 1){
+        return points.back();
+    }
+    int end_point_index = start_point_index + 1;
+    glm::vec3 start_point = points[start_point_index];
+    glm::vec3 end_point = points[end_point_index];
+    glm::vec3 direction = glm::normalize(end_point-start_point);
+    float distance = glm::distance(end_point,start_point);
+    float left_over_point_progress = point_progress - (float) start_point_index;
+    glm::vec3 change_vector = direction * distance * left_over_point_progress;
+    glm::vec3 point_on_path = start_point + change_vector;
+    return start_point + change_vector;
+}
+OpenGLShape::OpenGLShape(unsigned int vert_cnt, unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture){
+    this->ind_cnt = ind_cnt;
+    this->vert_cnt = vert_cnt;
+    this->textures = std::vector<unsigned int>{texture};
+    this->hasTextures = hasTexture;
+    create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, this->vert_cnt, vertices, indices, attributeSizes);
+}
+OpenGLShape::OpenGLShape(const shapes::Shape &shape, unsigned int texture, bool hasTexture) : OpenGLShape(shape.vertCnt, shape.indCnt, shape.vertices, shape.indices, shape.attributeSizes, texture, hasTexture)
+{
+}
+OpenGLShape::OpenGLShape(const shapes::Shape &shape, const std::vector<unsigned int> &textures, const bool hasMultipleTextures)
+{
+    this->ind_cnt = shape.indCnt;
+    this->vert_cnt = shape.vertCnt;
+    this->hasTextures = hasMultipleTextures;
+    setTextures(textures);
+    create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, this->vert_cnt, shape.vertices, shape.indices, shape.attributeSizes);
+}
+void OpenGLShape::draw(Shader shader)
+{
+    if(hasTextures)
+        drawMultipleTexturedShape(VAO, EBO, shader, ind_cnt, textures);
+    else
+        drawShape(VAO, EBO, shader, ind_cnt);
+}
+
+void OpenGLShape::draw(Shader shader, std::vector<unsigned int> textures)
+{
+    drawMultipleTexturedShape(VAO, EBO, shader, ind_cnt, textures);
+}
+
+// #Main Programs -------------------------------------------------------------
+
+int mainCoordsBasic2D(int argc, char * argv[]){
+    // Initialize OpenGL
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    Alarm creationAlarm(SHAPE_INITIAL_SPAWN_TIME);
+    bool shapesFull = false;
+    
+
+    PngData blankPNGData(255,255, 3);
+    const unsigned int blankTexture = obtainPNGBlank(blankPNGData);
+
+    std::cout << "Generate triangle" << std::endl;
+    PngData pngDataTriangle(255, 255);
+    std::vector<glm::vec2> triangleBorder = borderVerticesFromShape(shapes::eTriT);
+    unsigned int triangleBorderTexture = obtainPNGDistanceFromBorder(pngDataTriangle, triangleBorder);
+    OpenGLShape triangle(shapes::eTriT, {blankTexture,triangleBorderTexture}, true);
+    
+    
+
+    std::cout << "Generate square" << std::endl;
+    PngData pngDataSquare(255, 255);
+    std::vector<glm::vec2> squareBorder = borderVerticesFromShape(shapes::rectT);
+    unsigned int squareBorderTexture = obtainPNGDistanceFromBorder(pngDataSquare, squareBorder);
+    OpenGLShape square(shapes::rectT, {blankTexture,squareBorderTexture}, true);
+    
+
+    
+
+    std::cout << "Generate circle" << std::endl;
+    PngData pngDataCircle(255, 255);
+    OpenGLShape circle = create_circle(16, pngDataCircle);
+    circle.setTextures({blankTexture, circle.getTexture(0)});
+    
+    std::map<SHAPE_TYPE_2D, OpenGLShape*> shapeTypes{{SQUARE , &square}, {TRIANGLE, &triangle}, {CIRCLE, &circle}};
+    
+    
+    
+    
+    
+    
+    LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+
+    glm::mat4 model(1.0f);
+    lightingEnvironment.object_shader.use();
+    lightingEnvironment.object_shader.setUniformI("ourTexture", 0);
+    lightingEnvironment.object_shader.setUniformI("borderTexture", 1);
+    lightingEnvironment.object_shader.setUniformI("borderCase", 4);
+    float destructionTime = DESTRUCTION_TIME;
+    float totalLayers = TOTAL_LAYERS;
+    float midLayer = MID_LAYER;
+    float shapeMaxFade = SHAPE_MAX_FADE;
+    float shapeMinFade = SHAPE_MIN_FADE;
+    std::tuple<float,float> lineAbove = linearTransformation(0.0f, destructionTime*(totalLayers - 1 - midLayer), shapeMaxFade, shapeMinFade);
+    auto const [slopeAT, interceptAT] = lineAbove;
+    std::tuple<float,float> lineBelow = linearTransformation(0.0f, destructionTime*(midLayer + 1), shapeMinFade, shapeMaxFade);
+    auto const [slopeBT, interceptBT] = lineBelow;
+    lightingEnvironment.object_shader.setUniformF("destructionTime", destructionTime);
+    lightingEnvironment.object_shader.setUniformI("MID_LAYER", midLayer);
+    lightingEnvironment.object_shader.setUniformF("ABOVE_SLOPE", slopeAT);
+    lightingEnvironment.object_shader.setUniformF("ABOVE_INTERCEPT", interceptAT);
+    lightingEnvironment.object_shader.setUniformF("BELOW_SLOPE", slopeBT);
+    lightingEnvironment.object_shader.setUniformF("BELOW_INTERCEPT", interceptBT);
+    
+    
+
+
+    
+    std::deque<ShapeLayer> shapeLayersBuffer{};
+    std::deque<ShapeLayer> shapeLayersStorage{};
+    std::deque<ShapeLayer> shapeLayersDraw{};
+    glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
+    std::mutex shapeLock{};
+    bool notDone = true;
+    int additions = 0;
+
+    int simPID = startBensEmotionSimulator(SIM_FREQUENCY, SIM_CYCLE, SIM_RANDOM);
+    int colPID = startBensVisualGenerationProgram(COLOR_FREQUENCY, COLOR_WIDTH, COLOR_HEIGHT, COLOR_DISPLAY);
+
+
+    std::thread creationThread(shapeLayerGenerator,&shapeLayersBuffer,&creationAlarm,&shapeLock, &notDone, &additions);
+    bool midLayerMet = false;
+    
+    // #Render 2D Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+        startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
+
+        {
+            std::lock_guard guard(shapeLock);
+            while(!shapeLayersBuffer.empty()){
+                auto shapeLayerB = shapeLayersBuffer.back();
+                ShapeLayer shapeLayer = shapeLayerB;
+                for(auto& shapeBatch : shapeLayer.batches){
+                    shapeBatch.texture = createPngTexture(shapeBatch.pngData);
+                }
+
+                shapeLayersStorage.push_front(shapeLayer);
+                shapeLayersBuffer.pop_back();
+            }
+        }
+        bool shapeDeleted = false;
+        // Delete cubes
+        while (shapeLayersStorage.size() > TOTAL_LAYERS){
+            auto const shapeLayer = shapeLayersStorage.back();
+            for(auto const& shapeBatch : shapeLayer.batches){
+                if(shapeBatch.texture != blankTexture)
+                    glDeleteTextures(1, &shapeBatch.texture);
+            }
+            shapeDeleted = true;
+            shapeLayersStorage.pop_back();
+        }
+        if(shapeLayersStorage.size() >= (MID_LAYER - 0) && !midLayerMet){
+            midLayerMet = true;
+            std::cout << "The middle layer was met!!!" << std::endl;
+
+        }
+        if(shapeDeleted && !shapesFull){
+            std::lock_guard guard(shapeLock);
+            creationAlarm.setWaitTime(DESTRUCTION_TIME);
+            shapesFull = true;
+            std::cout << "Shapes loaded!" << std::endl;
+        }
+        // Draw cubes
+        drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, deltaTimer, creationAlarm, shapeLock, lineAbove, lineBelow);
+
+
+
+        endRenderLoop(mWindow,deltaTimer,camera);
+
+        
+    }   
+
+    {
+        std::lock_guard<std::mutex> guard(shapeLock);
+        notDone = false;
+    }
+    creationThread.join();
+    killCommand(simPID);
+    killCommand(colPID);
+
+    glfwTerminate();
+
+    return EXIT_SUCCESS;
+    
+    
+}
+int mainDrawRectangle(int argc, char* argv[]){
+    
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    Shader colorShader("Glitter/Shaders/texture-color.vs", "Glitter/Shaders/texture-color.fs");
+    colorShader.use();
+    colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
+    colorShader.setUniformI("borderCase", 3);
+    colorShader.setUniformI("ourTexture", 0);
+    colorShader.setUniformI("borderTexture", 1);
+    DeltaTimer deltaTimer{};
+    PngData blankPngData(16,16);
+    PngData borderPngData(16,16);
+    unsigned int borderTexture = obtainPNGDistanceFromBorder(borderPngData, borderVerticesFromShape(shapes::rectT));
+    unsigned int blankTexture = obtainPNGBlank(blankPngData);
+    OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture}, true);
+    pngDataSavePng("testSSR.png", borderPngData);
+    
+
+    
+    
+    while(!glfwWindowShouldClose(mWindow)){
+        minimumStartRenderLoop(deltaTimer, glm::vec4(0.0f,0.1f,0.0f,1.0f));
+        rectangle.draw(colorShader);
+        endRenderLoopViewStatic(mWindow, deltaTimer);
+    } glfwTerminate();
+    
+    return EXIT_SUCCESS;
+    
+}
+int mainDrawCircle(int argc, char *argv[])
+{
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    Shader colorShader("Glitter/Shaders/texture-color.vs", "Glitter/Shaders/texture-color.fs");
+    colorShader.use();
+    colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
+    unsigned int texture5 = createTexture("Glitter/Textures/container2.png", "png");
+    int width, height, nrChannels;
+    std::string texture_filepath = "Glitter/Textures/container2.png";
+    std::vector<glm::vec2> borderVertices = borderVerticesFromShape(shapes::rectT.vertices, shapes::rectT.vertCnt, shapes::rectT.getStride());
+    
+
+    unsigned int blankTexture = obtainPNGBorder(255,255,50,50, cdata::ColorRGBA(255,255,255,255),cdata::ColorRGBA(255,255,255,255), false, false);
+    
+    colorShader.setUniformI("ourTexture", 0);
+
+    DeltaTimer deltaTimer{};
+    
+    PngData pngData(255, 255);
+    OpenGLShape circle = create_circle(3, pngData);
+    circle.setTextures({blankTexture,circle.getTexture(0)});
+    pngDataSavePng("test.png", pngData);
+    
+    colorShader.setUniformI("borderCase", 2);
+    colorShader.setUniformI("ourTexture", 0);
+    colorShader.setUniformI("borderTexture", 1);
+    
+
+
+    
+    while(!glfwWindowShouldClose(mWindow)){
+        minimumStartRenderLoop(deltaTimer);
+        glDepthMask(false);
+        colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
+        colorShader.setUniformI("borderCase", 2);
+        circle.draw(colorShader);
+        glDepthMask(true);
+        endRenderLoopViewStatic(mWindow, deltaTimer);
+    } glfwTerminate();
+    
+    return EXIT_SUCCESS;
+}
+int mainCoords(int argc, char * argv[]){
+    // Initialize OpenGL
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    Alarm alarm(SHAPE_SPAWN_TIME);
+    bool shapesFull = false;
+    
+    unsigned int diffuse_sampler_2d;
+    unsigned int specular_sampler_2d;
+    generateSampler2Ds(diffuse_sampler_2d, specular_sampler_2d);
+
+
+    
+    
+    std::vector<unsigned int> lightSizes{};
+    lightSizes.push_back(3);
+    OpenGLShape lightShape((unsigned int) 36, (unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
+    std::vector<unsigned int> objectSizes{3,3,2};
+    OpenGLShape cubeShape((unsigned int) 36, (unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
+    OpenGLShape pyramidShape((unsigned int) 12, (unsigned int)12, shapes::normal_textured_triangle_pyramid, shapes::triangle_pyramid_ind, objectSizes, diffuse_sampler_2d, true);
+    OpenGLShape octahedronShape((unsigned int) 24, (unsigned int)24, shapes::octahedron, shapes::octahedron_ind, objectSizes, diffuse_sampler_2d, false);
+    
+    
+    std::map<SHAPE_TYPE_3D, OpenGLShape*> shapeTypes{{CUBE , &cubeShape}, {PYRAMID, &pyramidShape}, {OCTAHEDRON, &octahedronShape}};
+    
+    
+    glm::vec3 light_positions[POINT_LIGHT_COUNT] = {
+        glm::vec3(4.0f,0.0f,0.0f),
+        glm::vec3(0.0f,0.0f,4.0f),
+        glm::vec3(0.0f,0.0f,-4.0f),
+        glm::vec3(-4.0f,0.0f,0.0f),
+    };
+
+    glm::vec3 diffuses[POINT_LIGHT_COUNT] = {
+        glm::vec3(0.5f,0.5f,0.5f),
+        glm::vec3(0.5f,0.5f,0.5f),
+        glm::vec3(0.5f,0.5f,0.5f),
+        glm::vec3(0.5f,0.5f,0.5f),
+    };
+    
+    LightingEnvironment lightingEnvironment = initLighting(light_positions, diffuses);
+
+    lightingEnvironment.object_shader.use();
+    lightingEnvironment.object_shader.setUniformF("SHAPE_SPAWN_TIME", (float) SHAPE_SPAWN_TIME);
+    lightingEnvironment.object_shader.setUniformF("MAXIMUM_BATCHES", (float) TOTAL_LAYERS);
+    lightingEnvironment.object_shader.setUniformF("SHAPE_MAX_FADE", (float) SHAPE_MAX_FADE);
+    glm::mat4 model(1.0f);
+    
+    
+    
+    
+    initMouse(mWindow);
+
+
+    
+    std::deque<ShapeProperties> cubeMatrices{};
+    
+    std::vector<ShapeProperties> frontToBack{};
+
+
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+        bool cubesChanged = false;
+        alarm.checkAndUpdate();
+
+        deltaTimer.updateDeltaTime();
+        // Background Fill Color
+        glClearColor(0.50f, 0.50f, 0.50f, 0.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        
+        setupLightingEnvironmentToDraw(lightingEnvironment, light_positions, diffuses, lightShape, false);
+
+
+
+        std::vector<std::vector<float>> emotionArray = readEmotionArray("../data.json");
+        
+        // Use emotion array to set properties of shapes
+        for(unsigned int i = 0; i < TOTAL_EMOTION_LAYERS; i++){
+            std::vector<float> array = emotionArray[i];
+            glm::vec3 emotionRGB = emotionArrayToColor(array);
+            for (int j = 0; j < SHAPES_IN_BATCH; j++){
+
+                glm::vec3 coords = randCoords();
+                float maxScale = 10.0f;
+                glm::vec3 rotAxis = randCoords();
+                float rotScale = rand_range_uniform(0.0f, 1.0f);
+
+
+                // glm::vec3 scale = randScale(1.0f,maxScale);
+                glm::vec3 scale = rand_range_uniform(1.0f, maxScale)*glm::vec3(1.0f);
+                unsigned int typeNum = rand_range_uniform((unsigned) 0, (unsigned) 2);
+                SHAPE_TYPE_3D type;
+                switch (typeNum){
+                    case 0:
+                        type = CUBE;
+                        break;
+                    case 1:
+                        type = PYRAMID;
+                        break;
+                    case 2:
+                        type = OCTAHEDRON;
+                        break;
+                }
+
+                
+                model = glm::mat4(1.0f);
+                float xCoordScale = 50.0f;
+                float yCoordScale = 50.0f;
+                glm::vec3 scaledCoordinates(1.0f);
+                float zCoordScale = 50.0f;
+                float afterZScale = 4.0f;
+                float zCoordOffset = -6.0f; //- 8.0f*(scale.x*scale.y*scale.z)/(glm::pow(maxScale,2.0f));
+                scaledCoordinates.x = coords.x*xCoordScale;
+                scaledCoordinates.y = coords.y*yCoordScale;
+                scaledCoordinates.z = coords.z*zCoordScale;
+                scaledCoordinates.z += -zCoordScale+zCoordOffset-maxScale;
+                // model = glm::rotate(model, rotScale, rotAxis);
+                model = glm::translate(model, scaledCoordinates);
+                model = glm::scale(model, scale);
+                
+
+                
+                // Create and delete cubes
+                if(alarm.check()){
+                        cubesChanged = true;
+                        ShapeProperties shape = ShapeProperties{model,glm::vec4(emotionRGB,1.0f),type,getElapsedTime(),0.0f, scaledCoordinates};
+                        cubeMatrices.push_front(shape);
+                    if(!shapesFull) {
+                        shapesFull = true;
+                        alarm.setWaitTime(SHAPE_SPAWN_TIME);
+                    }
+                }
+
+            }
+        }
+        // Delete cubes
+        while (cubeMatrices.size() > TOTAL_LAYERS*SHAPES_IN_BATCH*TOTAL_EMOTION_LAYERS){
+            cubeMatrices.pop_back();
+        }
+
+        if (cubesChanged){
+            frontToBack = {};
+            for (ShapeProperties shape : cubeMatrices){
+                frontToBack.push_back(shape);
+            }
+            std::sort(frontToBack.begin(),frontToBack.end(),compareShapeForwardDistance);
+
+
+        }
+        // Draw cubes
+        drawCubeMatrices(lightingEnvironment, frontToBack, shapeTypes, deltaTimer);        
+
+
+
+        endRenderLoop(mWindow,deltaTimer,camera);
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+    
+}
+    
 int mainCoordsBasic(int argc, char * argv[]){
     // Initialize OpenGL
     int return_status;
@@ -2991,6 +2760,7 @@ int mainCoordsBasic(int argc, char * argv[]){
     
     
 }
+
 int mainCoordsBasicStream(int argc, char * argv[]){
     // Initialize OpenGL
     int return_status;
@@ -3142,665 +2912,911 @@ int mainCoordsBasicStream(int argc, char * argv[]){
     return EXIT_SUCCESS;
     
 }
-
-
-void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm,  std::mutex* lock, bool* notDone, int* additions){
-
-    bool alarmSounded;
-    Alarm printAlarm{1.0f};
-    long int iterations = 0;
-    PngData blankPNGData(255,255, 3);
-    generatePNGBlank(blankPNGData);
-    std::deque<EmotionLayer> emotionLayers{};
-    for(int i = 0; i < TOTAL_EMOTION_LAYERS; i++)
-        emotionLayers.push_front({std::vector<float>{1,1,1,1,1,1},blankPNGData});
-
-    float waitTime;
-    {
-        std::lock_guard guard(*lock);
-        waitTime = creationAlarm->getWaitTime();
-    }
-    float imageWaitTime = waitTime;
-	std::deque<PngData> pngDataBuffer{};
-	std::deque<PngData> pngDataStorage{};
-	bool turnOff = false;
-	std::mutex lockImage{};
-    std::string filepath = "../background.png";
-	std::thread imageThread(pngLoader, &pngDataBuffer, &turnOff, &lockImage, &filepath, &imageWaitTime);
-
-    while(*notDone){
-        bool printAlarmSounded = printAlarm.checkAndUpdate();
-        if(printAlarmSounded){
-            std::cout << "iterations per second: " << iterations << std::endl;
-            iterations = 0;
-        }
-        {
-            std::lock_guard<std::mutex> guard(*lock);
-            alarmSounded = true;
-            creationAlarm->checkAndUpdate();
-            waitTime = creationAlarm->getWaitTime();
-        }
-        {
-            std::lock_guard<std::mutex> guard(lockImage);
-            imageWaitTime = waitTime;
-        }
-        {
-            while(pngDataStorage.size() < TOTAL_EMOTION_LAYERS){
-                std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)((100.0f))));
-                {
-                    std::lock_guard<std::mutex> guard(lockImage);
-                    while(!pngDataBuffer.empty()){
-                        pngDataStorage.push_front(pngDataBuffer.back());
-                        pngDataBuffer.pop_back();
-                    }
-                }
-            }
-        }
-        emotionLayers.push_front({readEmotionArray("../data.json",false)[0],pngDataStorage.back()});
-        emotionLayers.pop_back();
-        pngDataStorage.pop_back();
-
-        
-        bool useBenTexture = rand_range_uniform(0.0f,1.0f) < 0.50f;
-        
-        // #Emotion Extraction
-        // Use emotion array to set properties of shapes
-        if(alarmSounded){
-            ShapeLayer shapeLayer{};
-            std::vector<std::vector<float>> emotionArrays{};
-            for(auto const& emotionLayer : emotionLayers){
-                auto const& emotionArray = emotionLayer.emotionArray;
-                emotionArrays.push_back(emotionArray);
-
-
-                glm::vec3 emotionRGB;
-
-                emotionRGB = emotionArrayToColor(emotionArray);
-                glm::vec2 emotionCoords2D = emotionArrayToVec2(emotionArray);
-                glm::vec3 emotionCoords3D = glm::vec3(emotionCoords2D.x, emotionCoords2D.y, 0.0f);
-                glm::vec3 coords;
-                glm::vec3 rotAxis = glm::vec3(0.0f,0.0f,-1.0f);
-                float pi = std::numbers::pi;
-                float rotScale = 2*pi*emotionArrayToRotation(emotionArray);
-                if(rotScale < pi/4.0f) rotScale = 0.0f;
-                else if(rotScale < pi/2.0f) rotScale = pi/4.0f;
-                else if(rotScale < 3.0f*pi/4.0f) rotScale = pi/2.0f;
-                else if(rotScale < pi) rotScale = 3.0f*pi/4.0f;
-                else if(rotScale < pi + pi/4.0f) rotScale = pi;
-                else if(rotScale < pi + pi/2.0f) rotScale = pi + pi/4.0f;
-                else if(rotScale < pi + 3*pi/4.0f) rotScale = pi + pi/2.0f;
-                else if(rotScale < 2*pi) rotScale = pi + 3.0f*pi/4.0f;
-
-                SHAPE_TYPE_2D type = emotionArrayToShapeType2D(emotionArray);
-                auto transitions = emotionArrayToTransitions(emotionArray);
-                const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(emotionArray,false, true, false);
-                transitions[VORTEX] = rand_range_uniform(0.0f, 1.0f) <= 0.1f;
-                //const auto emotionAlpha = emotionArrayToAlpha(emotionArray);
-
-                float alphaScale = 1.0f;
-                alphaScale = clamp(rand_range_normal(AVE_ALPHA, DEV_ALPHA), MIN_ALPHA, MAX_ALPHA);
-                //alphaScale = (1.0f - 0.0)*alphaScale + (0.0)*emotionAlpha;
-
-                ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, 0};
-
-                for (int j = 0; j < SHAPES_IN_BATCH; j++){
-                    float maxScale = MAX_SCALE;
-                    float minScale = MIN_SCALE;
-                    float aveScale = AVE_SCALE;
-                    float devScale = DEV_SCALE;
-                    glm::vec3 scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale) * glm::vec3(1.0f);
-                    if(transitions[SCALE] && transitions[FADE]) scale *= DO_SCALE_SCALE;
-                    else if(transitions[SCALE]) scale *= DO_SCALE_SCALE;
-                    else if (transitions[FADE]) scale *= DO_FADE_SCALE;
-                    
-                    if(transitions[VORTEX]) scale *= DO_VORTEX_SCALE;
-
-                    
-                    coords = SCATTER_TO_EMOTION_COORD_RATIO* SCATTER_COORD_SCALE * randCoords()+(1-SCATTER_TO_EMOTION_COORD_RATIO)*EMOTION_COORD_SCALE*emotionCoords3D;
-                    coords.z = 0.0f;
-
-
-                    
-                    glm::mat4 model = glm::mat4(1.0f);
-                    float xCoordScale = 1.0f;
-                    float yCoordScale = 1.0f;
-                    glm::vec3 scaledCoordinates(1.0f);
-                    scaledCoordinates.x = coords.x*xCoordScale;
-                    scaledCoordinates.y = coords.y*yCoordScale;
-                    scaledCoordinates.z = 0.0f;
-                    model = glm::translate(model, scaledCoordinates);
-                    model = glm::scale(model, scale);
-                    model = glm::rotate(model, rotScale, rotAxis);
-                    
-
-                    
-                    // Create and delete cubes
-                    glm::vec4 shapeColor = glm::vec4(emotionRGB,alphaScale);
-                    //glm::vec4 invertedShapeColor = glm::vec4(glm::vec3(1.0f) - emotionRGB, alphaScale);
-                    glm::vec4 invertedShapeColor;
-                    if(useBenTexture){
-                        invertedShapeColor = glm::vec4(emotionRGB, alphaScale);
-                        shapeColor = cdata::WHITE_V4;
-                    }
-                    else{
-                        invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
-                    }
-                    ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
-                    shape.scaleMatrix = glm::scale(glm::mat4(1.0f), shape.scale);
-                    shape.rotationMatrix = glm::rotate(glm::mat4(1.0f), shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
-                    shape.transition = glm::translate(glm::mat4(1.0f), shape.coords);
-                    shape.direction = dir::UP;
-                    shape.direction  = glm::mat3(shape.rotationMatrix) * shape.direction;
-                    shape.direction = glm::normalize(shape.direction);
-                    shape.rotatedCoords = glm::mat3(shape.rotationMatrix) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
-                    shapeBatch.shapes.push_front(shape);
-                    additions++;
-                }
-                shapeLayer.batches.push_front(shapeBatch);
-            }
-            shapeLayer.emotionArray = average(emotionArrays);
-            {
-                std::lock_guard<std::mutex> guard(*lock);
-                shapeLayersBuffer->push_front(shapeLayer);
-            }
-        }
-
-    iterations++;
-    }
-    {
-        std::lock_guard<std::mutex> guard(lockImage);
-        turnOff = true;
-    }
-    imageThread.join();
-
-}
-void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath, float* waitTime){
-    static const unsigned int bufferSizeMult = 1;
-    auto& dataBuffer = *datas;
-    PngData pD(255,255,3);
-	while(!*turnOff){
-
-        bool full;
-        float tempWaitTime;
-        {
-            std::lock_guard guard(*lock);
-            full = dataBuffer.size()>=TOTAL_EMOTION_LAYERS*bufferSizeMult;
-            tempWaitTime = *waitTime;
-        }
-
-        if(full){
-            std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*100.0f)));
-        }
-        else{
-            pD = loadPngTexture(*filePath);
-            if(pD.isValid()){
-                std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*1000000000.0f/(TOTAL_EMOTION_LAYERS*bufferSizeMult))));
-                std::lock_guard guard(*lock);
-                dataBuffer.push_front(pD);
-            }
-            else{
-                std::this_thread::sleep_for(std::chrono::nanoseconds(1));
-                checkPrint("ERROR: loading image\n", false, DEBUG_IMAGE);
-            }
-        }
-	}
-	
-}
-
-int startSimulator(float frequency, bool cycle, bool random){
-    assert(cycle || random);
-    char simulationType;
-    if (cycle)
-        simulationType = 'c';
-    if (random)
-        simulationType = 'r';
-
-        return runCommand("(cd ../Emotion_Gen_Sim && source venv/bin/activate && echo -e \"" + std::to_string(frequency) + "\n" + simulationType +"\" | nohup python emotion_generator.py)");
-}
-
-int startColorGenerator(float frequency, int width, int height, bool doDisplay){
-
-    char display;
-    if (doDisplay)
-        display = 'y';
-    else
-        display = 'n';
+int mainLight(int argc, char * argv[]){
     
-    return runCommand("(cd ../VisualGen_Ben/V1_255x255/ && source venv/bin/activate && echo -e \"" + std::to_string(width) + "\n" 
-        + std::to_string(height) + "\n" + std::to_string(frequency) + "\n" + display + "\" | nohup python Gener2.py)");
-}
-
-int mainCoordsBasic2D(int argc, char * argv[]){
     // Initialize OpenGL
-    int return_status;
+    int return_status = EXIT_SUCCESS;
     GLFWwindow*  mWindow; 
-    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    initOpenGL(mWindow, return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
     
     DeltaTimer deltaTimer{};
-    Alarm creationAlarm(SHAPE_INITIAL_SPAWN_TIME);
-    bool shapesFull = false;
-    
-
-    PngData blankPNGData(255,255, 3);
-    const unsigned int blankTexture = obtainPNGBlank(blankPNGData);
-
-    std::cout << "Generate triangle" << std::endl;
-    PngData pngDataTriangle(255, 255);
-    std::vector<glm::vec2> triangleBorder = borderVerticesFromShape(shapes::eTriT);
-    unsigned int triangleBorderTexture = obtainPNGDistanceFromBorder(pngDataTriangle, triangleBorder);
-    OpenGLShape triangle(shapes::eTriT, {blankTexture,triangleBorderTexture}, true);
-    
-    
-
-    std::cout << "Generate square" << std::endl;
-    PngData pngDataSquare(255, 255);
-    std::vector<glm::vec2> squareBorder = borderVerticesFromShape(shapes::rectT);
-    unsigned int squareBorderTexture = obtainPNGDistanceFromBorder(pngDataSquare, squareBorder);
-    OpenGLShape square(shapes::rectT, {blankTexture,squareBorderTexture}, true);
     
 
     
 
-    std::cout << "Generate circle" << std::endl;
-    PngData pngDataCircle(255, 255);
-    OpenGLShape circle = create_circle(16, pngDataCircle);
-    circle.setTextures({blankTexture, circle.getTexture(0)});
+
     
-    std::map<SHAPE_TYPE_2D, OpenGLShape*> shapeTypes{{SQUARE , &square}, {TRIANGLE, &triangle}, {CIRCLE, &circle}};
+    unsigned int VBO_O, VAO_O, EBO_O;
+    unsigned int VAO_T;
+    unsigned int diffuse_sampler_2d;
+    unsigned int specular_sampler_2d;
+    create_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+    create_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
+
+
+    
+    create_lamp_and_light_object(VAO_O, VAO_T, VBO_O, EBO_O, shapes::normal_textured_triangle_pyramid, 8*36, shapes::normal_textured_triangle_pyramid_ind, 36);
     
     
     
     
+
     
-    
-    LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
 
     glm::mat4 model(1.0f);
-    lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniformI("ourTexture", 0);
-    lightingEnvironment.object_shader.setUniformI("borderTexture", 1);
-    lightingEnvironment.object_shader.setUniformI("borderCase", 4);
-    float destructionTime = DESTRUCTION_TIME;
-    float totalLayers = TOTAL_LAYERS;
-    float midLayer = MID_LAYER;
-    float shapeMaxFade = SHAPE_MAX_FADE;
-    float shapeMinFade = SHAPE_MIN_FADE;
-    std::tuple<float,float> lineAbove = linearTransformation(0.0f, destructionTime*(totalLayers - 1 - midLayer), shapeMaxFade, shapeMinFade);
-    auto const [slopeAT, interceptAT] = lineAbove;
-    std::tuple<float,float> lineBelow = linearTransformation(0.0f, destructionTime*(midLayer + 1), shapeMinFade, shapeMaxFade);
-    auto const [slopeBT, interceptBT] = lineBelow;
-    lightingEnvironment.object_shader.setUniformF("destructionTime", destructionTime);
-    lightingEnvironment.object_shader.setUniformI("MID_LAYER", midLayer);
-    lightingEnvironment.object_shader.setUniformF("ABOVE_SLOPE", slopeAT);
-    lightingEnvironment.object_shader.setUniformF("ABOVE_INTERCEPT", interceptAT);
-    lightingEnvironment.object_shader.setUniformF("BELOW_SLOPE", slopeBT);
-    lightingEnvironment.object_shader.setUniformF("BELOW_INTERCEPT", interceptBT);
+    glm::vec3 light_positions[4] = {
+        glm::vec3(-10.2f,1.0f,2.0f),
+        glm::vec3(0.0f,-10.0f,2.0f),
+        glm::vec3(1.2f,0.0f,-10.0f),
+        glm::vec3(1.2f,1.0f,2.0f),
+    };
+
+    Shader object_shader("Glitter/Shaders/light-object.vs", "Glitter/Shaders/light-object.fs");
+    Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
+    object_shader.use();
+    object_shader.setUniformM4("projection", proj);
+    object_shader.setUniformM4("view", view);
+    object_shader.setUniformM4("model",model);
+    
+    Material material;
+    material.diffuse = 0;
+    material.specular = 1;
+    material.shininess  = 128.0f*0.25; 
+
+   object_shader.setUniformI("material.diffuse",   material.diffuse);
+   object_shader.setUniformI("material.specular",  material.specular);
+   object_shader.setUniformF("material.shininess", material.shininess); 
+   object_shader.setUniformF("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
+   object_shader.setUniformF("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
+
+
+    object_shader.setUniformV3("dir_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniformV3("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
+    object_shader.setUniformV3("dir_light.specular", glm::vec3(0.2f)); 
+    object_shader.setUniformV3("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
+    
+    object_shader.setUniformV3("spot_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniformV3("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
+    object_shader.setUniformV3("spot_light.specular", glm::vec3(1.0f)); 
+    glm::vec3 diffuses[4] = {
+        glm::vec3(1.0f,0.0f,0.0f),
+        glm::vec3(0.0f,1.0f,0.0f),
+        glm::vec3(0.0f,0.0f,1.0f),
+        glm::vec3(0.3f,0.3f,0.3f),
+    };
+
+    std::stringstream s ("");
+    for(int i = 0; i < 4; i ++){
+        s << "point_lights" << "[" << i << "]";
+        object_shader.setUniformV3(s.str() + ".ambient",  glm::vec3(0.1f));
+        object_shader.setUniformV3(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
+        object_shader.setUniformV3(s.str() + ".specular", diffuses[i]); 
+        object_shader.setUniformV3(s.str() + ".position", light_positions[i]);
+        object_shader.setUniformF(s.str() + ".constant", 1.0f);
+        object_shader.setUniformF(s.str() + ".linear", .09f);
+        object_shader.setUniformF(s.str() + ".quadratic", .032f);
+        s.str("");
+        s.clear();
+    }
+    
+    light_shader.use();
+    
+    light_shader.setUniformM4("projection", proj);
+    light_shader.setUniformM4("view", view);
+    light_shader.setUniformM4("model",model);
+    light_shader.setUniformV3("aColor",glm::vec3(0.0f,1.0f,0.0f));
+
     
     
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
 
 
     
-    std::deque<ShapeLayer> shapeLayersBuffer{};
-    std::deque<ShapeLayer> shapeLayersStorage{};
-    std::deque<ShapeLayer> shapeLayersDraw{};
-    glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
-    std::mutex shapeLock{};
-    bool notDone = true;
-    int additions = 0;
-
-    int simPID = startSimulator(0.1f);
-    int colPID = startColorGenerator(0.025f);
-
-
-    std::thread creationThread(something,&shapeLayersBuffer,&creationAlarm,&shapeLock, &notDone, &additions);
-    bool midLayerMet = false;
     
-    // #Render 2D Loop
+    // Rendering Loop
     while (!glfwWindowShouldClose(mWindow)) {
-        startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
 
-        {
-            std::lock_guard guard(shapeLock);
-            while(!shapeLayersBuffer.empty()){
-                auto shapeLayerB = shapeLayersBuffer.back();
-                ShapeLayer shapeLayer = shapeLayerB;
-                for(auto& shapeBatch : shapeLayer.batches){
-                    shapeBatch.texture = createPngTexture(shapeBatch.pngData);
-                }
+        // Background Fill Color
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        deltaTimer.updateDeltaTime();
+        
 
-                shapeLayersStorage.push_front(shapeLayer);
-                shapeLayersBuffer.pop_back();
-            }
-        }
-        bool shapeDeleted = false;
-        // Delete cubes
-        while (shapeLayersStorage.size() > TOTAL_LAYERS){
-            auto const shapeLayer = shapeLayersStorage.back();
-            for(auto const& shapeBatch : shapeLayer.batches){
-                if(shapeBatch.texture != blankTexture)
-                    glDeleteTextures(1, &shapeBatch.texture);
-            }
-            shapeDeleted = true;
-            shapeLayersStorage.pop_back();
-        }
-        if(shapeLayersStorage.size() >= (MID_LAYER - 0) && !midLayerMet){
-            midLayerMet = true;
-            std::cout << "The middle layer was met!!!" << std::endl;
+        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        
 
+        view = camera.GetViewMatrix();
+        
+        
+        
+
+        light_shader.use();
+        light_shader.setUniformM4("projection",proj);
+        light_shader.setUniformM4("view",view);
+
+        for(int i = 0; i < 4; i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, light_positions[i]);
+            model = glm::scale(model, glm::vec3(0.2f));
+            light_shader.setUniformM4("model", model);
+            light_shader.setUniformV3("aColor", diffuses[i]);
+            drawShape(VAO_T, EBO_O, light_shader, 36);
         }
-        if(shapeDeleted && !shapesFull){
-            std::lock_guard guard(shapeLock);
-            creationAlarm.setWaitTime(DESTRUCTION_TIME);
-            shapesFull = true;
-            std::cout << "Shapes loaded!" << std::endl;
+
+        object_shader.use();
+        object_shader.setUniformM4("view",view);
+        object_shader.setUniformM4("projection",proj);
+        object_shader.setUniformV3("view_pos", camera.Position);
+       object_shader.setUniformV3("spot_light.position", camera.Position);
+       object_shader.setUniformV3("spot_light.direction", camera.Front);
+       object_shader.setUniformB("spot_light.is_on", (bool)flash_light);
+
+        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, shapes::cubePositions[i]);
+            //model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
+            object_shader.setUniformM4("model", model);
+            drawTexturedShape(VAO_O, EBO_O, object_shader, 36, diffuse_sampler_2d);
         }
+        
+        
+
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+}
+int mainTurning(int argc, char * argv[]){
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    GLFWwindow*  mWindow; 
+    initOpenGL(mWindow, return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
+    unsigned int diffuse_sampler_2d;
+    unsigned int specular_sampler_2d;
+    generateSampler2Ds(diffuse_sampler_2d, specular_sampler_2d);
+
+
+    
+    
+    std::vector<unsigned int> lightSizes{};
+    lightSizes.push_back(3);
+    OpenGLShape lightShape((unsigned int) 36, (unsigned int)36, shapes::cube, shapes::cube_ind, lightSizes, (unsigned int)0, false);
+    std::vector<unsigned int> objectSizes{3,3,2};
+    OpenGLShape objectShape((unsigned int) 36, (unsigned int)36, shapes::normal_textured_cube, shapes::cube_ind, objectSizes, diffuse_sampler_2d, true);
+    
+    
+    glm::vec3 light_positions[POINT_LIGHT_COUNT] = {
+        glm::vec3(-10.2f,1.0f,2.0f),
+        glm::vec3(0.0f,-10.0f,2.0f),
+        glm::vec3(1.2f,0.0f,-10.0f),
+        glm::vec3(1.2f,1.0f,2.0f),
+    };
+
+    glm::vec3 diffuses[POINT_LIGHT_COUNT] = {
+        glm::vec3(1.0f,0.0f,0.0f),
+        glm::vec3(0.0f,1.0f,0.0f),
+        glm::vec3(0.0f,0.0f,1.0f),
+        glm::vec3(0.3f,0.3f,0.3f),
+    };
+    
+    LightingEnvironment lightingEnvironment = initLighting(light_positions, diffuses);
+
+    
+    
+    
+    
+    initMouse(mWindow);
+
+
+    
+    std::deque<ShapeProperties> cubeMatrices{};
+    
+
+    glm::mat4 rotatedModel(1.0f);
+    float length = 3.0f;
+
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        
+        setupLightingEnvironmentToDraw(lightingEnvironment, light_positions, diffuses, lightShape);
+
+
+
+        std::vector<std::vector<float>> emotionArrays = readEmotionArray("../data.json");
+        
+        // Use emotion array to set properties of shapes
+        glm::vec3 emotionRGB = emotionArrayToColor(emotionArrays[0]);
+        glm::vec3 rotationAxis = glm::vec3(sin(getElapsedTime()*1.0f + M_1_PI),-sin(getElapsedTime()*1.0f/2.7865432f + M_1_PI/2),sin(getElapsedTime()*1.0f/3.125105f + M_1_PI/3));
+        rotatedModel = glm::rotate(glm::mat4(1.0f), (float)(1.0f*((float)(M_PI))), rotationAxis);
+
+        
+        // Stationary Cube
+        lightingEnvironment.model = glm::mat4(1.0f);
+        lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.2f));
+        
+        // Rotating Rod
+        glm::vec4 color = glm::vec4(1.0f,1.0f,1.0f,1.0f);
+        lightingEnvironment.object_shader.setUniformM4("model",lightingEnvironment.model);
+        lightingEnvironment.object_shader.setUniformV4("aColor", color);
+        objectShape.draw(lightingEnvironment.object_shader);
+        lightingEnvironment.model = glm::mat4(rotatedModel);
+        lightingEnvironment.model = glm::translate(lightingEnvironment.model, glm::vec3(length/2,0.0f,0.0f));
+        lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(length,0.1f,0.1f));
+        lightingEnvironment.object_shader.setUniformM4("model",lightingEnvironment.model);
+        lightingEnvironment.object_shader.setUniformV4("aColor", color);
+        objectShape.draw(lightingEnvironment.object_shader);
+        
+        // Create cube at location rod is pointing to
+        lightingEnvironment.model = glm::mat4(rotatedModel);
+        lightingEnvironment.model = glm::translate(lightingEnvironment.model, glm::vec3(length,0.0f,0.0f));
+        lightingEnvironment.model = glm::scale(lightingEnvironment.model, glm::vec3(0.10f));
+
+        cubeMatrices.push_front(ShapeProperties{lightingEnvironment.model,glm::vec4(emotionRGB,0.5f)});
+        
+        // Delete a cube
+        if (cubeMatrices.size() > 10000){
+            cubeMatrices.pop_back();
+        }
+
         // Draw cubes
-        drawCubeMatrices2DScale(lightingEnvironment, shapeLayersStorage, shapeTypes, deltaTimer, creationAlarm, shapeLock, lineAbove, lineBelow);
+        for( ShapeProperties cubePair : cubeMatrices){
+            lightingEnvironment.object_shader.setUniformM4("model",cubePair.model);
+            lightingEnvironment.object_shader.setUniformV4("aColor", cubePair.color);
+            objectShape.draw(lightingEnvironment.object_shader);
+        }
+        
 
 
 
-        endRenderLoop(mWindow,deltaTimer,camera);
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        std::cout << "FPS: " << 1/deltaTimer.getDeltaTime() << std::endl;
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        deltaTimer.updateDeltaTime();
 
         
-    }   
-
-    {
-        std::lock_guard<std::mutex> guard(shapeLock);
-        notDone = false;
-    }
-    creationThread.join();
-    killCommand(simPID);
-    killCommand(colPID);
-
-    glfwTerminate();
-
+    }   glfwTerminate();
     return EXIT_SUCCESS;
     
     
-}
-
-int mainDrawRectangle(int argc, char* argv[]){
-    
-    int return_status;
-    GLFWwindow*  mWindow; 
-    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
-    Shader colorShader("Glitter/Shaders/texture-color.vs", "Glitter/Shaders/texture-color.fs");
-    colorShader.use();
-    colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
-    colorShader.setUniformI("borderCase", 3);
-    colorShader.setUniformI("ourTexture", 0);
-    colorShader.setUniformI("borderTexture", 1);
-    DeltaTimer deltaTimer{};
-    PngData blankPngData(16,16);
-    PngData borderPngData(16,16);
-    unsigned int borderTexture = obtainPNGDistanceFromBorder(borderPngData, borderVerticesFromShape(shapes::rectT));
-    unsigned int blankTexture = obtainPNGBlank(blankPngData);
-    OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture}, true);
-    pngDataSavePng("testSSR.png", borderPngData);
-    
-
-    
-    
-    while(!glfwWindowShouldClose(mWindow)){
-        minimumStartRenderLoop(deltaTimer, glm::vec4(0.0f,0.1f,0.0f,1.0f));
-        rectangle.draw(colorShader);
-        endRenderLoopViewStatic(mWindow, deltaTimer);
-    } glfwTerminate();
-    
-    return EXIT_SUCCESS;
     
 }
-int mainDrawCircle(int argc, char *argv[])
-{
-    int return_status;
+int mainCubes(int argc, char * argv[]){
+    
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
     GLFWwindow*  mWindow; 
-    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
-    Shader colorShader("Glitter/Shaders/texture-color.vs", "Glitter/Shaders/texture-color.fs");
-    colorShader.use();
-    colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
-    unsigned int texture5 = createTexture("Glitter/Textures/container2.png", "png");
-    int width, height, nrChannels;
-    std::string texture_filepath = "Glitter/Textures/container2.png";
-    std::vector<glm::vec2> borderVertices = borderVerticesFromShape(shapes::rectT.vertices, shapes::rectT.vertCnt, shapes::rectT.getStride());
+initOpenGL(mWindow, return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
     
-
-    unsigned int blankTexture = obtainPNGBorder(255,255,50,50, cdata::ColorRGBA(255,255,255,255),cdata::ColorRGBA(255,255,255,255), false, false);
-    
-    colorShader.setUniformI("ourTexture", 0);
-
     DeltaTimer deltaTimer{};
     
-    PngData pngData(255, 255);
-    OpenGLShape circle = create_circle(3, pngData);
-    circle.setTextures({blankTexture,circle.getTexture(0)});
-    pngDataSavePng("test.png", pngData);
-    
-    colorShader.setUniformI("borderCase", 2);
-    colorShader.setUniformI("ourTexture", 0);
-    colorShader.setUniformI("borderTexture", 1);
-    
-
 
     
-    while(!glfwWindowShouldClose(mWindow)){
-        minimumStartRenderLoop(deltaTimer);
-        glDepthMask(false);
-        colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
-        colorShader.setUniformI("borderCase", 2);
-        circle.draw(colorShader);
-        glDepthMask(true);
-        endRenderLoopViewStatic(mWindow, deltaTimer);
-    } glfwTerminate();
+    unsigned int texture2;
+    create_texture(texture2, "Glitter/Textures/awesomeface.png", "png");
+
+
+    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
     
+    
+    
+    
+    OpenGLShape cube(36,36,shapes::textured_cube,shapes::cube_ind,std::vector<unsigned>{3,2},texture2,true);
+
+    
+    
+    
+
+    shaderTextureMVP.use();
+    shaderTextureMVP.setUniformI("ourTexture1",(unsigned int)0);
+    
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+
+    shaderTextureMVP.setUniformM4("projection", proj);
+    shaderTextureMVP.setUniformM4("view", view);
+    shaderTextureMVP.setUniformM4("model",model);
+    shaderTextureMVP.setUniformV4("aColor", glm::vec4(0.6));
+    
+    
+    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
+    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
+    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
+    
+    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
+    glm::vec3 up(0.0f,1.0f,0.0f);
+    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
+
+
+    proj = glm::mat4(1.0f);
+    shaderTextureMVP.setUniformM4("projection",proj);
+    view = glm::mat4(1.0f);
+    shaderTextureMVP.setUniformM4("view",view);
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        deltaTimer.updateDeltaTime();
+        
+
+        
+
+
+
+        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, shapes::cubePositions[i]);
+            model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
+            shaderTextureMVP.setUniformM4("model",model);
+            cube.draw(shaderTextureMVP);
+        }
+        
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+
+        
+    }   glfwTerminate();
     return EXIT_SUCCESS;
 }
-OpenGLShape create_circle(unsigned int tri_cnt, PngData& pngData){
+int mainGenerateTexturesCubes(int argc, char * argv[]){
+    
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    GLFWwindow*  mWindow; 
+    initOpenGL(mWindow, return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
 
-    std::vector<float> circle{};
-    std::vector<unsigned> ind{};
-    unsigned int index = 0;
-    std::vector<glm::vec2> border;
+    
+    unsigned int texture1;
+    generate_texture(texture1, "Glitter/Textures/awesomeface.png", "png");
 
-    for(unsigned int tri = 0; tri < tri_cnt; tri++){
-       
+
+
+    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp.vs", "Glitter/Shaders/texture-mvp.fs");
+    
+    unsigned int VBO_T, VAO_T, EBO_T;
+    
+    
+    
+    
+    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_cube, 5*36, shapes::cube_ind, 36);
+    
+    
+
+    shaderTextureMVP.use();
+    shaderTextureMVP.setUniformI("ourTexture1",(unsigned int)0);
+    shaderTextureMVP.setUniformI("ourTexture2",(unsigned int)1);
+    
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+
+    shaderTextureMVP.setUniformM4("projection", proj);
+    shaderTextureMVP.setUniformM4("view", view);
+    shaderTextureMVP.setUniformM4("model",model);
+    
+    
+    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
+    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
+    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
+    
+    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
+    glm::vec3 up(0.0f,1.0f,0.0f);
+    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
+
+
+    
+    
+    // #Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        for(int vi = 0; vi<3;vi++){
 
-            glm::vec3 vert;
-            if(vi > 0){
-                glm::mat4 transform(1.0f);
-                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
-                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
-                glm::vec3 radius_vec(0.5f,0.0f,0.0f);
-                glm::vec4 radius_vec4(radius_vec,1.0f);
-                radius_vec4 = transform * radius_vec4;
-                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
-                assert(vert.x != 0.0f || vert.y != 0.0f);
-                if(vi == 1)
-                    border.push_back(glm::vec2(vert.x,vert.y));
-            }
-            else{
-                vert = glm::vec3(0.0f,0.0f,0.0f); // Center Vertex
-            }
-            circle.push_back(vert.x);
-            circle.push_back(vert.y);
-            circle.push_back(vert.z);
-            circle.push_back(boundTransformation(vert.x, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
-            circle.push_back(boundTransformation(vert.y, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
-            
-            for(unsigned int i = 0; i<3; i++){
-                ind.push_back(index);
-                index++;
-            }
-        }
-    }
-    
-    unsigned int texture = obtainPNGDistanceFromBorder(pngData, border);
-    
-    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, texture, true);
-}
-void pngDataSavePng(const std::string filepath, const PngData& pngData){
-    
-    stbi_write_png(filepath.c_str(), pngData.width, pngData.height, pngData.nrChannels, pngData.getData(), pngData.nrChannels * pngData.width);
-}
-OpenGLShape create_circle(unsigned int tri_cnt)
-{
-
-    std::vector<float> circle{};
-    std::vector<unsigned> ind{};
-    unsigned int index = 0;
-    std::vector<glm::vec2> border;
-
-    for(unsigned int tri = 0; tri < tri_cnt; tri++){
-       
+        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        shaderTextureMVP.setUniformM4("projection",proj);
         
-        for(int vi = 0; vi<3;vi++){
 
-            glm::vec3 vert;
-            if(vi > 0){
-                glm::mat4 transform(1.0f);
-                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
-                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
-                glm::vec3 radius_vec(0.5f,0.0f,0.0f);
-                glm::vec4 radius_vec4(radius_vec,1.0f);
-                radius_vec4 = transform * radius_vec4;
-                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
-                assert(vert.x != 0.0f || vert.y != 0.0f);
-                if(vi == 1)
-                    border.push_back(glm::vec2(vert.x,vert.y));
-            }
-            else{
-                vert = glm::vec3(0.0f,0.0f,0.0f); // Center Vertex
-            }
-            circle.push_back(vert.x);
-            circle.push_back(vert.y);
-            circle.push_back(vert.z);
-            circle.push_back(boundTransformation(vert.x, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
-            circle.push_back(boundTransformation(vert.y, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
-            
-            for(unsigned int i = 0; i<3; i++){
-                ind.push_back(index);
-                index++;
-            }
+        view = camera.GetViewMatrix();
+        shaderTextureMVP.setUniformM4("view",view);
+
+
+        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, shapes::cubePositions[i]);
+            model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
+            shaderTextureMVP.setUniformM4("model",model);
+            drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
+
         }
+        
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime(false));
+        
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+}
+int mainTextureGenerate(int argc, char * argv[]){
+    
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    GLFWwindow*  mWindow; 
+initOpenGL(mWindow, return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
+
+    
+
+
+    
+    unsigned int VBO_O, VAO_O, EBO_O;
+    unsigned int VAO_T;
+    unsigned int diffuse_sampler_2d;
+    unsigned int specular_sampler_2d;
+    generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
+    create_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
+
+
+    
+    create_lamp_and_light_object(VAO_O, VAO_T, VBO_O, EBO_O, shapes::normal_textured_cube, 8*36, shapes::cube_ind, 36);
+    
+    
+    
+    
+
+    
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+    glm::vec3 light_positions[4] = {
+        glm::vec3(-10.2f,1.0f,2.0f),
+        glm::vec3(0.0f,-10.0f,2.0f),
+        glm::vec3(1.2f,0.0f,-10.0f),
+        glm::vec3(1.2f,1.0f,2.0f),
+    };
+
+    Shader object_shader("Glitter/Shaders/light-object.vs", "Glitter/Shaders/light-object.fs");
+    Shader light_shader("Glitter/Shaders/lamp.vs", "Glitter/Shaders/lamp.fs");
+    object_shader.use();
+    object_shader.setUniformM4("projection", proj);
+    object_shader.setUniformM4("view", view);
+    object_shader.setUniformM4("model",model);
+    
+    Material material;
+    material.diffuse = 0;
+    material.specular = 1;
+    material.shininess  = 128.0f*0.25; 
+
+   object_shader.setUniformI("material.diffuse",   material.diffuse);
+   object_shader.setUniformI("material.specular",  material.specular);
+   object_shader.setUniformF("material.shininess", material.shininess); 
+   object_shader.setUniformF("spot_light.cut_off", glm::cos(glm::radians(14.5f)));
+   object_shader.setUniformF("spot_light.outer_cut_off", glm::cos(glm::radians(20.0f)));
+
+
+    object_shader.setUniformV3("dir_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniformV3("dir_light.diffuse",  glm::vec3(0.2f)); // darken diffuse light a bit
+    object_shader.setUniformV3("dir_light.specular", glm::vec3(0.2f)); 
+    object_shader.setUniformV3("dir_light.direction", glm::vec3(0.0f, 1.0f, 1.0f)); 
+    
+    object_shader.setUniformV3("spot_light.ambient",  glm::vec3(0.1f));
+    object_shader.setUniformV3("spot_light.diffuse",  glm::vec3(1.0f)); // darken diffuse light a bit
+    object_shader.setUniformV3("spot_light.specular", glm::vec3(1.0f)); 
+    glm::vec3 diffuses[4] = {
+        glm::vec3(1.0f,0.0f,0.0f),
+        glm::vec3(0.0f,1.0f,0.0f),
+        glm::vec3(0.0f,0.0f,1.0f),
+        glm::vec3(0.3f,0.3f,0.3f),
+    };
+
+    std::stringstream s ("");
+    for(int i = 0; i < 4; i ++){
+        s << "point_lights" << "[" << i << "]";
+        object_shader.setUniformV3(s.str() + ".ambient",  glm::vec3(0.1f));
+        object_shader.setUniformV3(s.str() + ".diffuse",  diffuses[i]); // darken diffuse light a bit
+        object_shader.setUniformV3(s.str() + ".specular", diffuses[i]); 
+        object_shader.setUniformV3(s.str() + ".position", light_positions[i]);
+        object_shader.setUniformF(s.str() + ".constant", 1.0f);
+        object_shader.setUniformF(s.str() + ".linear", .09f);
+        object_shader.setUniformF(s.str() + ".quadratic", .032f);
+        s.str("");
+        s.clear();
     }
     
-    unsigned int texture = obtainPNGDistanceFromBorder(255,255, border);
+    light_shader.use();
     
-    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, texture, true);
-}
-float clamp(const float x, const float min, const float max){
-    if(x < min) return min;
-    if(x > max) return max;
-    return x;
-}
+    light_shader.setUniformM4("projection", proj);
+    light_shader.setUniformM4("view", view);
+    light_shader.setUniformM4("model",model);
+    light_shader.setUniformV3("aColor",glm::vec3(0.0f,1.0f,0.0f));
 
-
-float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade, bool delay, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
-    float fade = 0.0f;
-	assert(totalLayers != 0);
-	assert(midLayer != 0);
-	assert(destructionTime != 0);
-	float timePassed;
-	float b;
-	float slope;
     
-    if(delay){
-        if(layer > midLayer) return 0;
-        totalLayers = midLayer + 1;
-        midLayer = 1*midLayer/4;
-    }
+    
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
 
-	if(layer > midLayer){
-		timePassed = destructionTimePassed + destructionTime*(totalLayers - 1 - layer);
-		if(timePassed < 0) 
-			std::cout << "<0 above" << std::endl;
-		auto const [slopeT, interceptT] = lineAbove;
-		b = interceptT;
-		slope = slopeT;
 
-	}
-	else{
-		timePassed = destructionTimePassed + destructionTime*(midLayer - layer);
-		if(timePassed < 0) 
-			std::cout << "<0 below" << std::endl;
-		auto const [slopeT, interceptT] = lineBelow;
-		b = interceptT;
-		slope = slopeT;
-	}
-    fade = b + slope*timePassed;
-    return fade;
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+
+        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        
+
+        view = camera.GetViewMatrix();
+        
+        
+        
+
+        light_shader.use();
+        light_shader.setUniformM4("projection",proj);
+        light_shader.setUniformM4("view",view);
+
+        for(int i = 0; i < 4; i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, light_positions[i]);
+            model = glm::scale(model, glm::vec3(0.2f));
+            light_shader.setUniformM4("model", model);
+            light_shader.setUniformV3("aColor", diffuses[i]);
+            drawShape(VAO_T, EBO_O, light_shader, 36);
+        }
+
+        object_shader.use();
+        object_shader.setUniformM4("view",view);
+        object_shader.setUniformM4("projection",proj);
+        object_shader.setUniformV3("view_pos", camera.Position);
+       object_shader.setUniformV3("spot_light.position", camera.Position);
+       object_shader.setUniformV3("spot_light.direction", camera.Front);
+       object_shader.setUniformB("spot_light.is_on", (bool)flash_light);
+
+        for(unsigned int i = 0; i < std::size(shapes::cubePositions); i++){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, shapes::cubePositions[i]);
+            model = glm::rotate(model, glm::radians(15.0f)*(float)i, glm::vec3(0.4f,0.95f,0.2f));
+            object_shader.setUniformM4("model", model);
+            drawTexturedShape(VAO_O, EBO_O, object_shader, 36, diffuse_sampler_2d);
+        }
+        
+        
+
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
+}
+int mainPathCube(int argc, char * argv[]){
+    
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    GLFWwindow*  mWindow; 
+initOpenGL(mWindow, return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
+
+    
+    unsigned int texture1;
+    generate_texture(texture1, "Glitter/Textures/awesomeface.png", "png");
+
+
+
+    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp.vs", "Glitter/Shaders/texture-mvp.fs");
+    
+    unsigned int VBO_T, VAO_T, EBO_T;
+    
+    
+    
+    
+    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::textured_triangle_pyramid, 5*36, shapes::triangle_pyramid_ind, 36);
+    
+    
+
+    shaderTextureMVP.use();
+    shaderTextureMVP.setUniformI("ourTexture",(unsigned int)0);
+    
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+
+    shaderTextureMVP.setUniformM4("projection", proj);
+    shaderTextureMVP.setUniformM4("view", view);
+    shaderTextureMVP.setUniformM4("model",model);
+    
+    
+    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
+    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
+    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
+    
+    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
+    glm::vec3 up(0.0f,1.0f,0.0f);
+    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
+
+    StraightPath path(std::vector<glm::vec3>{glm::vec3(10,10,0), glm::vec3(0, 10, 0), glm::vec3(0,0,0), glm::vec3(10, 0, 0), glm::vec3(10,10,0)}, 0);
+
+    DeltaTimer delta_timer{};
+    float timer = 0.0f;
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+
+        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        shaderTextureMVP.setUniformM4("projection",proj);
+        
+
+        view = camera.GetViewMatrix();
+        shaderTextureMVP.setUniformM4("view",view);
+        timer += delta_timer.getDeltaTime();
+        if(timer > 1.0f) {
+            timer = timer - 1.0f;
+        }
+        path.setProgress(timer);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, path.getPositionOnPath());
+        shaderTextureMVP.setUniformM4("model",model);
+        drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
+        
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
 }
 
-void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor){
-    deltaTimer.updateDeltaTime();
-    // Background Fill Color
-    glClearColor(backgroundColor.x,backgroundColor.y,backgroundColor.z,backgroundColor.a);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+int mainPathRectangle(int argc, char * argv[]){
+    
+    // Initialize OpenGL
+    int return_status = EXIT_SUCCESS;
+    GLFWwindow*  mWindow; 
+    initOpenGL(mWindow, return_status, mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS) return return_status;
+    
+    DeltaTimer deltaTimer{};
+    
+
+    
+    unsigned int texture1;
+    generate_texture(texture1, "Glitter/Textures/awesomeface.png", "png");
+
+
+
+    Shader shaderTextureMVP("Glitter/Shaders/texture-mvp.vs", "Glitter/Shaders/texture-mvp.fs");
+    
+    unsigned int VBO_T, VAO_T, EBO_T;
+    
+    
+    
+    
+    create_textured_shape(VAO_T, VBO_T, EBO_T, shapes::rect_t, 5*6, shapes::rect_ind, 6);
+    
+    
+
+    shaderTextureMVP.use();
+    shaderTextureMVP.setUniformI("ourTexture",(unsigned int)0);
+    
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+
+    glm::mat4 view(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f,0.0f,-3.0f));
+
+    glm::mat4 model(1.0f);
+
+    shaderTextureMVP.setUniformM4("projection", proj);
+    shaderTextureMVP.setUniformM4("view", view);
+    shaderTextureMVP.setUniformM4("model",model);
+    
+    
+    glm::vec3 cameraPos(0.0f,0.0f,3.0f);
+    glm::vec3 cameraUp(0.0f,1.0f,0.0f);
+    glm::vec3 cameraTarget(0.0f,0.0f,0.0f);
+    
+    glm::vec3 toCameraDirection(cameraPos - cameraTarget);
+    glm::vec3 up(0.0f,1.0f,0.0f);
+    glm::vec3 cameraRight = glm::normalize(glm::cross(up, toCameraDirection));
+    
+    
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(mWindow, mouse_callback);
+    glfwSetScrollCallback(mWindow, scroll_callback);
+
+    StraightPath path(std::vector<glm::vec3>{glm::vec3(10,10,0), glm::vec3(0, 10, 0), glm::vec3(0,0,0), glm::vec3(10, 0, 0), glm::vec3(10,10,0)}, 0);
+
+    DeltaTimer delta_timer{};
+    float timer = 0.0f;
+    
+    
+    // Rendering Loop
+    while (!glfwWindowShouldClose(mWindow)) {
+
+        // Background Fill Color
+        glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+
+        proj = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        shaderTextureMVP.setUniformM4("projection",proj);
+        
+
+        view = camera.GetViewMatrix();
+        shaderTextureMVP.setUniformM4("view",view);
+        timer += delta_timer.getDeltaTime();
+        if(timer > 1.0f) {
+            timer = timer - 1.0f;
+        }
+        std::cout << "timer: " << timer << std::endl;
+        path.setProgress(timer);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, path.getPositionOnPath());
+        shaderTextureMVP.setUniformM4("model",model);
+        drawTexturedShape(VAO_T, EBO_T, shaderTextureMVP, 36, texture1);
+        
+
+
+        // Flip Buffers and Draw
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+        processInput(mWindow, camera, deltaTimer.getDeltaTime());
+        
+
+        
+    }   glfwTerminate();
+    return EXIT_SUCCESS;
 }
-void startDummyMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor){
-    minimumStartRenderLoop(deltaTimer, backgroundColor);
-    setupDummyMPVEnvironmentToDraw(lightingEnvironment);
-}
-void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor){
-    minimumStartRenderLoop(deltaTimer, backgroundColor);
-    setupMPVEnvironmentToDraw(lightingEnvironment);
-}
-void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment){
-    minimumStartRenderLoop(deltaTimer, glm::vec4(1.0f,1.0f,1.0f,1.0f));
-    setupMPVEnvironmentToDraw(lightingEnvironment);
-}
-PngData::PngData(const int width, const int height, const int nrChannels): width{width},  height{height}, nrChannels{nrChannels}{
-    this->data = initializePNGTextureData(width, height, nrChannels);
-}
-PngData::PngData(int width, int height) : width{width},  height{height}, nrChannels{PngData::nrChannelsDefault}{
-    this->data = initializePNGTextureData(width, height, nrChannels);
-}
-PngData::PngData(const int width, const int height, const int nrChannels, unsigned char *data, bool copy) : width{width},  height{height}, nrChannels{nrChannels}
+
+int mainSolve(int argc, char *argv[])
 {
-    if(copy){
-        this->data = copyInitialize(data, width*height*nrChannels);
-    }
-    else this->data = data;
-}
-PngData::PngData(const PngData &pngData) : width{pngData.width}, height{pngData.height}, nrChannels{pngData.nrChannels}
-{
-    this->data = copyInitialize(pngData.getData(), pngData.size());
-}
-PngData::~PngData()
-{
-    freePNGTextureData(this->data);
-}
+    float min = 1.0f/2.0f;
+    float max = 5.0f/4.0f;
+    float minT = -1.0f;
+    float maxT = 1.0f;
+    //std::vector<float> solution = solve(std::vector<std::vector<float>> {{min, 1},{max,1}}, std::vector<float> {minT, maxT});
+    //float slope = (minT - maxT)/(min - max);
+    //float intercept = (min*maxT - minT*max)/(min - max);
+    std::tuple<float,float> line = linearTransformation(min, max, minT, maxT);
+    const auto [slope, intercept] = line;
+    std::cout << "S1: " << slope << std::endl;
+    std::cout << "S2: " << intercept << std::endl;
+    std::cout << "max: " << max << std::endl;
+    std::cout << "min: " << min << std::endl;
+    float mid = (max+min)/2.0f;
+    std::cout << "mid: " << mid << std::endl;
+    std::cout << "maxT: " << maxT << std::endl;
+    std::cout << "minT: " << minT << std::endl;
+    float midT = (maxT+minT)/2.0f;
+    std::cout << "midT: " <<  midT << std::endl;
+    
+    std::cout << "maxS: " << slope*max + intercept << std::endl;
+    std::cout << "minS: " << slope*min + intercept << std::endl;
+    std::cout << "midS: " << slope*mid + intercept << std::endl;
+    float x = 0.33f;
+    std::cout << "x: " << x << std::endl;
+    std::cout << "xS: " << boundTransformation(x, line)  << std::endl;
 
-void PngData::setData(int row, int col, int channel, const unsigned char& byte){
-    this->data[index(row, col, channel)] = byte;
-}
-
-float floorWrap(float x, float y)
-{
-    return floor(x/y);
-}
-
-float ceilWrap(float x, float y)
-{
-    return ceil(x/y);
-}
-
-int floorWrap(int x, int y) {
-    int mod = x % y;
-    if(mod == 0)
-        return x/y;
-    else
-        return (x-mod)/y;
-}
-
-int ceilWrap(int x, int y)
-{
-    int mod = x % y;
-    if(mod == 0)
-        return x/y;
-    else
-        return (x-mod)/y + 1;
+    return 0;
 }
 
 unsigned int getTextureFromData(const PngData &pngData)

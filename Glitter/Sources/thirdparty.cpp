@@ -1,6 +1,5 @@
 #include <thirdparty.hpp>
 
-// ChatGPT Start
 int runCommand (std::string command) {
     pid_t pid = fork();
 
