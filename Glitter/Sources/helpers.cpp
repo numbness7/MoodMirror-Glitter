@@ -2641,7 +2641,8 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
     float passedTime;
     float waitTime;
     {
-        passedTime = destructionAlarm.getPassedTime();
+        std::lock_guard guard(lock);
+        passedTime = deltaTimer.getDeltaTime();
         waitTime = destructionAlarm.getWaitTime();
     }
     lightingEnvironment.object_shader.use();
@@ -2654,7 +2655,7 @@ void drawCubeMatrices2DScale(LightingEnvironment& lightingEnvironment, std::dequ
     for(auto const& shapeLayer : cubeMatrices){
         unsigned int layer = TOTAL_LAYERS - 1 - layerCount;
         unsigned int batchCount = 0;
-        for(auto const& shapeBatch : shapeLayer){
+        for(auto const& shapeBatch : shapeLayer.batches){
             for(auto const& shape : shapeBatch.shapes){
                 glm::mat4 model(1.0f);
                 glm::mat4 transition(shape.transition);
@@ -3145,7 +3146,6 @@ int mainCoordsBasicStream(int argc, char * argv[]){
 
 void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm,  std::mutex* lock, bool* notDone, int* additions){
 
-    std::deque<EmotionLayer> emotionArrays{};
     bool alarmSounded;
     Alarm printAlarm{1.0f};
     long int iterations = 0;
@@ -3154,7 +3154,6 @@ void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm, 
     std::deque<EmotionLayer> emotionLayers{};
     for(int i = 0; i < TOTAL_EMOTION_LAYERS; i++)
         emotionLayers.push_front({std::vector<float>{1,1,1,1,1,1},blankPNGData});
-    float timePassed;
 
     float waitTime;
     {
@@ -3179,7 +3178,6 @@ void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm, 
             std::lock_guard<std::mutex> guard(*lock);
             alarmSounded = true;
             creationAlarm->checkAndUpdate();
-            timePassed = creationAlarm->getPassedTime();
             waitTime = creationAlarm->getWaitTime();
         }
         {
@@ -3209,8 +3207,11 @@ void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm, 
         // Use emotion array to set properties of shapes
         if(alarmSounded){
             ShapeLayer shapeLayer{};
+            std::vector<std::vector<float>> emotionArrays{};
             for(auto const& emotionLayer : emotionLayers){
                 auto const& emotionArray = emotionLayer.emotionArray;
+                emotionArrays.push_back(emotionArray);
+
 
                 glm::vec3 emotionRGB;
 
@@ -3295,8 +3296,9 @@ void something(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm, 
                     shapeBatch.shapes.push_front(shape);
                     additions++;
                 }
-                shapeLayer.push_front(shapeBatch);
+                shapeLayer.batches.push_front(shapeBatch);
             }
+            shapeLayer.emotionArray = average(emotionArrays);
             {
                 std::lock_guard<std::mutex> guard(*lock);
                 shapeLayersBuffer->push_front(shapeLayer);
@@ -3345,6 +3347,15 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
 	
 }
 
+int startSimulator(){
+    return runCommand("(cd ../Emotion_Gen_Sim && source venv/bin/activate && echo -e \"0.1\nc\" | python emotion_generator.py)");
+}
+
+int startColorGenerator(){
+    
+    return runCommand("(cd ../VisualGen_Ben/V1_255x255/ && source venv/bin/activate && echo -e \"255\n255\n0.025\nn\" | python Gener2.py)");
+}
+
 int mainCoordsBasic2D(int argc, char * argv[]){
     // Initialize OpenGL
     int return_status;
@@ -3353,7 +3364,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     
     DeltaTimer deltaTimer{};
     Alarm creationAlarm(SHAPE_INITIAL_SPAWN_TIME);
-    Alarm otherAlarm(SHAPE_INITIAL_SPAWN_TIME);
     bool shapesFull = false;
     
 
@@ -3413,48 +3423,46 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     lightingEnvironment.object_shader.setUniformF("BELOW_INTERCEPT", interceptBT);
     
     
-    // initMouse(mWindow);
 
 
     
     std::deque<ShapeLayer> shapeLayersBuffer{};
     std::deque<ShapeLayer> shapeLayersStorage{};
     std::deque<ShapeLayer> shapeLayersDraw{};
-
-
-    
     glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
     std::mutex shapeLock{};
-
     bool notDone = true;
     int additions = 0;
-    std::thread creationThread(something,&shapeLayersBuffer,&creationAlarm,&shapeLock, &notDone, &additions);
 
+    int simPID = startSimulator();
+    int colPID = startColorGenerator();
+
+
+    std::thread creationThread(something,&shapeLayersBuffer,&creationAlarm,&shapeLock, &notDone, &additions);
     bool midLayerMet = false;
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
         startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
 
-        if (otherAlarm.checkAndUpdate()){
+        {
             std::lock_guard guard(shapeLock);
             while(!shapeLayersBuffer.empty()){
                 auto shapeLayerB = shapeLayersBuffer.back();
                 ShapeLayer shapeLayer = shapeLayerB;
-                for(auto& shapeBatch : shapeLayer){
+                for(auto& shapeBatch : shapeLayer.batches){
                     shapeBatch.texture = createPngTexture(shapeBatch.pngData);
                 }
 
                 shapeLayersStorage.push_front(shapeLayer);
                 shapeLayersBuffer.pop_back();
             }
-            
         }
         bool shapeDeleted = false;
         // Delete cubes
         while (shapeLayersStorage.size() > TOTAL_LAYERS){
             auto const shapeLayer = shapeLayersStorage.back();
-            for(auto const& shapeBatch : shapeLayer){
+            for(auto const& shapeBatch : shapeLayer.batches){
                 if(shapeBatch.texture != blankTexture)
                     glDeleteTextures(1, &shapeBatch.texture);
             }
@@ -3469,12 +3477,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         if(shapeDeleted && !shapesFull){
             std::lock_guard guard(shapeLock);
             creationAlarm.setWaitTime(DESTRUCTION_TIME);
-            otherAlarm.setWaitTime(DESTRUCTION_TIME);
             shapesFull = true;
             std::cout << "Shapes loaded!" << std::endl;
         }
         // Draw cubes
-        drawCubeMatrices2DScale(lightingEnvironment, shapeLayersStorage, shapeTypes, deltaTimer, otherAlarm, shapeLock, lineAbove, lineBelow);
+        drawCubeMatrices2DScale(lightingEnvironment, shapeLayersStorage, shapeTypes, deltaTimer, creationAlarm, shapeLock, lineAbove, lineBelow);
 
 
 
@@ -3488,6 +3495,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         notDone = false;
     }
     creationThread.join();
+    killCommand(simPID);
+    killCommand(colPID);
 
     glfwTerminate();
 

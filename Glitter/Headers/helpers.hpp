@@ -37,16 +37,18 @@
 
 #include <deque>
 #include <json.hpp>
+#include <thirdparty.hpp>
 
 // Header Macros
 #define BYTESIZE 8
 #define TOTAL_LAYERS 50
 #define SHAPES_IN_BATCH 1
 #define MID_LAYER 25
-#define SHAPE_INITIAL_SPAWN_TIME 0.075f
+#define SHAPE_INITIAL_SPAWN_TIME 0.15f
 #define BATCHES_SHARE_EMOTION 1 
-#define DESTRUCTION_TIME         0.075f
+#define DESTRUCTION_TIME         0.15f
 #define TOTAL_EMOTION_LAYERS 6
+#define UPDATE_ITERATIONS 10.0f
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 
 #define SORT_TIME 0.25f
@@ -111,6 +113,21 @@ template <typename T> void mySwap(T& t1, T& t2){
     T temp = t1;
     t1 = t2;
     t2 = temp;
+}
+template <typename V> std::vector<V> average(std::vector<std::vector<V>> vec){
+    std::vector<V> averages{};
+    const int rowSize = vec.size();
+    assert(rowSize > 0);
+    const int colSize = vec[0].size();
+    for(int col = 0; col < colSize; col++){
+        averages.push_back(0);
+        for(int row = 0; row < rowSize; row++){
+            assert(vec[row].size() == colSize);
+            averages[col] += vec[row][col];
+        }
+        averages[col] /= colSize;
+    }
+    return averages;
 }
 
 template <typename T> bool doCopy(T array1[], const T array2[], const unsigned int size1, const unsigned int size2){
@@ -359,7 +376,12 @@ struct EmotionLayer{
     PngData pngData;
 };
 
-typedef std::deque<ShapeBatch> ShapeLayer;
+struct ShapeLayer{ 
+   std::deque<ShapeBatch> batches;
+   std::vector<float> emotionArray;
+};
+
+typedef std::deque<ShapeLayer> VisualLayer;
 
 
 // CONSTANTS

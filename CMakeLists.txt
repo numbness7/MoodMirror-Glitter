@@ -53,7 +53,9 @@ add_executable(${PROJECT_NAME}
     Glitter/Headers/shapes.hpp
     Glitter/Sources/shapes.cpp
     Glitter/Headers/color.hpp
-    Glitter/Sources/color.cpp)
+    Glitter/Sources/color.cpp
+    Glitter/Headers/thirdparty.hpp
+    Glitter/Sources/thirdparty.cpp)
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
