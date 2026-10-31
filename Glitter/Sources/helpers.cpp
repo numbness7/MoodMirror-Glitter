@@ -3876,10 +3876,10 @@ std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionA
     float rightPotential = (happiness + anger - sadness)/2.0f;
     float leftPotential = (disgust + fear - sadness)/2.0f;
     std::map<TRANSITIONS,bool> transitions{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
-    transitions[FADE] = fadePotential >= 0.5f && DO_FADE;
-    transitions[SCALE] = scalePotential >= 0.5f && DO_SCALE;
-    transitions[MOVE_FORWARD] = rightPotential >= 0.85f;
-    transitions[BACK_OUT] = leftPotential >= 0.85f;
+    transitions[FADE] = fadePotential >= 0.60f && DO_FADE;
+    transitions[SCALE] = scalePotential >= 0.60f && DO_SCALE;
+    transitions[MOVE_FORWARD] = rightPotential >= 0.60f;
+    transitions[BACK_OUT] = leftPotential >= 0.60f;
     if(transitions[MOVE_FORWARD] && transitions[BACK_OUT]){
         if(leftPotential > rightPotential) transitions[BACK_OUT] = false;
         else transitions[MOVE_FORWARD] = false;
