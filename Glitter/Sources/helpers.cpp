@@ -35,6 +35,11 @@ float floorWrap(float x, float y)
     return floor(x/y);
 }
 
+float floorWrap(float quotient)
+{
+    return floor(quotient);
+}
+
 float ceilWrap(float x, float y)
 {
     return ceil(x/y);
@@ -602,9 +607,8 @@ unsigned int obtainPNGBlank(PngData& pngData){
     return texture;
 }
 void generatePNGBlank(PngData& pngData){
-    for(int gI = 0; gI < pngData.gridSize(); gI++) {
-        for(int channel = 0; channel < pngData.nrChannels; channel++)
-            pngData.setData(gI, cdata::FULL_COLOR_D);
+    for(int i = 0; i < pngData.size(); i++){
+        pngData.setData(i, cdata::FULL_COLOR_D);
     }
 }
 
@@ -957,6 +961,7 @@ unsigned int boundTransformation(unsigned int x, unsigned int min, unsigned int 
     return slope*x + intercept;
 }
 float boundTransformation(float x, float min, float max, float minT, float maxT){
+    assert(max != min);
     float slope = (maxT - minT)/(max - min);
     float intercept = minT - slope*min;
     return slope*x + intercept;
@@ -1054,6 +1059,29 @@ std::string emotionENUMToString(EMOTION emotion){
 
 void crappyClearScreen(int lines=1000){
     for(int i = 0; i < lines; i++) std::cout << std::endl;
+}
+
+void printEmotionLayers(std::deque<EmotionLayer> emotionLayers){
+    std::cout << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
+    std::cout << "----------------------------------------------------------------------------------------------------" << std::endl;
+    std::vector<std::vector<float>> emotionArrays{};
+    for(auto const& emotionLayer : emotionLayers){
+        emotionArrays.push_back(emotionLayer.emotionArray);
+    }
+    for(int row=0; row < emotionArrays.size(); row++){
+        float max = std::numeric_limits<float>::min();
+        int maxEmotion = -1;
+        for(int col=0; col < emotionArrays[0].size(); col++){
+            float current = emotionArrays[row][col];
+            std::cout << formatFloat(current, 1, 7) << "\t";
+            if(current > max){
+                maxEmotion = col;
+                max = current;
+            }
+        }
+        std::cout << emotionENUMToString(emotionIntToEnum(maxEmotion)) << std::endl;
+    }
+    std::cout << std::endl;
 }
 
 std::vector<std::vector<float>> readEmotionArray(std::string filepath, bool printIt){
@@ -1500,25 +1528,27 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
     return forwardDistance(a.coords) < forwardDistance(b.coords);
 }
 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  float passedTime, float waitTime, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
 
     glDepthMask(false);
-    float passedTime;
-    float waitTime;
-    {
-        std::lock_guard guard(lock);
-        passedTime = deltaTimer.getDeltaTime();
-        waitTime = destructionAlarm.getWaitTime();
-    }
-    lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniformF("destructionTime", waitTime);
-    lightingEnvironment.object_shader.setUniformF("destructionTimePassed", passedTime);
     unsigned layerCount = 0;
+    lightingEnvironment.object_shader.use();
     lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS);
     // Draw cubes
     const float speed = 4.0f;
-    for(auto const& shapeLayer : cubeMatrices){
-        unsigned int layer = TOTAL_LAYERS - 1 - layerCount;
+    for(auto& shapeLayer : cubeMatrices){
+        int layer = TOTAL_LAYERS - 1 - layerCount;
+        if(layer != shapeLayer.previousLayer){
+            shapeLayer.previousLayer = layer;
+            shapeLayer.destructionTimer.reset();
+        }
+        else{
+            shapeLayer.destructionTimer.checkAndUpdate();
+        }
+        passedTime = shapeLayer.destructionTimer.getPassedTime();
+        waitTime = shapeLayer.destructionTimer.getWaitTime();
+        lightingEnvironment.object_shader.setUniformF("destructionTime", waitTime);
+        lightingEnvironment.object_shader.setUniformF("destructionTimePassed", passedTime);
         unsigned int batchCount = 0;
         for(auto const& shapeBatch : shapeLayer.batches){
             for(auto const& shape : shapeBatch.shapes){
@@ -1569,7 +1599,12 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 lightingEnvironment.object_shader.setUniformF("BORDER_THICKNESS", shape.borderThickness);
 
 
-                shapes[shape.type]->draw(lightingEnvironment.object_shader, {shapeBatch.texture, shapes[shape.type]->getTexture(1)});
+
+                if(shape.useBenTexture)
+                    shapes[shape.type]->draw(lightingEnvironment.object_shader, {shapeBatch.texture, shapes[shape.type]->getTexture(1)});
+                else
+                    shapes[shape.type]->draw(lightingEnvironment.object_shader);
+                    
             }
             batchCount++;
         }
@@ -1714,64 +1749,52 @@ std::vector<float> solve(std::vector<std::vector<float>> coefficients, std::vect
 
 
 
-void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm,  std::mutex* lock, bool* notDone, int* shapeAdditions){
+void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm, Alarm* simAlarm,  std::mutex* shapeLock, std::mutex* timeLock, std::counting_semaphore<TOTAL_LAYERS>* shapesSemaphore, bool* notDone, int* shapeAdditions){
 
     bool alarmSounded;
     Alarm printAlarm{1.0f};
     long int iterations = 0;
     PngData blankPNGData(255,255, 3);
+    PngData borderPNGData(255,255, 3);
+    generatePNGBorder(borderPNGData, borderPNGData.width, borderPNGData.height, 10, 10, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
     generatePNGBlank(blankPNGData);
     std::deque<EmotionLayer> emotionLayers{};
     for(int i = 0; i < TOTAL_EMOTION_LAYERS; i++)
-        emotionLayers.push_front({std::vector<float>{1,1,1,1,1,1},blankPNGData});
+        emotionLayers.push_front({std::vector<float>{1,1,1,1,1,1},borderPNGData});
 
     float waitTime;
     {
-        std::lock_guard guard(*lock);
+        std::lock_guard guard(*timeLock);
         waitTime = creationAlarm->getWaitTime();
     }
-    float imageWaitTime = waitTime;
-	std::deque<PngData> pngDataBuffer{};
-	std::deque<PngData> pngDataStorage{};
-	bool turnOff = false;
-	std::mutex lockImage{};
     std::string filepath = "../background.png";
-	std::thread imageThread(pngLoader, &pngDataBuffer, &turnOff, &lockImage, &filepath, &imageWaitTime);
 
+    PngData pD(255,255,3);
     while(*notDone){
         bool printAlarmSounded = printAlarm.checkAndUpdate();
+        bool simAlarmSounded;
         if(printAlarmSounded){
             std::cout << "iterations per second: " << iterations << std::endl;
+            printEmotionLayers(emotionLayers);
             iterations = 0;
         }
         {
-            std::lock_guard<std::mutex> guard(*lock);
-            alarmSounded = true;
-            creationAlarm->checkAndUpdate();
+            std::lock_guard<std::mutex> guard(*timeLock);
+            simAlarmSounded = (*simAlarm).checkAndUpdate();
+            alarmSounded  = creationAlarm->checkAndUpdate();
             waitTime = creationAlarm->getWaitTime();
         }
-        {
-            std::lock_guard<std::mutex> guard(lockImage);
-            imageWaitTime = waitTime;
+        if(simAlarmSounded){
+            do{
+                pD = loadPngTexture(filepath);
+                std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+            } while((!pD.isValid()));
+            emotionLayers.push_front({readEmotionArray("../data.json",false)[0],pD});
+            emotionLayers.pop_back();
         }
-        {
-            while(pngDataStorage.size() < TOTAL_EMOTION_LAYERS){
-                std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)((100.0f))));
-                {
-                    std::lock_guard<std::mutex> guard(lockImage);
-                    while(!pngDataBuffer.empty()){
-                        pngDataStorage.push_front(pngDataBuffer.back());
-                        pngDataBuffer.pop_back();
-                    }
-                }
-            }
-        }
-        emotionLayers.push_front({readEmotionArray("../data.json",false)[0],pngDataStorage.back()});
-        emotionLayers.pop_back();
-        pngDataStorage.pop_back();
 
         
-        bool useBenTexture = rand_range_uniform(0.0f,1.0f) < 0.50f;
+        bool useBenTexture = rand_range_uniform(0.0f,1.0f) < 1.00f;
         
         // #Emotion Extraction
         // Use emotion array to set properties of shapes
@@ -1810,11 +1833,12 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
                 float alphaScale = 1.0f;
                 alphaScale = clamp(rand_range_normal(AVE_ALPHA, DEV_ALPHA), MIN_ALPHA, MAX_ALPHA);
                 //alphaScale = (1.0f - 0.0)*alphaScale + (0.0)*emotionAlpha;
+                auto const& [count, size] = emotionArrayToShapeCountSize(emotionArray);
 
                 ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, 0};
 
-                for (int shapeIndex = 0; shapeIndex < SHAPES_IN_BATCH; shapeIndex++){
-                    auto shape = generateShape2D(transitions, coords, emotionCoords3D, rotAxis, rotScale, emotionRGB, alphaScale, useBenTexture, type, softnessOrThickness, borderCase);
+                for (int shapeIndex = 0; shapeIndex < SHAPES_IN_BATCH*count; shapeIndex++){
+                    auto shape = generateShape2D(transitions, coords, emotionCoords3D, rotAxis, rotScale, emotionRGB, alphaScale, useBenTexture, type, softnessOrThickness, borderCase, size);
                     shapeBatch.shapes.push_front(shape);
                     shapeAdditions++;
                 }
@@ -1822,26 +1846,22 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
             }
             shapeLayer.emotionArray = average(emotionArrays);
             {
-                std::lock_guard<std::mutex> guard(*lock);
+                shapesSemaphore->acquire();
+                std::lock_guard<std::mutex> guard(*shapeLock);
                 shapeLayersBuffer->push_front(shapeLayer);
             }
+        iterations++;
         }
 
-    iterations++;
     }
-    {
-        std::lock_guard<std::mutex> guard(lockImage);
-        turnOff = true;
-    }
-    imageThread.join();
 
 }
+
 void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath, float* waitTime){
     static const unsigned int bufferSizeMult = 1;
     auto& dataBuffer = *datas;
     PngData pD(255,255,3);
 	while(!*turnOff){
-
         bool full;
         float tempWaitTime;
         {
@@ -1849,14 +1869,13 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
             full = dataBuffer.size()>=TOTAL_EMOTION_LAYERS*bufferSizeMult;
             tempWaitTime = *waitTime;
         }
-
         if(full){
             std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*100.0f)));
         }
         else{
             pD = loadPngTexture(*filePath);
             if(pD.isValid()){
-                std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*1000000000.0f/(TOTAL_EMOTION_LAYERS*bufferSizeMult))));
+                std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*1000000000.0f/(bufferSizeMult))));
                 std::lock_guard guard(*lock);
                 dataBuffer.push_front(pD);
             }
@@ -1866,7 +1885,6 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
             }
         }
 	}
-	
 }
 
 int startBensEmotionSimulator(float frequency, bool cycle, bool random){
@@ -2094,6 +2112,7 @@ void Alarm::setWaitTime(float waitTime)
 {
     this->waitTime = waitTime;
     this->time = 0.0f;
+    this->timer.updateDeltaTime();
 }
 
 bool Alarm::checkAndUpdate()
@@ -2252,21 +2271,35 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     std::deque<ShapeLayer> shapeLayersDraw{};
     glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
     std::mutex shapeLock{};
+    std::mutex timeLock{};
+    std::counting_semaphore<TOTAL_LAYERS> shapesSemaphore{0};
     bool notDone = true;
     int additions = 0;
 
-    int simPID = startBensEmotionSimulator(SIM_FREQUENCY, SIM_CYCLE, SIM_RANDOM);
+    int killPID = runCommand("programs=(\"Gener2.py\" \"emotion_generator.py\"); for program in \"${programs[@]}\"; do pkill -f \"$program\"; done;");
+    waitpid(killPID, nullptr, 0);
+
+    int simPID = startBensEmotionSimulator(SIM_INITIAL_PERIOD, SIM_CYCLE, SIM_RANDOM);
     int colPID = startBensVisualGenerationProgram(COLOR_FREQUENCY, COLOR_WIDTH, COLOR_HEIGHT, COLOR_DISPLAY);
 
 
-    std::thread creationThread(shapeLayerGenerator,&shapeLayersBuffer,&creationAlarm,&shapeLock, &notDone, &additions);
+    float currentDestructionTime = creationAlarm.getWaitTime();
+    Alarm otherDestructionAlarm{SHAPE_INITIAL_SPAWN_TIME};
+    Alarm simAlarm{SIM_INITIAL_PERIOD};
+    std::thread creationThread(shapeLayerGenerator,&shapeLayersBuffer,&creationAlarm, &simAlarm, &shapeLock, &timeLock, &shapesSemaphore, &notDone, &additions);
     bool midLayerMet = false;
+    float requiredLayersFloat = 0.0f;
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
         startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
+        requiredLayersFloat += deltaTimer.getDeltaTime()/currentDestructionTime;
+        unsigned int requiredLayers = (unsigned int) floorWrap(requiredLayersFloat);
 
+        if(requiredLayers > 0)
         {
+            requiredLayersFloat -= (float) requiredLayers;
+            shapesSemaphore.release(requiredLayers);
             std::lock_guard guard(shapeLock);
             while(!shapeLayersBuffer.empty()){
                 auto shapeLayerB = shapeLayersBuffer.back();
@@ -2275,10 +2308,14 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                     shapeBatch.texture = createPngTexture(shapeBatch.pngData);
                 }
 
+                shapeLayer.destructionTimer.setWaitTime(currentDestructionTime);
                 shapeLayersStorage.push_front(shapeLayer);
                 shapeLayersBuffer.pop_back();
             }
         }
+
+
+
         bool shapeDeleted = false;
         // Delete cubes
         while (shapeLayersStorage.size() > TOTAL_LAYERS){
@@ -2296,13 +2333,25 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
         }
         if(shapeDeleted && !shapesFull){
-            std::lock_guard guard(shapeLock);
+            std::lock_guard guard(timeLock);
             creationAlarm.setWaitTime(DESTRUCTION_TIME);
+            otherDestructionAlarm.setWaitTime(DESTRUCTION_TIME);
+            simAlarm.setWaitTime(SIM_PERIOD);
+            killCommand(simPID);
+            simPID = startBensEmotionSimulator(SIM_PERIOD, true, false);
+            currentDestructionTime = creationAlarm.getWaitTime();
             shapesFull = true;
+            unsigned layerCount = 0;
+            for(auto& shapeLayer : shapeLayersStorage){
+                int layer = TOTAL_LAYERS - 1 - layerCount;
+                shapeLayer.destructionTimer.setWaitTime(currentDestructionTime);
+                shapeLayer.previousLayer = -1;
+                layerCount++;
+            }
             std::cout << "Shapes loaded!" << std::endl;
         }
         // Draw cubes
-        drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, deltaTimer, creationAlarm, shapeLock, lineAbove, lineBelow);
+        drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, otherDestructionAlarm.getPassedTime(), currentDestructionTime, shapeLock, lineAbove, lineBelow);
 
 
 
@@ -2318,6 +2367,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     creationThread.join();
     killCommand(simPID);
     killCommand(colPID);
+    killCommand(killPID);
 
     glfwTerminate();
 
@@ -3868,7 +3918,7 @@ float getElapsedTime(){
 
 // #Unordered -------------------------------------------------------------
 
-ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, glm::vec3 emotionCoords3D, glm::vec3 rotAxis, float rotScale, glm::vec3 emotionRGB, float alphaScale, bool useBenTexture, SHAPE_TYPE_2D type, float softnessOrThickness, unsigned int borderCase){
+ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, const glm::vec3 emotionCoords3D, const glm::vec3 rotAxis, const float rotScale, const glm::vec3 emotionRGB, const float alphaScale, const bool useBenTexture, const SHAPE_TYPE_2D type, const float softnessOrThickness, const unsigned int borderCase, const float emotionScale){
     
     float maxScale = MAX_SCALE;
     float minScale = MIN_SCALE;
@@ -3895,7 +3945,7 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
     scaledCoordinates.y = coords.y*yCoordScale;
     scaledCoordinates.z = 0.0f;
     model = glm::translate(model, scaledCoordinates);
-    model = glm::scale(model, scale);
+    model = glm::scale(model, scale*emotionScale);
     model = glm::rotate(model, rotScale, rotAxis);
     
 
@@ -3920,4 +3970,67 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
     shape.direction = glm::normalize(shape.direction);
     shape.rotatedCoords = glm::mat3(shape.rotationMatrix) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
     return shape;
+}
+
+float emotionIntensitiesWeighting(EmotionIntensities eI, EmotionIntensities weights, float minT, float maxT){
+    float weighting = 
+        eI.disgust*weights.disgust +
+        eI.anger*weights.anger +
+        eI.sadness*weights.sadness +
+        eI.surprise*weights.surprise +
+        eI.happiness*weights.happiness +
+        eI.fear*weights.fear;
+    float minWeighting = 0.0f;
+    minWeighting += weights.disgust     < 0.0f ? weights.disgust : 0.0f;
+    minWeighting += weights.anger       < 0.0f ? weights.anger : 0.0f;
+    minWeighting += weights.sadness     < 0.0f ? weights.sadness : 0.0f;
+    minWeighting += weights.happiness   < 0.0f ? weights.happiness : 0.0f;
+    minWeighting += weights.fear        < 0.0f ? weights.fear : 0.0f;
+    minWeighting += weights.surprise    < 0.0f ? weights.surprise : 0.0f;
+    float maxWeighting = 0.0f;
+    maxWeighting += weights.disgust     > 0.0f ? weights.disgust : 0.0f;
+    maxWeighting += weights.anger       > 0.0f ? weights.anger : 0.0f;
+    maxWeighting += weights.sadness     > 0.0f ? weights.sadness : 0.0f;
+    maxWeighting += weights.happiness   > 0.0f ? weights.happiness : 0.0f;
+    maxWeighting += weights.fear        > 0.0f ? weights.fear : 0.0f;
+    maxWeighting += weights.surprise    > 0.0f ? weights.surprise : 0.0f;
+    return boundTransformation(weighting, minWeighting, maxWeighting, minT, maxT);
+}
+
+std::tuple<unsigned int, float> emotionArrayToShapeCountSize(std::vector<float> emotionArray){
+    EmotionIntensities eI = emotionArrayToEmotionIntensities(emotionArray);
+    EmotionIntensities scaleWeightings{};
+    scaleWeightings.anger       = 1.0f;
+    scaleWeightings.happiness   = 0.75f;
+    scaleWeightings.sadness     = 0.5f;
+    scaleWeightings.surprise    = 0.5f;
+    scaleWeightings.fear        = 0.25f;
+    scaleWeightings.disgust     = 0.25f;
+    EmotionIntensities countWeightings{};
+    countWeightings.anger       = 0.25f;
+    countWeightings.happiness   = 0.5f;
+    countWeightings.sadness     = 0.75f;
+    countWeightings.surprise    = 0.75f;
+    countWeightings.fear        = 1.0f;
+    countWeightings.disgust     = 1.0f;
+
+    float powerScale = emotionIntensitiesWeighting(eI, scaleWeightings, -4.0f, 0.0f);
+    float powerCount = emotionIntensitiesWeighting(eI, countWeightings, 0.0f, 3.25f);
+        
+    float scale = glm::pow(2.5f, powerScale);
+    float countFloat = glm::pow(2.5f, powerCount);
+    unsigned int count = (unsigned int) floorWrap(countFloat);
+
+    return {count, scale};
+
+}
+
+EmotionIntensities emotionArrayToEmotionIntensities(std::vector<float> emotionArray){
+    float happiness = emotionArray[HAPPY];
+    float sadness   = emotionArray[SAD];
+    float anger     = emotionArray[ANGRY];
+    float fear      = emotionArray[FEAR];
+    float surprise  = emotionArray[SURPRISE];
+    float disgust   = emotionArray[DISGUST];
+    return EmotionIntensities(happiness, sadness, anger, fear, surprise, disgust);
 }

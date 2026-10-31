@@ -50,17 +50,17 @@
 
 // Layer info
 
-#define TOTAL_LAYERS 50
+#define TOTAL_LAYERS 20
 #define SHAPES_IN_BATCH 1
-#define MID_LAYER 25
+#define MID_LAYER 2
 #define TOTAL_EMOTION_LAYERS 6
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
 
 // Spawn Times
 
-#define SHAPE_INITIAL_SPAWN_TIME 0.15f
-#define DESTRUCTION_TIME         0.15f
+#define SHAPE_INITIAL_SPAWN_TIME 0.1f
+#define DESTRUCTION_TIME         1.0f
 #define UPDATE_ITERATIONS 10.0f
 
 // Ben's Color Image Generator parameters
@@ -72,7 +72,8 @@
 
 // Ben's Simulator Parameters
 
-#define SIM_FREQUENCY 0.1f
+#define SIM_PERIOD 1.00f
+#define SIM_INITIAL_PERIOD 0.1f
 #define SIM_CYCLE true
 #define SIM_RANDOM false
 
@@ -106,15 +107,15 @@
 
 #define MAX_SCALE 8.0f
 #define MIN_SCALE 0.05f
-#define AVE_SCALE 0.25f
-#define DEV_SCALE 0.225f
+#define AVE_SCALE 0.750f
+#define DEV_SCALE 0.750f
 
 // Random Alpha Differences Between Shapes in Same Batch
 
 #define MAX_ALPHA 1.0f
 #define MIN_ALPHA 1.0f
-#define AVE_ALPHA 0.5f
-#define DEV_ALPHA 0.55f
+#define AVE_ALPHA 1.0f
+#define DEV_ALPHA 1.00f
 
 // Sets the amount the coordinates of a shape is randomized or based on emotion information
 
@@ -158,6 +159,7 @@ template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable);
 template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
 float clamp(const float x, const float min, const float max);
 float floorWrap(float dividend, float divisor);
+float floorWrap(float quotient);
 float ceilWrap(float dividend, float divisor);
 int floorWrap(int dividend, int divisor);
 int ceilWrap(int dividend, int divisor);
@@ -344,12 +346,13 @@ class Alarm{
     public:
         Alarm( float waitTime);
         void setWaitTime(float waitTime);
-        float getWaitTime(){return waitTime;}
+        float getWaitTime() const {return waitTime;}
         float getPassedTime() const { return time; }
         float getPassedTimeFrom(float timeStamp) const { return time + timeStamp; }
-        float getTimeLeft() { return waitTime - time; }
+        float getTimeLeft() const { return waitTime - time; }
+        void reset() { time = 0.0f; timer.updateDeltaTime(); }
         bool checkAndUpdate();
-        bool check(){ return alarmSounded; }
+        bool check() const { return alarmSounded; }
     private:
         float waitTime;
         float time;
@@ -404,6 +407,16 @@ enum TRANSITIONS {FADE,SCALE,VORTEX, BACK_OUT, MOVE_FORWARD};
 
 
 // #Structs -------------------------------------------------------------
+
+
+struct EmotionIntensities{
+    float happiness;
+    float sadness;
+    float anger;
+    float fear;
+    float surprise;
+    float disgust;
+};
 
 struct Material {
     unsigned int diffuse;
@@ -467,6 +480,8 @@ struct EmotionLayer{
 struct ShapeLayer{ 
    std::deque<ShapeBatch> batches;
    std::vector<float> emotionArray;
+   Alarm destructionTimer{1.0f};
+   int previousLayer = -1;
 };
 
 typedef std::deque<ShapeLayer> VisualLayer;
@@ -511,12 +526,12 @@ int mainSolve(int argc, char * argv[]);
 /// @param lightingEnvironment 
 /// @param shapeLayers 
 /// @param shapes 
-/// @param deltaTimer 
-/// @param destructionAlarm 
+/// @param timePassed 
+/// @param waitTime 
 /// @param lock 
 /// @param lineAbove 
 /// @param lineBelow 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& shapeLayers, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  DeltaTimer deltaTimer, Alarm destructionAlarm, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow);
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  float timePassed, float waitTime, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow);
 void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
@@ -640,6 +655,8 @@ float calcDisplacement(float destructionTimePassed, float destructionTime, int t
 
 // #EmotionArrayTo -------------------------------------------------------------
 
+std::tuple<unsigned int, float> emotionArrayToShapeCountSize(std::vector<float> emotionArray);
+EmotionIntensities emotionArrayToEmotionIntensities(std::vector<float> emotionArray);
 glm::vec3 emotionArrayToVec3(std::vector<float> emotionArray);
 float emotionArrayToLength(std::vector<std::vector<float>> emotionArray);
 std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray, bool noSoft=false, bool noMiddle=false, bool noHard=false);
@@ -734,10 +751,11 @@ void checkPrint(std::string message, bool check, bool debugIt);
 /// @brief Create ShapeLayers using emotion data and Ben's visual generator.
 /// @param shapeLayersBuffer shape layers.
 /// @param creationAlarm periodic timer to determine when to create a new layer.
-/// @param lock prevent alteration of parameters while another thread is using them.
+/// @param shapeLock prevent alteration of parameters while another thread is using them.
+/// @param timeLock prevent alteration of parameters while another thread is using them.
 /// @param notDone indicates when to end the thread.
 /// @param shapeAdditions the amount of shapes that have been generated.
-void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm,  std::mutex* lock, bool* notDone, int* shapeAdditions);
+void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creationAlarm, Alarm* simAlarm,  std::mutex* shapeLock, std::mutex* timeLock, std::counting_semaphore<TOTAL_LAYERS>* shapesSemaphore, bool* notDone, int* shapeAdditions);
 /// @brief Loads the png file generated by Ben's visual generator.
 /// @param datas buffer storing data from multiple loaded png files.
 /// @param turnOff terminates the generator.
@@ -752,6 +770,8 @@ int startBensVisualGenerationProgram(float frequency, int width=255, int height=
 int startBensEmotionSimulator(float frequency, bool cycle = true, bool random = false);
 
 // #Unordered -------------------------------------------------------------
-ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, glm::vec3 emotionCoords3D, glm::vec3 rotAxis, float rotScale, glm::vec3 emotionRGB, float alphaScale, bool useBenTexture, SHAPE_TYPE_2D type, float softnessOrThickness, unsigned int borderCase);
+ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, const glm::vec3 emotionCoords3D, const glm::vec3 rotAxis, const float rotScale, const glm::vec3 emotionRGB, const float alphaScale, const bool useBenTexture, const SHAPE_TYPE_2D type, const float softnessOrThickness, const unsigned int borderCase, const float emotionScale);
+float emotionIntensitiesWeighting(EmotionIntensities eI, EmotionIntensities weights, float minT, float maxT);
+void printEmotionLayers(std::deque<EmotionLayer> emotionLayers);
 
 #endif
