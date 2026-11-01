@@ -21,7 +21,31 @@ template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable){
     for(auto const number : iterable) summation += number;
     return summation;
 }
-template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable){
+template <typename ITERATOR> ITERATOR::value_type maxM(ITERATOR begin, ITERATOR end)
+{
+    auto& maxi = *begin;
+    for(auto it = begin + 1; it != end; ++it){
+        auto& n = *it;
+        if(n > maxi){
+            maxi = n;
+        }
+    }
+    return maxi;
+}
+template <typename ITERATOR> ITERATOR::value_type minM(ITERATOR begin, ITERATOR end)
+{
+    auto& mini = *begin;
+    for(auto it = begin + 1; it != end; ++it){
+        auto& n = *it;
+        if(n < mini){
+            mini = n;
+        }
+    }
+    return mini;
+}
+template <typename NUMBER, typename ITERABLE>
+NUMBER mean(ITERABLE iterable)
+{
     NUMBER summation = ssum<NUMBER>(iterable);
     return summation/iterable.size();
 }
@@ -74,7 +98,7 @@ template <typename V> std::vector<V> average(std::vector<std::vector<V>> vec){
             assert(vec[row].size() == colSize);
             averages[col] += vec[row][col];
         }
-        averages[col] /= colSize;
+        averages[col] /= rowSize;
     }
     return averages;
 }
@@ -960,12 +984,14 @@ unsigned int boundTransformation(unsigned int x, unsigned int min, unsigned int 
     unsigned int intercept = minT - slope*min;
     return slope*x + intercept;
 }
+
 float boundTransformation(float x, float min, float max, float minT, float maxT){
     assert(max != min);
     float slope = (maxT - minT)/(max - min);
     float intercept = minT - slope*min;
     return slope*x + intercept;
 }
+
 std::tuple<float,float> linearTransformation(float xf, float xi, float yf, float yi){
     if(xf - xi == 0){
         throw(std::runtime_error("Error: No horizontal distance"));
@@ -974,6 +1000,7 @@ std::tuple<float,float> linearTransformation(float xf, float xi, float yf, float
     float intercept = yi - slope*xi;
     return std::tuple<float,float>(slope,intercept);
 }
+
 std::tuple<float,float,float> getLineFromVertices(float xi, float xf, float yi, float yf){
     float A = yf - yi;
     float B = xi - xf;
@@ -981,9 +1008,11 @@ std::tuple<float,float,float> getLineFromVertices(float xi, float xf, float yi, 
     return {A,B,C};
     
 }
+
 float boundTransformation(float x, std::tuple<float,float> line){
     return x*std::get<0>(line)+ std::get<1>(line);
 }
+
 float boundTransformation(float x, float slope, float intercept){
     return x*slope + intercept;
 }
@@ -1172,6 +1201,60 @@ std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray, bo
     }
     return {4,softness};
 
+}
+
+float getMinWeightingSum(EmotionIntensities weights){
+    float minWeighting = 0.0f;
+    minWeighting += weights.disgust     < 0.0f ? weights.disgust : 0.0f;
+    minWeighting += weights.anger       < 0.0f ? weights.anger : 0.0f;
+    minWeighting += weights.sadness     < 0.0f ? weights.sadness : 0.0f;
+    minWeighting += weights.happiness   < 0.0f ? weights.happiness : 0.0f;
+    minWeighting += weights.fear        < 0.0f ? weights.fear : 0.0f;
+    minWeighting += weights.surprise    < 0.0f ? weights.surprise : 0.0f;
+    return minWeighting;
+}
+
+float getMaxWeightingSum(EmotionIntensities weights){
+    float maxWeighting = 0.0f;
+    maxWeighting += weights.disgust     > 0.0f ? weights.disgust : 0.0f;
+    maxWeighting += weights.anger       > 0.0f ? weights.anger : 0.0f;
+    maxWeighting += weights.sadness     > 0.0f ? weights.sadness : 0.0f;
+    maxWeighting += weights.happiness   > 0.0f ? weights.happiness : 0.0f;
+    maxWeighting += weights.fear        > 0.0f ? weights.fear : 0.0f;
+    maxWeighting += weights.surprise    > 0.0f ? weights.surprise : 0.0f;
+    return maxWeighting;
+}
+
+float getMaxWeight(EmotionIntensities weights){
+    std::vector<float> fWeights{weights.disgust,weights.anger, weights.sadness, weights.happiness, weights.fear, weights.surprise};
+    float maxi = maxM(fWeights.begin(), fWeights.end());
+    return maxi;
+}
+float getMinWeight(EmotionIntensities weights){
+    std::vector<float> fWeights{weights.disgust,weights.anger, weights.sadness, weights.happiness, weights.fear, weights.surprise};
+    float mini = minM(fWeights.begin(), fWeights.end()); 
+    return mini;
+}
+
+glm::vec2 emotionArrayToSL(const std::vector<float> emotionArray){
+    EmotionIntensities eI = emotionArrayToEmotionIntensities(emotionArray);
+    EmotionIntensities wS;
+    wS.disgust      = 0.4f;
+    wS.sadness      = 0.75f;
+    wS.fear         = 0.77f;
+    wS.anger        = 1.0f;
+    wS.happiness    = 1.0f;
+    wS.surprise     = 1.0f;
+    float saturation = emotionIntensitiesWeighting(eI, wS);
+    EmotionIntensities wL;
+    wL.disgust      = 0.5f;
+    wL.sadness      = 0.4f;
+    wL.fear         = 0.2f;
+    wL.anger        = 0.45f;
+    wL.happiness    = 0.75f;
+    wL.surprise     = 0.66f;
+    float lightness = emotionIntensitiesWeighting(eI, wL);
+    return glm::vec2(saturation, lightness);
 }
 
 glm::vec3 emotionArrayToColor(const std::vector<float> emotionArray){
@@ -1475,6 +1558,13 @@ glm::vec3 randScale(float min, float max){
     }
     return coords;
 }
+glm::vec2 randCoords2D(){
+    glm::vec2 coords(0.0f);
+    for (unsigned int i = 0; i < 2; i++){
+        coords[i] = rand_range_uniform(-1.0f,1.0f);
+    }
+    return coords;
+}
 glm::vec3 randCoords(){
     glm::vec3 coords(0.0f);
     for (unsigned int i = 0; i < 3; i++){
@@ -1528,8 +1618,7 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
     return forwardDistance(a.coords) < forwardDistance(b.coords);
 }
 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  float passedTime, float waitTime, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
-
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer){
     glDepthMask(false);
     unsigned layerCount = 0;
     lightingEnvironment.object_shader.use();
@@ -1545,20 +1634,24 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
         else{
             shapeLayer.destructionTimer.checkAndUpdate();
         }
-        passedTime = shapeLayer.destructionTimer.getPassedTime();
-        waitTime = shapeLayer.destructionTimer.getWaitTime();
+        float passedTime = shapeLayer.destructionTimer.getPassedTime();
+        float waitTime = shapeLayer.destructionTimer.getWaitTime();
         lightingEnvironment.object_shader.setUniformF("destructionTime", waitTime);
         lightingEnvironment.object_shader.setUniformF("destructionTimePassed", passedTime);
         unsigned int batchCount = 0;
-        for(auto const& shapeBatch : shapeLayer.batches){
-            for(auto const& shape : shapeBatch.shapes){
+        shapeLayer.pulseTimer.checkAndUpdate();
+        float pulseTime = shapeLayer.pulseTimer.getPassedTime();
+        float pulseMaxTime = shapeLayer.pulseTimer.getWaitTime();
+        lightingEnvironment.object_shader.setUniformV2("SL_SCALE", shapeLayer.SL_SCALE);
+        for(auto& shapeBatch : shapeLayer.batches){
+            for(auto& shape : shapeBatch.shapes){
                 glm::mat4 model(1.0f);
                 glm::mat4 transition(shape.transition);
                 glm::mat4 rotation(shape.rotationMatrix);
                 glm::mat4 scale(shape.scaleMatrix);
                 lightingEnvironment.object_shader.setUniformM4("model", shape.model);
                 //lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && shape.transitions[FADE]));
-                lightingEnvironment.object_shader.setUniformB("DO_FADE", shape.transitions.at(FADE));
+                lightingEnvironment.object_shader.setUniformB("DO_FADE", shape.transitions.at(FADE_T));
                 lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
 
                 lightingEnvironment.object_shader.setUniformI("layer", layer);
@@ -1567,20 +1660,20 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
 
 
 
-                if(shape.transitions.at(BACK_OUT)){
+                if(shape.transitions.at(BACK_OUT_T)){
                     float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
                     transition = glm::mat4(1.0f);
                     transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
                     transition = glm::translate(transition, -speed*dX*shape.direction);
                 }
-                else if(shape.transitions.at(MOVE_FORWARD)){
+                else if(shape.transitions.at(MOVE_FORWARD_T)){
                     float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
                     transition = glm::mat4(1.0f);
                     transition = glm::translate(transition, -2.0f*shape.direction - shape.rotatedCoords);
                     transition = glm::translate(transition, speed*dX*shape.direction);
                 }
                 
-                if(shape.transitions.at(SCALE)){
+                if(shape.transitions.at(SCALE_T)){
                     float scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
                     scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
                 }
@@ -1590,12 +1683,33 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 
                 
                 //model = scale*rotation*transition;
+                glm::vec4 innerColor = shape.innerColor;    
+                glm::vec4 outerColor = shape.outerColor;    
+
+                if(shapeBatch.pulses.at(FADE_P)){
+                    float fade = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, SHAPE_MIN_FADE, SHAPE_MAX_FADE, false);                    
+                    innerColor.a *= (1.0f - fade);
+                    outerColor.a *= (1.0f - fade);
+                }
+                if(shapeBatch.pulses.at(SCALE_P)){
+                    float scaleDown = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, SHAPE_MIN_FADE, SHAPE_MAX_FADE, false);                    
+                    scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
+                }
+                if(shapeBatch.pulses.at(RUMBLE_P)){
+                    static const float rumbleScale = 3.0f;
+                    shape.rumbleCoords +=  deltaTimer.getDeltaTime()*rumbleScale*randCoords2D()/pulseMaxTime;
+                    transition = glm::translate(transition, glm::vec3(shape.rumbleCoords,0.0f));
+                }
+                if(shapeBatch.pulses.at(SPIN_P)){
+                    static const float spinScale = 3.0f;
+                    shape.spin += deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
+                    rotation = glm::rotate(rotation, shape.spin, dir::FORWARD);
+                }
                 model = transition*rotation*scale;
 
-
                 lightingEnvironment.object_shader.setUniformM4("model", model);
-                lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", shape.innerColor);
-                lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", shape.outerColor);
+                lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", innerColor);
+                lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", outerColor);
                 lightingEnvironment.object_shader.setUniformF("BORDER_THICKNESS", shape.borderThickness);
 
 
@@ -1826,8 +1940,9 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
 
                 SHAPE_TYPE_2D type = emotionArrayToShapeType2D(emotionArray);
                 auto transitions = emotionArrayToTransitions(emotionArray);
+                auto pulses = emotionArrayToPulses(emotionArray);
                 const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(emotionArray,false, true, false);
-                transitions[VORTEX] = rand_range_uniform(0.0f, 1.0f) <= 0.1f;
+                transitions[VORTEX_T] = rand_range_uniform(0.0f, 1.0f) <= 0.1f;
                 //const auto emotionAlpha = emotionArrayToAlpha(emotionArray);
 
                 float alphaScale = 1.0f;
@@ -1835,7 +1950,7 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
                 //alphaScale = (1.0f - 0.0)*alphaScale + (0.0)*emotionAlpha;
                 auto const& [count, size] = emotionArrayToShapeCountSize(emotionArray);
 
-                ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, 0};
+                ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, 0, pulses};
 
                 for (int shapeIndex = 0; shapeIndex < SHAPES_IN_BATCH*count; shapeIndex++){
                     auto shape = generateShape2D(transitions, coords, emotionCoords3D, rotAxis, rotScale, emotionRGB, alphaScale, useBenTexture, type, softnessOrThickness, borderCase, size);
@@ -1845,6 +1960,7 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
                 shapeLayer.batches.push_front(shapeBatch);
             }
             shapeLayer.emotionArray = average(emotionArrays);
+            shapeLayer.SL_SCALE = emotionArrayToSL(shapeLayer.emotionArray);
             {
                 shapesSemaphore->acquire();
                 std::lock_guard<std::mutex> guard(*shapeLock);
@@ -2007,6 +2123,27 @@ OpenGLShape create_circle(unsigned int tri_cnt)
     return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, texture, true);
 }
 
+float calcFade(float destructionTimePassed, float maxDestructionTime, float changePointStart, float changePointBefore, float changePointAfter, float changePointEnd, float shapeMinFade, float shapeMaxFade, bool delay){
+	assert(maxDestructionTime != 0);
+	float timePassed;
+    if(destructionTimePassed < changePointStart*maxDestructionTime){
+        return shapeMaxFade;
+    }
+    else if (destructionTimePassed < changePointBefore*maxDestructionTime){
+        timePassed = boundTransformation(destructionTimePassed, changePointStart*maxDestructionTime, changePointBefore*maxDestructionTime, shapeMinFade, shapeMaxFade);
+        return shapeMaxFade - timePassed;
+    }
+    else if (destructionTimePassed < changePointAfter*maxDestructionTime){
+        return shapeMinFade;
+    }
+    else if (destructionTimePassed < changePointEnd*maxDestructionTime){
+        timePassed = boundTransformation(destructionTimePassed, changePointAfter*maxDestructionTime, changePointEnd*maxDestructionTime, shapeMinFade, shapeMaxFade);
+        return shapeMinFade + timePassed;
+    }
+    else{
+        return shapeMaxFade;
+    }
+}
 
 float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade, bool delay, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
     float fade = 0.0f;
@@ -2289,6 +2426,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     std::thread creationThread(shapeLayerGenerator,&shapeLayersBuffer,&creationAlarm, &simAlarm, &shapeLock, &timeLock, &shapesSemaphore, &notDone, &additions);
     bool midLayerMet = false;
     float requiredLayersFloat = 0.0f;
+    float currentPulseMaxTime = PULSE_TIME_INITAL;
+
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -2309,6 +2448,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                 }
 
                 shapeLayer.destructionTimer.setWaitTime(currentDestructionTime);
+                shapeLayer.pulseTimer.setWaitTime(currentPulseMaxTime);
                 shapeLayersStorage.push_front(shapeLayer);
                 shapeLayersBuffer.pop_back();
             }
@@ -2340,18 +2480,20 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             killCommand(simPID);
             simPID = startBensEmotionSimulator(SIM_PERIOD, true, false);
             currentDestructionTime = creationAlarm.getWaitTime();
+            currentPulseMaxTime = PULSE_TIME;
             shapesFull = true;
             unsigned layerCount = 0;
             for(auto& shapeLayer : shapeLayersStorage){
                 int layer = TOTAL_LAYERS - 1 - layerCount;
                 shapeLayer.destructionTimer.setWaitTime(currentDestructionTime);
+                shapeLayer.pulseTimer.setWaitTime(currentPulseMaxTime);
                 shapeLayer.previousLayer = -1;
                 layerCount++;
             }
             std::cout << "Shapes loaded!" << std::endl;
         }
         // Draw cubes
-        drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, otherDestructionAlarm.getPassedTime(), currentDestructionTime, shapeLock, lineAbove, lineBelow);
+        drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer);
 
 
 
@@ -3864,6 +4006,24 @@ void generatePNGLineToBordersFromPoint(PngData& pngData, std::vector<glm::vec2> 
     }
 
 }
+std::map<PULSES,bool> emotionArrayToPulses(std::vector<float> emotionArray){
+    float happiness = emotionArray[HAPPY];
+    float sadness   = emotionArray[SAD];
+    float anger     = emotionArray[ANGRY];
+    float fear      = emotionArray[FEAR];
+    float surprise  = emotionArray[SURPRISE];
+    float disgust   = emotionArray[DISGUST];
+    float scalePotential = (disgust);
+    float fadePotential = (fear);
+    float rumblePotential = (anger);
+    float spinPotential  = (happiness);
+    std::map<PULSES,bool> pulses{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
+    pulses[FADE_P] = fadePotential >= 0.60f;
+    pulses[SCALE_P] = scalePotential >= 0.60f;
+    pulses[RUMBLE_P] = rumblePotential >= 0.99f;
+    pulses[SPIN_P] = spinPotential >= 0.95f;
+    return pulses;
+}
 std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionArray){
     float happiness = emotionArray[HAPPY];
     float sadness   = emotionArray[SAD];
@@ -3876,13 +4036,13 @@ std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionA
     float rightPotential = (happiness + anger - sadness)/2.0f;
     float leftPotential = (disgust + fear - sadness)/2.0f;
     std::map<TRANSITIONS,bool> transitions{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
-    transitions[FADE] = fadePotential >= 0.60f && DO_FADE;
-    transitions[SCALE] = scalePotential >= 0.60f && DO_SCALE;
-    transitions[MOVE_FORWARD] = rightPotential >= 0.60f;
-    transitions[BACK_OUT] = leftPotential >= 0.60f;
-    if(transitions[MOVE_FORWARD] && transitions[BACK_OUT]){
-        if(leftPotential > rightPotential) transitions[BACK_OUT] = false;
-        else transitions[MOVE_FORWARD] = false;
+    transitions[FADE_T] = fadePotential >= 0.60f && DO_FADE;
+    transitions[SCALE_T] = scalePotential >= 0.60f && DO_SCALE;
+    transitions[MOVE_FORWARD_T] = rightPotential >= 0.60f;
+    transitions[BACK_OUT_T] = leftPotential >= 0.60f;
+    if(transitions[MOVE_FORWARD_T] && transitions[BACK_OUT_T]){
+        if(leftPotential > rightPotential) transitions[BACK_OUT_T] = false;
+        else transitions[MOVE_FORWARD_T] = false;
     }
     bool isEmpty = true;
     for(auto const value : transitions){
@@ -3892,7 +4052,7 @@ std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionA
         }
         
     }
-    if(isEmpty) transitions[FADE] = true;
+    if(isEmpty) transitions[FADE_T] = true;
     return transitions;
 
     
@@ -3925,11 +4085,11 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
     float aveScale = AVE_SCALE;
     float devScale = DEV_SCALE;
     glm::vec3 scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale) * glm::vec3(1.0f);
-    if(transitions[SCALE] && transitions[FADE]) scale *= DO_SCALE_SCALE;
-    else if(transitions[SCALE]) scale *= DO_SCALE_SCALE;
-    else if (transitions[FADE]) scale *= DO_FADE_SCALE;
+    if(transitions[SCALE_T] && transitions[FADE_T]) scale *= DO_SCALE_SCALE;
+    else if(transitions[SCALE_T]) scale *= DO_SCALE_SCALE;
+    else if (transitions[FADE_T]) scale *= DO_FADE_SCALE;
     
-    if(transitions[VORTEX]) scale *= DO_VORTEX_SCALE;
+    if(transitions[VORTEX_T]) scale *= DO_VORTEX_SCALE;
 
     
     coords = SCATTER_TO_EMOTION_COORD_RATIO* SCATTER_COORD_SCALE * randCoords()+(1-SCATTER_TO_EMOTION_COORD_RATIO)*EMOTION_COORD_SCALE*emotionCoords3D;
@@ -3980,21 +4140,12 @@ float emotionIntensitiesWeighting(EmotionIntensities eI, EmotionIntensities weig
         eI.surprise*weights.surprise +
         eI.happiness*weights.happiness +
         eI.fear*weights.fear;
-    float minWeighting = 0.0f;
-    minWeighting += weights.disgust     < 0.0f ? weights.disgust : 0.0f;
-    minWeighting += weights.anger       < 0.0f ? weights.anger : 0.0f;
-    minWeighting += weights.sadness     < 0.0f ? weights.sadness : 0.0f;
-    minWeighting += weights.happiness   < 0.0f ? weights.happiness : 0.0f;
-    minWeighting += weights.fear        < 0.0f ? weights.fear : 0.0f;
-    minWeighting += weights.surprise    < 0.0f ? weights.surprise : 0.0f;
-    float maxWeighting = 0.0f;
-    maxWeighting += weights.disgust     > 0.0f ? weights.disgust : 0.0f;
-    maxWeighting += weights.anger       > 0.0f ? weights.anger : 0.0f;
-    maxWeighting += weights.sadness     > 0.0f ? weights.sadness : 0.0f;
-    maxWeighting += weights.happiness   > 0.0f ? weights.happiness : 0.0f;
-    maxWeighting += weights.fear        > 0.0f ? weights.fear : 0.0f;
-    maxWeighting += weights.surprise    > 0.0f ? weights.surprise : 0.0f;
+    float minWeighting = getMinWeightingSum(weights);
+    float maxWeighting = getMaxWeightingSum(weights);
     return boundTransformation(weighting, minWeighting, maxWeighting, minT, maxT);
+}
+float emotionIntensitiesWeighting(EmotionIntensities eI, EmotionIntensities weights){
+    return emotionIntensitiesWeighting(eI, weights, getMinWeight(weights), getMaxWeight(weights));
 }
 
 std::tuple<unsigned int, float> emotionArrayToShapeCountSize(std::vector<float> emotionArray){

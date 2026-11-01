@@ -50,18 +50,24 @@
 
 // Layer info
 
-#define TOTAL_LAYERS 20
+#define TOTAL_LAYERS 50
 #define SHAPES_IN_BATCH 1
-#define MID_LAYER 2
-#define TOTAL_EMOTION_LAYERS 6
+#define MID_LAYER 25
+#define TOTAL_EMOTION_LAYERS 12
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
 
 // Spawn Times
 
 #define SHAPE_INITIAL_SPAWN_TIME 0.1f
-#define DESTRUCTION_TIME         1.0f
+#define DESTRUCTION_TIME         0.5f
 #define UPDATE_ITERATIONS 10.0f
+
+// Pulse
+
+#define PULSE_TIME_RATIO 9.0f
+#define PULSE_TIME (DESTRUCTION_TIME*PULSE_TIME_RATIO)
+#define PULSE_TIME_INITAL (SHAPE_INITIAL_SPAWN_TIME*PULSE_TIME_RATIO)
 
 // Ben's Color Image Generator parameters
 
@@ -157,6 +163,8 @@ float getElapsedTime();
 
 template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable);
 template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
+template <typename ITERATOR> ITERATOR::value_type maxM(ITERATOR begin, ITERATOR end);
+template <typename ITERATOR> ITERATOR::value_type minM(ITERATOR begin, ITERATOR end);
 float clamp(const float x, const float min, const float max);
 float floorWrap(float dividend, float divisor);
 float floorWrap(float quotient);
@@ -402,7 +410,8 @@ enum SHAPE_TYPE_3D { CUBE, PYRAMID, OCTAHEDRON};
 enum SHAPE_TYPE_2D { TRIANGLE, SQUARE, CIRCLE};
 enum EMOTION {HAPPY=0, SAD=1, ANGRY=2, FEAR=3, SURPRISE=4, DISGUST=5 };
 /// @brief Determines how a shape goes into view and goes out of view.
-enum TRANSITIONS {FADE,SCALE,VORTEX, BACK_OUT, MOVE_FORWARD};
+enum TRANSITIONS {FADE_T,SCALE_T,VORTEX_T, BACK_OUT_T, MOVE_FORWARD_T};
+enum PULSES {SCALE_P, FADE_P, RUMBLE_P, SPIN_P};
 
 
 
@@ -452,6 +461,8 @@ struct ShapeProperties2D {
     glm::mat4 scaleMatrix;
     glm::vec3 direction;
     glm::vec3 rotatedCoords;
+    glm::vec2 rumbleCoords = glm::vec2(0.0f);
+    float spin = 0.0f;
 };
 
 /// @brief The shader information for drawing shapes.
@@ -468,6 +479,7 @@ struct ShapeBatch{
     std::deque<ShapeProperties2D> shapes;
     PngData pngData;
     unsigned int texture;
+    std::map<PULSES, bool> pulses;
 };
 
 /// @brief Stores emotion data and coloring.
@@ -481,7 +493,9 @@ struct ShapeLayer{
    std::deque<ShapeBatch> batches;
    std::vector<float> emotionArray;
    Alarm destructionTimer{1.0f};
+   Alarm pulseTimer{1.0f};
    int previousLayer = -1;
+   glm::vec2 SL_SCALE = glm::vec2(1.0f,1.0f);
 };
 
 typedef std::deque<ShapeLayer> VisualLayer;
@@ -496,6 +510,8 @@ namespace dir{
     const glm::vec3 LEFT(-1.0f,0.0f,0.0f);
     const glm::vec3 UP_RIGHT = glm::normalize(UP + RIGHT);
     const glm::vec3 DOWN_LEFT = glm::normalize(DOWN + LEFT);
+    const glm::vec3 FORWARD(0.0f, 0.0f, -1.0f);
+    const glm::vec3 BACKWARD(0.0f, 0.0f, 1.0f);
 }
 
 // #Main Programs -------------------------------------------------------------
@@ -531,7 +547,7 @@ int mainSolve(int argc, char * argv[]);
 /// @param lock 
 /// @param lineAbove 
 /// @param lineBelow 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  float timePassed, float waitTime, std::mutex& lock, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow);
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer);
 void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
@@ -623,6 +639,7 @@ extern bool first_mouse;
 
 glm::vec3 randScale(float min=0.0f, float max=1.0f);
 glm::vec3 randCoords();
+glm::vec2 randCoords2D();
 float rand_range_uniform(float min, float max);
 unsigned int rand_range_uniform(unsigned int min, unsigned int max);
 float rand_range_normal(float mean, float stddev);
@@ -651,6 +668,7 @@ bool compareZDistance(const ShapeProperties& a, const ShapeProperties& b);
 // #Shape Transition Calculations -------------------------------------------------------------
 
 float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade, bool delay, std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow);
+float calcFade(float destructionTimePassed, float maxDestructionTime, float changePointStart, float changePointBefore, float changePointAfter, float changePointEnd, float shapeMinFade, float shapeMaxFade, bool delay);
 float calcDisplacement(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer, float shapeMinFade, float shapeMaxFade, bool delay, std::tuple<float,float> lineAbove, std::tuple<float,float> lineBelow);
 
 // #EmotionArrayTo -------------------------------------------------------------
@@ -773,5 +791,9 @@ int startBensEmotionSimulator(float frequency, bool cycle = true, bool random = 
 ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, const glm::vec3 emotionCoords3D, const glm::vec3 rotAxis, const float rotScale, const glm::vec3 emotionRGB, const float alphaScale, const bool useBenTexture, const SHAPE_TYPE_2D type, const float softnessOrThickness, const unsigned int borderCase, const float emotionScale);
 float emotionIntensitiesWeighting(EmotionIntensities eI, EmotionIntensities weights, float minT, float maxT);
 void printEmotionLayers(std::deque<EmotionLayer> emotionLayers);
+std::map<PULSES,bool> emotionArrayToPulses(std::vector<float> emotionArray);
+float getMaxWeightingSum(EmotionIntensities weights);
+float getMinWeightingSum(EmotionIntensities weights);
+float emotionIntensitiesWeighting(EmotionIntensities eI, EmotionIntensities weights);
 
 #endif
