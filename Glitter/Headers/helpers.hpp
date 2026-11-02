@@ -50,9 +50,9 @@
 
 // Layer info
 
-#define TOTAL_LAYERS 50
-#define SHAPES_IN_BATCH 1
-#define MID_LAYER 25
+#define TOTAL_LAYERS 25
+#define SHAPES_IN_BATCH 5
+#define MID_LAYER 3
 #define TOTAL_EMOTION_LAYERS 12
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
@@ -65,7 +65,7 @@
 
 // Pulse
 
-#define PULSE_TIME_RATIO 9.0f
+#define PULSE_TIME_RATIO 3.0f
 #define PULSE_TIME (DESTRUCTION_TIME*PULSE_TIME_RATIO)
 #define PULSE_TIME_INITAL (SHAPE_INITIAL_SPAWN_TIME*PULSE_TIME_RATIO)
 
@@ -95,9 +95,22 @@
 
 // Set whether certain transitions are allowed
 
-#define DO_SCALE true
-#define DO_FADE true
+#define DO_SCALE_T true
+#define DO_FADE_T true
+#define DO_MOVE_FORWARD_T true
+#define DO_BACK_OUT_T true
 #define DO_VORTEX false
+
+// Set whether certain pulses are allowed
+
+#define DO_FADE_P   true
+#define DO_SCALE_P  true
+#define DO_RUMBLE_P true
+#define DO_SPINR_P  true
+#define DO_SPINL_P  true
+
+
+
 
 // Transition Specific Scaling
 
@@ -135,6 +148,10 @@
 
 #define EMOTION_COORD_SCALE 1.00f
 
+// Print
+
+#define PRINT_TIME 1.0f
+
 // Debug: Determines whether certain outputs will occur
 
 #define DEBUG_LINE true
@@ -165,6 +182,7 @@ template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable);
 template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
 template <typename ITERATOR> ITERATOR::value_type maxM(ITERATOR begin, ITERATOR end);
 template <typename ITERATOR> ITERATOR::value_type minM(ITERATOR begin, ITERATOR end);
+template <typename KEY, typename NUMBER> std::tuple<KEY, NUMBER> maxM(std::map<KEY,NUMBER> mapping);
 float clamp(const float x, const float min, const float max);
 float floorWrap(float dividend, float divisor);
 float floorWrap(float quotient);
@@ -411,7 +429,7 @@ enum SHAPE_TYPE_2D { TRIANGLE, SQUARE, CIRCLE};
 enum EMOTION {HAPPY=0, SAD=1, ANGRY=2, FEAR=3, SURPRISE=4, DISGUST=5 };
 /// @brief Determines how a shape goes into view and goes out of view.
 enum TRANSITIONS {FADE_T,SCALE_T,VORTEX_T, BACK_OUT_T, MOVE_FORWARD_T};
-enum PULSES {SCALE_P, FADE_P, RUMBLE_P, SPIN_P};
+enum PULSES {SCALE_P, FADE_P, RUMBLE_P, SPINR_P, SPINL_P};
 
 
 
@@ -496,6 +514,8 @@ struct ShapeLayer{
    Alarm pulseTimer{1.0f};
    int previousLayer = -1;
    glm::vec2 SL_SCALE = glm::vec2(1.0f,1.0f);
+   std::map<TRANSITIONS,bool> transitions{};
+   std::deque<EmotionLayer> emotionLayers{};
 };
 
 typedef std::deque<ShapeLayer> VisualLayer;
@@ -658,6 +678,9 @@ std::vector<float> vec3ToVector(glm::vec3 a);
 std::string vec3ToString(glm::vec3 vec3);
 std::string vec4ToString(glm::vec4 vec4);
 glm::vec2 screenToModelCoords(float x, float y, float width, float height);
+std::map<EMOTION, float> emotionIntensitiesToEmotionMap(EmotionIntensities eI);
+EmotionIntensities EmotionMapToEmotionIntensities(std::map<EMOTION, float> eIMap);
+std::map<EMOTION, float> emotionArrayToEmotionMap(std::vector<float> emotionArray);
 
 // #Front to back comparisons -------------------------------------------------------------
 
@@ -684,6 +707,7 @@ glm::vec3 emotionArrayToColor(std::vector<float> array0);
 SHAPE_TYPE_3D emotionArrayToShapeType3D(std::vector<float> array0);
 SHAPE_TYPE_2D emotionArrayToShapeType2D(std::vector<float> array0);
 float emotionArrayToAlpha(std::vector<float> emotionArray);
+glm::vec2 emotionArrayToSL(const std::vector<float> emotionArray);
 
 
 // #PNG -------------------------------------------------------------
@@ -795,5 +819,6 @@ std::map<PULSES,bool> emotionArrayToPulses(std::vector<float> emotionArray);
 float getMaxWeightingSum(EmotionIntensities weights);
 float getMinWeightingSum(EmotionIntensities weights);
 float emotionIntensitiesWeighting(EmotionIntensities eI, EmotionIntensities weights);
+void printEmotionArray(std::vector<float> emotionArray);
 
 #endif

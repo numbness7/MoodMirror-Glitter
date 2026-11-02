@@ -43,6 +43,19 @@ template <typename ITERATOR> ITERATOR::value_type minM(ITERATOR begin, ITERATOR 
     }
     return mini;
 }
+template <typename KEY, typename NUMBER> std::tuple<KEY, NUMBER> maxM(std::map<KEY, NUMBER> mapping)
+{
+    auto [tMXKey, mxVal] = *mapping.begin();
+    KEY mxKey = tMXKey;
+    for(auto it = mapping.begin(); it != mapping.end(); ++it){
+        auto [cKey, cVal] = *it;
+        if(cVal > mxVal){
+            mxVal = cVal;
+            mxKey = cKey;
+        }
+    }
+    return std::tuple<KEY, NUMBER>{mxKey, mxVal};
+}
 template <typename NUMBER, typename ITERABLE>
 NUMBER mean(ITERABLE iterable)
 {
@@ -1090,6 +1103,24 @@ void crappyClearScreen(int lines=1000){
     for(int i = 0; i < lines; i++) std::cout << std::endl;
 }
 
+void printEmotionArray(std::vector<float> emotionArray){
+    std::cout << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
+    std::cout << "----------------------------------------------------------------------------------------------------" << std::endl;
+    float max = std::numeric_limits<float>::min();
+    int maxEmotion = -1;
+    for(int col=0; col < emotionArray.size(); col++){
+        float current = emotionArray[col];
+        std::cout << formatFloat(current, 1, 7) << "\t";
+        if(current > max){
+            maxEmotion = col;
+            max = current;
+        }
+    }
+    std::cout << emotionENUMToString(emotionIntToEnum(maxEmotion)) << std::endl;
+std::cout << std::endl;
+    
+}
+
 void printEmotionLayers(std::deque<EmotionLayer> emotionLayers){
     std::cout << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
     std::cout << "----------------------------------------------------------------------------------------------------" << std::endl;
@@ -1238,6 +1269,8 @@ float getMinWeight(EmotionIntensities weights){
 
 glm::vec2 emotionArrayToSL(const std::vector<float> emotionArray){
     EmotionIntensities eI = emotionArrayToEmotionIntensities(emotionArray);
+    std::map<EMOTION, float> mEI = emotionIntensitiesToEmotionMap(eI);
+    auto const [mxKey, trash] = maxM(mEI);
     EmotionIntensities wS;
     wS.disgust      = 0.4f;
     wS.sadness      = 0.75f;
@@ -1245,7 +1278,8 @@ glm::vec2 emotionArrayToSL(const std::vector<float> emotionArray){
     wS.anger        = 1.0f;
     wS.happiness    = 1.0f;
     wS.surprise     = 1.0f;
-    float saturation = emotionIntensitiesWeighting(eI, wS);
+    std::map<EMOTION, float> mWS = emotionIntensitiesToEmotionMap(wS);
+    float saturation = mWS[mxKey];
     EmotionIntensities wL;
     wL.disgust      = 0.5f;
     wL.sadness      = 0.4f;
@@ -1253,7 +1287,8 @@ glm::vec2 emotionArrayToSL(const std::vector<float> emotionArray){
     wL.anger        = 0.45f;
     wL.happiness    = 0.75f;
     wL.surprise     = 0.66f;
-    float lightness = emotionIntensitiesWeighting(eI, wL);
+    std::map<EMOTION, float> mWL = emotionIntensitiesToEmotionMap(wL);
+    float lightness = mWL[mxKey];
     return glm::vec2(saturation, lightness);
 }
 
@@ -1270,34 +1305,34 @@ glm::vec3 emotionArrayToColor(const std::vector<float> emotionArray){
     float redHue =   (0.5*anger + 0.5*fear);
     float greenHue = (0.5*disgust +  0.5*surprise);
     float blueHue =  (0.5*sadness + 0.5*happiness);
-    float hue;
+    //float hue;
 
-    if(redHue > greenHue && redHue > blueHue)
-        if(greenHue > blueHue) hue = (greenHue - blueHue)/(redHue - blueHue);
-        else hue = (greenHue - blueHue)/(redHue - greenHue);
-    else if(greenHue > redHue && greenHue > blueHue)
-        if(redHue > blueHue) hue = 2.0f + (blueHue - redHue)/(greenHue - blueHue);
-        else hue = 2.0f + (blueHue - redHue)/(greenHue - redHue);
-    else
-        if(redHue > greenHue) hue = 4.0f + (redHue - greenHue)/(blueHue - greenHue);
-        else hue = 4.0f + (redHue - greenHue)/(blueHue - redHue);
-    hue *= 60.0f;
-    if(hue < 0.0f) hue += 360.0f;
-    
-    float saturation = 100.0f*(0.4f*disgust + 0.75f*sadness + 0.77f*fear + anger + happiness + surprise)/(6.0f);
-    float lightness = 100.0f*(0.2f*fear + 0.4f*sadness + 0.45f*anger + 0.5f*disgust + 0.66f*surprise + 0.75f*happiness)/(6.0f);
-    color::hsl<float> colorHSL({hue,saturation,lightness});
-    color::rgb<float> colorRGB;
-    colorRGB = colorHSL;
-    
-    float red = color::get::red(colorRGB);
-    float green = color::get::green(colorRGB);
-    float blue = color::get::blue(colorRGB);
-    
-    
+    //if(redHue > greenHue && redHue > blueHue)
+    //    if(greenHue > blueHue) hue = (greenHue - blueHue)/(redHue - blueHue);
+    //    else hue = (greenHue - blueHue)/(redHue - greenHue);
+    //else if(greenHue > redHue && greenHue > blueHue)
+    //    if(redHue > blueHue) hue = 2.0f + (blueHue - redHue)/(greenHue - blueHue);
+    //    else hue = 2.0f + (blueHue - redHue)/(greenHue - redHue);
+    //else
+    //    if(redHue > greenHue) hue = 4.0f + (redHue - greenHue)/(blueHue - greenHue);
+    //    else hue = 4.0f + (redHue - greenHue)/(blueHue - redHue);
+    //hue *= 60.0f;
+    //if(hue < 0.0f) hue += 360.0f;
+    //
+    //float saturation = 100.0f*(0.4f*disgust + 0.75f*sadness + 0.77f*fear + anger + happiness + surprise)/(6.0f);
+    //float lightness = 100.0f*(0.2f*fear + 0.4f*sadness + 0.45f*anger + 0.5f*disgust + 0.66f*surprise + 0.75f*happiness)/(6.0f);
+    //color::hsl<float> colorHSL({hue,saturation,lightness});
+    //color::rgb<float> colorRGB;
+    //colorRGB = colorHSL;
+    //
+    //float red = color::get::red(colorRGB);
+    //float green = color::get::green(colorRGB);
+    //float blue = color::get::blue(colorRGB);
     
     
-    return glm::vec3(red,green,blue);
+    
+    
+    return glm::vec3(redHue,greenHue,blueHue);
     
 }
 SHAPE_TYPE_2D emotionArrayToShapeType2D(std::vector<float> emotionArray){
@@ -1414,7 +1449,17 @@ float emotionArrayToRotation(std::vector<float> emotionArray)
     
     glm::vec2 combineDir = glm::normalize(happiness*happinessDir + surprise* surpriseDir + anger* angerDir + sadness* sadnessDir + disgust * disgustDir + fear * fearDir);
     float rotation = glm::atan(combineDir.y, combineDir.x);
-    return rotation;
+    float pi = std::numbers::pi;
+    float rotScale = 2*pi*rotation;
+    if(rotScale < pi/4.0f) rotScale = 0.0f;
+    else if(rotScale < pi/2.0f) rotScale = pi/4.0f;
+    else if(rotScale < 3.0f*pi/4.0f) rotScale = pi/2.0f;
+    else if(rotScale < pi) rotScale = 3.0f*pi/4.0f;
+    else if(rotScale < pi + pi/4.0f) rotScale = pi;
+    else if(rotScale < pi + pi/2.0f) rotScale = pi + pi/4.0f;
+    else if(rotScale < pi + 3*pi/4.0f) rotScale = pi + pi/2.0f;
+    else if(rotScale < 2*pi) rotScale = pi + 3.0f*pi/4.0f;
+    return rotScale;
 
 }
 void initMouse(GLFWwindow* mWindow){
@@ -1643,6 +1688,7 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
         float pulseTime = shapeLayer.pulseTimer.getPassedTime();
         float pulseMaxTime = shapeLayer.pulseTimer.getWaitTime();
         lightingEnvironment.object_shader.setUniformV2("SL_SCALE", shapeLayer.SL_SCALE);
+        auto transitions = shapeLayer.transitions;
         for(auto& shapeBatch : shapeLayer.batches){
             for(auto& shape : shapeBatch.shapes){
                 glm::mat4 model(1.0f);
@@ -1650,8 +1696,8 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 glm::mat4 rotation(shape.rotationMatrix);
                 glm::mat4 scale(shape.scaleMatrix);
                 lightingEnvironment.object_shader.setUniformM4("model", shape.model);
-                //lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && shape.transitions[FADE]));
-                lightingEnvironment.object_shader.setUniformB("DO_FADE", shape.transitions.at(FADE_T));
+                //lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && transitions[FADE]));
+                lightingEnvironment.object_shader.setUniformB("DO_FADE", transitions.at(FADE_T));
                 lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
 
                 lightingEnvironment.object_shader.setUniformI("layer", layer);
@@ -1660,20 +1706,20 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
 
 
 
-                if(shape.transitions.at(BACK_OUT_T)){
+                if(transitions.at(BACK_OUT_T)){
                     float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
                     transition = glm::mat4(1.0f);
                     transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
                     transition = glm::translate(transition, -speed*dX*shape.direction);
                 }
-                else if(shape.transitions.at(MOVE_FORWARD_T)){
+                else if(transitions.at(MOVE_FORWARD_T)){
                     float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
                     transition = glm::mat4(1.0f);
                     transition = glm::translate(transition, -2.0f*shape.direction - shape.rotatedCoords);
                     transition = glm::translate(transition, speed*dX*shape.direction);
                 }
                 
-                if(shape.transitions.at(SCALE_T)){
+                if(transitions.at(SCALE_T)){
                     float scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
                     scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
                 }
@@ -1700,9 +1746,14 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                     shape.rumbleCoords +=  deltaTimer.getDeltaTime()*rumbleScale*randCoords2D()/pulseMaxTime;
                     transition = glm::translate(transition, glm::vec3(shape.rumbleCoords,0.0f));
                 }
-                if(shapeBatch.pulses.at(SPIN_P)){
+                if(shapeBatch.pulses.at(SPINR_P)){
                     static const float spinScale = 3.0f;
                     shape.spin += deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
+                    rotation = glm::rotate(rotation, shape.spin, dir::FORWARD);
+                }
+                if(shapeBatch.pulses.at(SPINL_P)){
+                    static const float spinScale = 3.0f;
+                    shape.spin -= deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
                     rotation = glm::rotate(rotation, shape.spin, dir::FORWARD);
                 }
                 model = transition*rotation*scale;
@@ -1876,27 +1927,21 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
     for(int i = 0; i < TOTAL_EMOTION_LAYERS; i++)
         emotionLayers.push_front({std::vector<float>{1,1,1,1,1,1},borderPNGData});
 
-    float waitTime;
-    {
-        std::lock_guard guard(*timeLock);
-        waitTime = creationAlarm->getWaitTime();
-    }
     std::string filepath = "../background.png";
 
     PngData pD(255,255,3);
+    ShapeLayer shapeLayer{};
     while(*notDone){
         bool printAlarmSounded = printAlarm.checkAndUpdate();
         bool simAlarmSounded;
         if(printAlarmSounded){
             std::cout << "iterations per second: " << iterations << std::endl;
-            printEmotionLayers(emotionLayers);
             iterations = 0;
         }
         {
             std::lock_guard<std::mutex> guard(*timeLock);
             simAlarmSounded = (*simAlarm).checkAndUpdate();
             alarmSounded  = creationAlarm->checkAndUpdate();
-            waitTime = creationAlarm->getWaitTime();
         }
         if(simAlarmSounded){
             do{
@@ -1913,8 +1958,8 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
         // #Emotion Extraction
         // Use emotion array to set properties of shapes
         if(alarmSounded){
-            ShapeLayer shapeLayer{};
             std::vector<std::vector<float>> emotionArrays{};
+            shapeLayer = {};
             for(auto const& emotionLayer : emotionLayers){
                 auto const& emotionArray = emotionLayer.emotionArray;
                 emotionArrays.push_back(emotionArray);
@@ -1927,28 +1972,17 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
                 glm::vec3 emotionCoords3D = glm::vec3(emotionCoords2D.x, emotionCoords2D.y, 0.0f);
                 glm::vec3 coords;
                 glm::vec3 rotAxis = glm::vec3(0.0f,0.0f,-1.0f);
-                float pi = std::numbers::pi;
-                float rotScale = 2*pi*emotionArrayToRotation(emotionArray);
-                if(rotScale < pi/4.0f) rotScale = 0.0f;
-                else if(rotScale < pi/2.0f) rotScale = pi/4.0f;
-                else if(rotScale < 3.0f*pi/4.0f) rotScale = pi/2.0f;
-                else if(rotScale < pi) rotScale = 3.0f*pi/4.0f;
-                else if(rotScale < pi + pi/4.0f) rotScale = pi;
-                else if(rotScale < pi + pi/2.0f) rotScale = pi + pi/4.0f;
-                else if(rotScale < pi + 3*pi/4.0f) rotScale = pi + pi/2.0f;
-                else if(rotScale < 2*pi) rotScale = pi + 3.0f*pi/4.0f;
+                float rotScale = emotionArrayToRotation(emotionArray);
 
                 SHAPE_TYPE_2D type = emotionArrayToShapeType2D(emotionArray);
                 auto transitions = emotionArrayToTransitions(emotionArray);
                 auto pulses = emotionArrayToPulses(emotionArray);
                 const auto [borderCase, softnessOrThickness] = emotionArrayToSoftness(emotionArray,false, true, false);
                 transitions[VORTEX_T] = rand_range_uniform(0.0f, 1.0f) <= 0.1f;
-                //const auto emotionAlpha = emotionArrayToAlpha(emotionArray);
 
                 float alphaScale = 1.0f;
                 alphaScale = clamp(rand_range_normal(AVE_ALPHA, DEV_ALPHA), MIN_ALPHA, MAX_ALPHA);
-                //alphaScale = (1.0f - 0.0)*alphaScale + (0.0)*emotionAlpha;
-                auto const& [count, size] = emotionArrayToShapeCountSize(emotionArray);
+                auto const& [count, size] = std::tuple<unsigned int, float>{(unsigned int)1,(float)1.0f};
 
                 ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, 0, pulses};
 
@@ -1961,6 +1995,8 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
             }
             shapeLayer.emotionArray = average(emotionArrays);
             shapeLayer.SL_SCALE = emotionArrayToSL(shapeLayer.emotionArray);
+            shapeLayer.transitions = emotionArrayToTransitions(shapeLayer.emotionArray);
+            shapeLayer.emotionLayers = emotionLayers;
             {
                 shapesSemaphore->acquire();
                 std::lock_guard<std::mutex> guard(*shapeLock);
@@ -2427,6 +2463,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     bool midLayerMet = false;
     float requiredLayersFloat = 0.0f;
     float currentPulseMaxTime = PULSE_TIME_INITAL;
+    Alarm printAlarm(PRINT_TIME);
 
     
     // #Render 2D Loop
@@ -2494,11 +2531,12 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         }
         // Draw cubes
         drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer);
-
-
-
         endRenderLoop(mWindow,deltaTimer,camera);
 
+        if(printAlarm.checkAndUpdate()){
+            printEmotionLayers(shapeLayersStorage.back().emotionLayers);
+            printEmotionArray(shapeLayersStorage.back().emotionArray);
+        }
         
     }   
 
@@ -4013,17 +4051,18 @@ std::map<PULSES,bool> emotionArrayToPulses(std::vector<float> emotionArray){
     float fear      = emotionArray[FEAR];
     float surprise  = emotionArray[SURPRISE];
     float disgust   = emotionArray[DISGUST];
-    float scalePotential = (disgust);
-    float fadePotential = (fear);
-    float rumblePotential = (anger);
-    float spinPotential  = (happiness);
+    std::map<std::string, float> potentials {{"scale",disgust}, {"fade", (fear + sadness)/2.0f}, {"rumble", anger/2.0f}, 
+        {"spinr", (happiness - (fear + sadness)/2.0f)}, {"spinl", surprise - (fear + sadness)/2.0f}};
+    auto [key, trash] = maxM(potentials);
     std::map<PULSES,bool> pulses{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
-    pulses[FADE_P] = fadePotential >= 0.60f;
-    pulses[SCALE_P] = scalePotential >= 0.60f;
-    pulses[RUMBLE_P] = rumblePotential >= 0.99f;
-    pulses[SPIN_P] = spinPotential >= 0.95f;
+    pulses[FADE_P  ] = key == "fade"   && DO_FADE_P  ;
+    pulses[SCALE_P ] = key == "scale"  && DO_SCALE_P ;
+    pulses[RUMBLE_P] = key == "rumble" && DO_RUMBLE_P;
+    pulses[SPINR_P ] = key == "spinr"  && DO_SPINR_P ;
+    pulses[SPINL_P ] = key == "spinl"  && DO_SPINL_P ;
     return pulses;
 }
+
 std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionArray){
     float happiness = emotionArray[HAPPY];
     float sadness   = emotionArray[SAD];
@@ -4031,15 +4070,15 @@ std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionA
     float fear      = emotionArray[FEAR];
     float surprise  = emotionArray[SURPRISE];
     float disgust   = emotionArray[DISGUST];
-    float scalePotential = (anger + surprise)/2.0f;
-    float fadePotential = (fear + sadness)/2.0f;
-    float rightPotential = (happiness + anger - sadness)/2.0f;
-    float leftPotential = (disgust + fear - sadness)/2.0f;
+    float scalePotential  = (DO_FADE_T         )  ?    (anger + surprise)/2.0f              : 0.0f;
+    float fadePotential   = (DO_SCALE_T        )  ?    (fear + sadness)/2.0f                : 0.0f;
+    float rightPotential  = (DO_MOVE_FORWARD_T )  ?    (happiness + anger - sadness)/2.0f   : 0.0f;
+    float leftPotential   = (DO_BACK_OUT_T     )  ?    (disgust + fear - sadness)/2.0f      : 0.0f;
     std::map<TRANSITIONS,bool> transitions{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
-    transitions[FADE_T] = fadePotential >= 0.60f && DO_FADE;
-    transitions[SCALE_T] = scalePotential >= 0.60f && DO_SCALE;
-    transitions[MOVE_FORWARD_T] = rightPotential >= 0.60f;
-    transitions[BACK_OUT_T] = leftPotential >= 0.60f;
+    transitions[FADE_T]         = fadePotential >= 0.5f     ; 
+    transitions[SCALE_T]        = scalePotential >= 0.5f    ; 
+    transitions[MOVE_FORWARD_T] = rightPotential >= 0.35f   ; 
+    transitions[BACK_OUT_T]     = leftPotential >= 0.35f    ; 
     if(transitions[MOVE_FORWARD_T] && transitions[BACK_OUT_T]){
         if(leftPotential > rightPotential) transitions[BACK_OUT_T] = false;
         else transitions[MOVE_FORWARD_T] = false;
@@ -4052,7 +4091,11 @@ std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionA
         }
         
     }
-    if(isEmpty) transitions[FADE_T] = true;
+
+    if(isEmpty){
+        auto [key, val] = maxM(std::map<TRANSITIONS, float> {{FADE_T,fadePotential}, {SCALE_T,scalePotential}, {MOVE_FORWARD_T,rightPotential}, {BACK_OUT_T, leftPotential}});
+        transitions[key] = true;
+    }
     return transitions;
 
     
@@ -4184,4 +4227,32 @@ EmotionIntensities emotionArrayToEmotionIntensities(std::vector<float> emotionAr
     float surprise  = emotionArray[SURPRISE];
     float disgust   = emotionArray[DISGUST];
     return EmotionIntensities(happiness, sadness, anger, fear, surprise, disgust);
+}
+
+std::map<EMOTION, float> emotionIntensitiesToEmotionMap(EmotionIntensities eI){
+    std::map<EMOTION, float> eIMap{};
+    eIMap[HAPPY] = eI.happiness;
+    eIMap[SAD] = eI.sadness;
+    eIMap[FEAR] = eI.fear;
+    eIMap[ANGRY] = eI.anger;
+    eIMap[SURPRISE] = eI.surprise;
+    eIMap[DISGUST] = eI.disgust;
+    return eIMap;
+}
+
+EmotionIntensities EmotionMapToEmotionIntensities(std::map<EMOTION, float> eIMap)
+{
+    EmotionIntensities eI;
+    eI.happiness = eIMap[HAPPY]    ; 
+    eI.sadness   = eIMap[SAD]      ; 
+    eI.fear      = eIMap[FEAR]     ; 
+    eI.anger     = eIMap[ANGRY]    ; 
+    eI.surprise  = eIMap[SURPRISE] ; 
+    eI.disgust   = eIMap[DISGUST]  ; 
+    return eI;
+}
+
+std::map<EMOTION, float> emotionArrayToEmotionMap(std::vector<float> emotionArray)
+{
+    return emotionIntensitiesToEmotionMap(emotionArrayToEmotionIntensities(emotionArray));
 }
