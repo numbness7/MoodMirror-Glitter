@@ -150,7 +150,7 @@
 
 // Print
 
-#define PRINT_TIME 1.0f
+#define PRINT_TIME 0.25f
 
 // Debug: Determines whether certain outputs will occur
 

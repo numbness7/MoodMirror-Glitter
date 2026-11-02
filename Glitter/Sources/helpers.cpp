@@ -1707,13 +1707,13 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
 
 
                 if(transitions.at(BACK_OUT_T)){
-                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
+                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
                     transition = glm::mat4(1.0f);
                     transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
                     transition = glm::translate(transition, -speed*dX*shape.direction);
                 }
                 else if(transitions.at(MOVE_FORWARD_T)){
-                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, true, lineAbove, lineBelow);
+                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
                     transition = glm::mat4(1.0f);
                     transition = glm::translate(transition, -2.0f*shape.direction - shape.rotatedCoords);
                     transition = glm::translate(transition, speed*dX*shape.direction);
