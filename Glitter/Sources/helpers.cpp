@@ -1712,7 +1712,7 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 glm::mat4 rotation(shape.rotationMatrix);
                 glm::mat4 scale(shape.scaleMatrix);
                 lightingEnvironment.object_shader.setUniformM4("model", shape.model);
-                lightingEnvironment.object_shader.setUniformB("DO_FADE", transitions[FADE_T]);
+                lightingEnvironment.object_shader.setUniformB("DO_FADE", true);
                 lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
                 lightingEnvironment.object_shader.setUniformI("layer", layer);
                 
@@ -1998,7 +1998,7 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
                 ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, 0, pulses};
 
                 for (int shapeIndex = 0; shapeIndex < SHAPES_IN_BATCH*count; shapeIndex++){
-                    auto shape = generateShape2D(transitions, coords, emotionCoords3D, rotAxis, rotScale, emotionRGB, alphaScale, useBenTexture, type, softnessOrThickness, borderCase, size);
+                    auto shape = generateShape2D(transitions, coords, emotionCoords3D, rotAxis, rotScale, emotionRGB, alphaScale, useBenTexture, type, 1.0f, 2, size);
                     shapeBatch.shapes.push_front(shape);
                     shapeAdditions++;
                 }
@@ -2434,9 +2434,14 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     
     
     
-    
-    
     LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    
+    if(ON_PI){
+        lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color-pi.vs", "Glitter/Shaders/texture-mvp-color-pi.fs");
+    }
+    else{
+        lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    }
 
     glm::mat4 model(1.0f);
     lightingEnvironment.object_shader.use();
