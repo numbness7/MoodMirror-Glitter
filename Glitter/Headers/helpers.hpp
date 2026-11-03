@@ -47,12 +47,13 @@
 #define SUPER_SMALL_FLOAT 0.00000000000001f
 #define SMALL_FLOAT 0.002f
 #define NOT_THAT_SMALL_FLOAT 0.01f
+#define ON_PI true
 
 // Layer info
 
-#define TOTAL_LAYERS 48
-#define SHAPES_IN_BATCH 10
-#define MID_LAYER 24
+#define TOTAL_LAYERS 40
+#define SHAPES_IN_BATCH 1
+#define MID_LAYER 10
 #define TOTAL_EMOTION_LAYERS 6
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
@@ -134,10 +135,10 @@
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define MAX_SCALE 8.0f
-#define MIN_SCALE 0.05f
-#define AVE_SCALE 0.750f
-#define DEV_SCALE 0.750f
+#define MAX_SCALE 12.0f
+#define MIN_SCALE 0.95f
+#define AVE_SCALE 1.750f
+#define DEV_SCALE 1.750f
 
 // Random Alpha Differences Between Shapes in Same Batch
 

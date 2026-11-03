@@ -373,11 +373,21 @@ void create_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO,
 GLFWwindow* loadGLFWCreateWindow(int width, int height){
     // Load GLFW and Create a Window
     glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    if(!ON_PI)
+    {
+	    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    }
+
+    else
+    {
+	    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API); 
+	    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    }
     auto mWindow = glfwCreateWindow(width, height, "OpenGL", nullptr, nullptr);
     return mWindow;
 }
@@ -2463,11 +2473,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     bool notDone = true;
     int additions = 0;
 
-    int killPID = runCommand("programs=(Gener2.py emotion_generator.py emotion_generator_mine.py); for program in ${programs[@]}; do ps -eo pid,args | grep $program | awk '{print $1}' | xargs -r kill -9; done");
-    waitpid(killPID, nullptr, 0);
+    //int killPID = runCommand("programs=(Gener2.py emotion_generator.py emotion_generator_mine.py); for program in ${programs[@]}; do ps -eo pid,args | grep $program | awk '{print $1}' | xargs -r kill -9; done");
+    //waitpid(killPID, nullptr, 0);
 
-    int simPID = startMineBensEmotionSimulator(SIM_INITIAL_PERIOD, SIM_CYCLE, SIM_RANDOM);
-    int colPID = startBensVisualGenerationProgram(COLOR_FREQUENCY, COLOR_WIDTH, COLOR_HEIGHT, COLOR_DISPLAY);
+    //int simPID = startMineBensEmotionSimulator(SIM_INITIAL_PERIOD, SIM_CYCLE, SIM_RANDOM);
+    //int colPID = startBensVisualGenerationProgram(COLOR_FREQUENCY, COLOR_WIDTH, COLOR_HEIGHT, COLOR_DISPLAY);
 
 
     float currentDestructionTime = creationAlarm.getWaitTime();
@@ -2528,8 +2538,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             creationAlarm.setWaitTime(DESTRUCTION_TIME);
             otherDestructionAlarm.setWaitTime(DESTRUCTION_TIME);
             simAlarm.setWaitTime(SIM_READ_PERIOD);
-            killCommand(simPID);
-            simPID = startMineBensEmotionSimulator(SIM_PERIOD, true, false);
+            //killCommand(simPID);
+            //simPID = startMineBensEmotionSimulator(SIM_PERIOD, true, false);
             currentDestructionTime = creationAlarm.getWaitTime();
             currentPulseMaxTime = PULSE_TIME;
             shapesFull = true;
@@ -2559,11 +2569,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         notDone = false;
     }
     creationThread.join();
-    killCommand(simPID);
-    waitpid(simPID, nullptr, 0);
-    killCommand(colPID);
-    waitpid(colPID, nullptr, 0);
-    killCommand(killPID);
+    //killCommand(simPID);
+    //waitpid(simPID, nullptr, 0);
+    //killCommand(colPID);
+    //waitpid(colPID, nullptr, 0);
+    //killCommand(killPID);
 
     glfwTerminate();
 

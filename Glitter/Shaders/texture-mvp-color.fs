@@ -1,4 +1,5 @@
-#version 330 core
+#version 300 es
+precision mediump float;
 in vec2 ourTexCoord;
 out vec4 FragColor;
 
@@ -19,7 +20,7 @@ uniform bool DO_FADE;
 uniform float BORDER_THICKNESS;
 uniform vec4 INNER_COLOR;
 uniform vec4 OUTER_COLOR;
-uniform vec2 SL_SCALE = vec2(1.0f, 1.0f);
+uniform vec2 SL_SCALE;
 
 
 const float SCALE_CONST = 1.0f;
