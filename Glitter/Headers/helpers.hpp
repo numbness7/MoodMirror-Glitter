@@ -50,10 +50,10 @@
 
 // Layer info
 
-#define TOTAL_LAYERS 25
-#define SHAPES_IN_BATCH 5
-#define MID_LAYER 3
-#define TOTAL_EMOTION_LAYERS 12
+#define TOTAL_LAYERS 48
+#define SHAPES_IN_BATCH 10
+#define MID_LAYER 24
+#define TOTAL_EMOTION_LAYERS 6
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
 
@@ -71,15 +71,19 @@
 
 // Ben's Color Image Generator parameters
 
-#define COLOR_FREQUENCY 0.025f
+#define COLOR_FREQUENCY 0.015f
 #define COLOR_WIDTH 255
 #define COLOR_HEIGHT 255
 #define COLOR_DISPLAY false
 
+#define USE_BEN_CHANCE 1.0f
+
 // Ben's Simulator Parameters
 
-#define SIM_PERIOD 1.00f
-#define SIM_INITIAL_PERIOD 0.1f
+#define SIM_PERIOD 0.001f
+#define SIM_READ_PERIOD 1.00f
+#define SIM_INITIAL_PERIOD 0.0001f
+#define SIM_INITIAL_READ_PERIOD 0.10f
 #define SIM_CYCLE true
 #define SIM_RANDOM false
 
@@ -101,6 +105,11 @@
 #define DO_BACK_OUT_T true
 #define DO_VORTEX false
 
+#define ONLY_ONE_T true
+
+#define LAYER_TRANSITIONS true
+#define LAYER_PULSES true
+
 // Set whether certain pulses are allowed
 
 #define DO_FADE_P   true
@@ -109,6 +118,7 @@
 #define DO_SPINR_P  true
 #define DO_SPINL_P  true
 
+#define ONLY_ONE_P true
 
 
 
@@ -516,6 +526,7 @@ struct ShapeLayer{
    glm::vec2 SL_SCALE = glm::vec2(1.0f,1.0f);
    std::map<TRANSITIONS,bool> transitions{};
    std::deque<EmotionLayer> emotionLayers{};
+   std::map<PULSES,bool> pulses{};
 };
 
 typedef std::deque<ShapeLayer> VisualLayer;
@@ -810,6 +821,7 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
 
 int startBensVisualGenerationProgram(float frequency, int width=255, int height=255, bool doDisplay=false);
 int startBensEmotionSimulator(float frequency, bool cycle = true, bool random = false);
+int startMineBensEmotionSimulator(float frequency, bool cycle, bool random);
 
 // #Unordered -------------------------------------------------------------
 ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, const glm::vec3 emotionCoords3D, const glm::vec3 rotAxis, const float rotScale, const glm::vec3 emotionRGB, const float alphaScale, const bool useBenTexture, const SHAPE_TYPE_2D type, const float softnessOrThickness, const unsigned int borderCase, const float emotionScale);

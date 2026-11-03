@@ -1689,37 +1689,41 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
         float pulseMaxTime = shapeLayer.pulseTimer.getWaitTime();
         lightingEnvironment.object_shader.setUniformV2("SL_SCALE", shapeLayer.SL_SCALE);
         auto transitions = shapeLayer.transitions;
+        auto pulses = shapeLayer.pulses;
         for(auto& shapeBatch : shapeLayer.batches){
             for(auto& shape : shapeBatch.shapes){
+                if (!LAYER_TRANSITIONS)
+                    transitions = shape.transitions;
+                if (!LAYER_PULSES)
+                    pulses = shapeBatch.pulses;
+
                 glm::mat4 model(1.0f);
                 glm::mat4 transition(shape.transition);
                 glm::mat4 rotation(shape.rotationMatrix);
                 glm::mat4 scale(shape.scaleMatrix);
                 lightingEnvironment.object_shader.setUniformM4("model", shape.model);
-                //lightingEnvironment.object_shader.setUniformB("DO_FADE", (DO_FADE && transitions[FADE]));
-                lightingEnvironment.object_shader.setUniformB("DO_FADE", transitions.at(FADE_T));
+                lightingEnvironment.object_shader.setUniformB("DO_FADE", transitions[FADE_T]);
                 lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
-
                 lightingEnvironment.object_shader.setUniformI("layer", layer);
                 
 
 
 
 
-                if(transitions.at(BACK_OUT_T)){
+                if(transitions[BACK_OUT_T]){
                     float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
                     transition = glm::mat4(1.0f);
                     transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
                     transition = glm::translate(transition, -speed*dX*shape.direction);
                 }
-                else if(transitions.at(MOVE_FORWARD_T)){
+                else if(transitions[MOVE_FORWARD_T]){
                     float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
                     transition = glm::mat4(1.0f);
                     transition = glm::translate(transition, -2.0f*shape.direction - shape.rotatedCoords);
                     transition = glm::translate(transition, speed*dX*shape.direction);
                 }
                 
-                if(transitions.at(SCALE_T)){
+                if(transitions[SCALE_T]){
                     float scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
                     scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
                 }
@@ -1732,27 +1736,27 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 glm::vec4 innerColor = shape.innerColor;    
                 glm::vec4 outerColor = shape.outerColor;    
 
-                if(shapeBatch.pulses.at(FADE_P)){
+                if(pulses[FADE_P]){
                     float fade = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, SHAPE_MIN_FADE, SHAPE_MAX_FADE, false);                    
                     innerColor.a *= (1.0f - fade);
                     outerColor.a *= (1.0f - fade);
                 }
-                if(shapeBatch.pulses.at(SCALE_P)){
+                if(pulses[SCALE_P]){
                     float scaleDown = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, SHAPE_MIN_FADE, SHAPE_MAX_FADE, false);                    
                     scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
                 }
-                if(shapeBatch.pulses.at(RUMBLE_P)){
+                if(pulses[RUMBLE_P]){
                     static const float rumbleScale = 3.0f;
                     shape.rumbleCoords +=  deltaTimer.getDeltaTime()*rumbleScale*randCoords2D()/pulseMaxTime;
                     transition = glm::translate(transition, glm::vec3(shape.rumbleCoords,0.0f));
                 }
-                if(shapeBatch.pulses.at(SPINR_P)){
-                    static const float spinScale = 3.0f;
+                if(pulses[SPINR_P]){
+                    static const float spinScale = 0.5f;
                     shape.spin += deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
                     rotation = glm::rotate(rotation, shape.spin, dir::FORWARD);
                 }
-                if(shapeBatch.pulses.at(SPINL_P)){
-                    static const float spinScale = 3.0f;
+                if(pulses[SPINL_P]){
+                    static const float spinScale = 0.5f;
                     shape.spin -= deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
                     rotation = glm::rotate(rotation, shape.spin, dir::FORWARD);
                 }
@@ -1803,7 +1807,7 @@ void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera){
         for(float time : deltaTimes){
             sum+=time;
         }
-        std::cout << "FPS: " << ((float)loopCount)/((float)sum) << std::endl;
+        //std::cout << "FPS: " << ((float)loopCount)/((float)sum) << std::endl;
         deltaTimes.clear();
         loopCount = 1;
     }
@@ -1934,10 +1938,6 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
     while(*notDone){
         bool printAlarmSounded = printAlarm.checkAndUpdate();
         bool simAlarmSounded;
-        if(printAlarmSounded){
-            std::cout << "iterations per second: " << iterations << std::endl;
-            iterations = 0;
-        }
         {
             std::lock_guard<std::mutex> guard(*timeLock);
             simAlarmSounded = (*simAlarm).checkAndUpdate();
@@ -1953,7 +1953,7 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
         }
 
         
-        bool useBenTexture = rand_range_uniform(0.0f,1.0f) < 1.00f;
+        bool useBenTexture = rand_range_uniform(0.0f,1.0f) < USE_BEN_CHANCE;
         
         // #Emotion Extraction
         // Use emotion array to set properties of shapes
@@ -1973,6 +1973,7 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
                 glm::vec3 coords;
                 glm::vec3 rotAxis = glm::vec3(0.0f,0.0f,-1.0f);
                 float rotScale = emotionArrayToRotation(emotionArray);
+                //float rotScale = 0.0f;
 
                 SHAPE_TYPE_2D type = emotionArrayToShapeType2D(emotionArray);
                 auto transitions = emotionArrayToTransitions(emotionArray);
@@ -1997,6 +1998,7 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
             shapeLayer.SL_SCALE = emotionArrayToSL(shapeLayer.emotionArray);
             shapeLayer.transitions = emotionArrayToTransitions(shapeLayer.emotionArray);
             shapeLayer.emotionLayers = emotionLayers;
+            shapeLayer.pulses = emotionArrayToPulses(shapeLayer.emotionArray);
             {
                 shapesSemaphore->acquire();
                 std::lock_guard<std::mutex> guard(*shapeLock);
@@ -2044,10 +2046,22 @@ int startBensEmotionSimulator(float frequency, bool cycle, bool random){
     char simulationType;
     if (cycle)
         simulationType = 'c';
+
     if (random)
         simulationType = 'r';
 
-        return runCommand("(cd ../Emotion_Gen_Sim && source venv/bin/activate && echo -e \"" + std::to_string(frequency) + "\n" + simulationType +"\" | nohup python emotion_generator.py)");
+    return runCommand("(cd ../Emotion_Gen_Sim && source venv/bin/activate && echo -e \"" + std::to_string(frequency) + "\n" + simulationType +"\" | nohup python emotion_generator.py)");
+}
+int startMineBensEmotionSimulator(float frequency, bool cycle, bool random){
+    assert(cycle || random);
+    char simulationType;
+    if (cycle)
+        simulationType = 'c';
+
+    if (random)
+        simulationType = 'r';
+
+    return runCommand("(cd ../Emotion_Gen_Sim && source venv/bin/activate && echo -e \"" + std::to_string(frequency) + "\n" + simulationType +"\" | nohup python emotion_generator_mine.py)");
 }
 
 int startBensVisualGenerationProgram(float frequency, int width, int height, bool doDisplay){
@@ -2449,16 +2463,16 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     bool notDone = true;
     int additions = 0;
 
-    int killPID = runCommand("programs=(\"Gener2.py\" \"emotion_generator.py\"); for program in \"${programs[@]}\"; do pkill -f \"$program\"; done;");
+    int killPID = runCommand("programs=(Gener2.py emotion_generator.py emotion_generator_mine.py); for program in ${programs[@]}; do ps -eo pid,args | grep $program | awk '{print $1}' | xargs -r kill -9; done");
     waitpid(killPID, nullptr, 0);
 
-    int simPID = startBensEmotionSimulator(SIM_INITIAL_PERIOD, SIM_CYCLE, SIM_RANDOM);
+    int simPID = startMineBensEmotionSimulator(SIM_INITIAL_PERIOD, SIM_CYCLE, SIM_RANDOM);
     int colPID = startBensVisualGenerationProgram(COLOR_FREQUENCY, COLOR_WIDTH, COLOR_HEIGHT, COLOR_DISPLAY);
 
 
     float currentDestructionTime = creationAlarm.getWaitTime();
     Alarm otherDestructionAlarm{SHAPE_INITIAL_SPAWN_TIME};
-    Alarm simAlarm{SIM_INITIAL_PERIOD};
+    Alarm simAlarm{SIM_INITIAL_READ_PERIOD};
     std::thread creationThread(shapeLayerGenerator,&shapeLayersBuffer,&creationAlarm, &simAlarm, &shapeLock, &timeLock, &shapesSemaphore, &notDone, &additions);
     bool midLayerMet = false;
     float requiredLayersFloat = 0.0f;
@@ -2513,9 +2527,9 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             std::lock_guard guard(timeLock);
             creationAlarm.setWaitTime(DESTRUCTION_TIME);
             otherDestructionAlarm.setWaitTime(DESTRUCTION_TIME);
-            simAlarm.setWaitTime(SIM_PERIOD);
+            simAlarm.setWaitTime(SIM_READ_PERIOD);
             killCommand(simPID);
-            simPID = startBensEmotionSimulator(SIM_PERIOD, true, false);
+            simPID = startMineBensEmotionSimulator(SIM_PERIOD, true, false);
             currentDestructionTime = creationAlarm.getWaitTime();
             currentPulseMaxTime = PULSE_TIME;
             shapesFull = true;
@@ -2546,7 +2560,9 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     }
     creationThread.join();
     killCommand(simPID);
+    waitpid(simPID, nullptr, 0);
     killCommand(colPID);
+    waitpid(colPID, nullptr, 0);
     killCommand(killPID);
 
     glfwTerminate();
@@ -4051,8 +4067,8 @@ std::map<PULSES,bool> emotionArrayToPulses(std::vector<float> emotionArray){
     float fear      = emotionArray[FEAR];
     float surprise  = emotionArray[SURPRISE];
     float disgust   = emotionArray[DISGUST];
-    std::map<std::string, float> potentials {{"scale",disgust}, {"fade", (fear + sadness)/2.0f}, {"rumble", anger/2.0f}, 
-        {"spinr", (happiness - (fear + sadness)/2.0f)}, {"spinl", surprise - (fear + sadness)/2.0f}};
+    std::map<std::string, float> potentials {{"scale",disgust}, {"fade", (fear + sadness)/1.75f}, {"rumble", anger}, 
+        {"spinr", (happiness)}, {"spinl", surprise}};
     auto [key, trash] = maxM(potentials);
     std::map<PULSES,bool> pulses{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
     pulses[FADE_P  ] = key == "fade"   && DO_FADE_P  ;
@@ -4070,26 +4086,28 @@ std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionA
     float fear      = emotionArray[FEAR];
     float surprise  = emotionArray[SURPRISE];
     float disgust   = emotionArray[DISGUST];
-    float scalePotential  = (DO_FADE_T         )  ?    (anger + surprise)/2.0f              : 0.0f;
-    float fadePotential   = (DO_SCALE_T        )  ?    (fear + sadness)/2.0f                : 0.0f;
+    float scalePotential  = (DO_FADE_T         )  ?    (anger + surprise           )/2.0f              : 0.0f;
+    float fadePotential   = (DO_SCALE_T        )  ?    (fear + sadness             )/2.0f                : 0.0f;
     float rightPotential  = (DO_MOVE_FORWARD_T )  ?    (happiness + anger - sadness)/2.0f   : 0.0f;
-    float leftPotential   = (DO_BACK_OUT_T     )  ?    (disgust + fear - sadness)/2.0f      : 0.0f;
+    float leftPotential   = (DO_BACK_OUT_T     )  ?    (disgust + fear - sadness   )/2.0f      : 0.0f;
     std::map<TRANSITIONS,bool> transitions{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
-    transitions[FADE_T]         = fadePotential >= 0.5f     ; 
-    transitions[SCALE_T]        = scalePotential >= 0.5f    ; 
-    transitions[MOVE_FORWARD_T] = rightPotential >= 0.35f   ; 
-    transitions[BACK_OUT_T]     = leftPotential >= 0.35f    ; 
-    if(transitions[MOVE_FORWARD_T] && transitions[BACK_OUT_T]){
-        if(leftPotential > rightPotential) transitions[BACK_OUT_T] = false;
-        else transitions[MOVE_FORWARD_T] = false;
-    }
     bool isEmpty = true;
-    for(auto const value : transitions){
-        if(value.second){
-            isEmpty = false;
-            break;
+    if(!ONLY_ONE_T){
+        transitions[FADE_T]         = fadePotential >= 0.35f     ; 
+        transitions[SCALE_T]        = scalePotential >= 0.35f    ; 
+        transitions[MOVE_FORWARD_T] = rightPotential >= 0.35f   ; 
+        transitions[BACK_OUT_T]     = leftPotential >= 0.35f    ; 
+        if(transitions[MOVE_FORWARD_T] && transitions[BACK_OUT_T]){
+            if(leftPotential > rightPotential) transitions[BACK_OUT_T] = false;
+            else transitions[MOVE_FORWARD_T] = false;
         }
-        
+        for(auto const value : transitions){
+            if(value.second){
+                isEmpty = false;
+                break;
+            }
+            
+        }
     }
 
     if(isEmpty){
