@@ -36,6 +36,12 @@ namespace cdata{
     const glm::vec3 RED_V3(1.0f,0.0f,0.0f);
     const glm::vec3 GREEN_V3(0.0f,1.0f,0.0f);
     const glm::vec3 BLUE_V3(0.0f,0.0f,1.0f);
+    const glm::vec3 YELLOW_V3 = RED_V3 + GREEN_V3;
+    const glm::vec3 DARK_YELLOW_V3 = YELLOW_V3/2.0f;
+    const glm::vec3 PURPLE_V3 = RED_V3 + BLUE_V3;
+    const glm::vec3 DARK_PURPLE_V3 = PURPLE_V3/2.0f;
+    const glm::vec3 TURQUOISE_V3 = GREEN_V3 + BLUE_V3;
+    const glm::vec3 DARK_TURQUOISE_V3 = TURQUOISE_V3/2.0f;
     const glm::vec3 BLACK_V3(0.0f);
     const glm::vec4 BLACK_V4(BLACK_V3, 1.0f);
     const glm::vec4 WHITE_V4(1.0f);
@@ -43,13 +49,15 @@ namespace cdata{
     const glm::vec4 GREEN_V4(GREEN_V3,1.0f);
     const glm::vec4 BLUE_V4(BLUE_V3,1.0f);
     const glm::vec4 DARK_BLUE_V4 = glm::vec4(0.0f,0.0f,0.5f, 1.0f);
-    const glm::vec4 PURPLE_V4 = glm::vec4(1.0f,0.0f,1.0f,1.0f);
-    const glm::vec4 YELLOW_V4 = glm::vec4(1.0f,1.0f,0.0f,1.0f);
+    const glm::vec4 PURPLE_V4 = glm::vec4(PURPLE_V3,1.0f);
+    const glm::vec4 DARK_PURPLE_V4 = glm::vec4(PURPLE_V3/2.0f,1.0f);
+    const glm::vec4 YELLOW_V4 = glm::vec4(YELLOW_V3,1.0f);
+    const glm::vec4 TURQUOISE_V4 = glm::vec4(TURQUOISE_V3,1.0f);
+    const glm::vec4 DARK_TURQUOISE_V4 = glm::vec4(DARK_TURQUOISE_V3,1.0f);
+    const glm::vec4 DARK_YELLOW_V4 = YELLOW_V4/2.0f + glm::vec4(glm::vec3(0.0f),0.5f);
     std::string col2str(ColorRGBA col);
     const ColorRGBA vec4ToCol(const glm::vec4 vec4);
 }
 namespace cvec4 = cdata;
-
-
 
 #endif

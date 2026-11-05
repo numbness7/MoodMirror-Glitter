@@ -1570,8 +1570,8 @@ LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], g
 }
 void setupDummyMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment){
     lightingEnvironment.object_shader.use();
-    lightingEnvironment.view = glm::mat4(1.0f);
-    lightingEnvironment.projection = glm::mat4(1.0f);
+    //lightingEnvironment.view = glm::mat4(1.0f);
+    //lightingEnvironment.projection = glm::mat4(1.0f);
     lightingEnvironment.object_shader.setUniformM4("view",lightingEnvironment.view);
     lightingEnvironment.object_shader.setUniformM4("projection",lightingEnvironment.projection);
 
@@ -1840,6 +1840,41 @@ void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera){
     else {
         loopCount++;
     }
+}
+void processInputView2D(GLFWwindow* mWindow, float deltatime, glm::vec2& position, float& zoom){
+    static const float maxZoom = 30.0f;
+    static const float minZoom = 1/9.0f;
+    if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(mWindow, true);
+    if (glfwGetKey(mWindow,   GLFW_KEY_A) == GLFW_PRESS)
+        position.x += deltatime;
+    if (glfwGetKey(mWindow,   GLFW_KEY_D) == GLFW_PRESS)
+        position.x -= deltatime;
+    if (glfwGetKey(mWindow,   GLFW_KEY_S) == GLFW_PRESS)
+        position.y += deltatime;
+    if (glfwGetKey(mWindow,   GLFW_KEY_W) == GLFW_PRESS)
+        position.y -= deltatime;
+    if (glfwGetKey(mWindow,   GLFW_KEY_SPACE) == GLFW_PRESS){
+        float curRatio = zoom/maxZoom;
+        float ratioChange = 0.1f;
+        float nextRatio = (curRatio + deltatime*ratioChange);
+        nextRatio = (nextRatio < 1.0f) ? nextRatio : 1.0f;
+        zoom = nextRatio*maxZoom;
+//      zoom += deltatime*1.0f;
+    }
+    if (glfwGetKey(mWindow,   GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
+        float curRatio = zoom/minZoom;
+        float ratioChange = 30.0f;
+        float nextRatio = (curRatio - deltatime*ratioChange);
+        nextRatio = (nextRatio > 1.0f) ? nextRatio : 1.0f;
+        zoom = nextRatio*minZoom;
+//      zoom -= deltatime*1.0f;
+    }
+}
+void endRenderLoopView2D(GLFWwindow*& mWindow, DeltaTimer& deltaTimer, glm::vec2& position, float& zoom){
+    glfwSwapBuffers(mWindow);
+    glfwPollEvents();
+    processInputView2D(mWindow, deltaTimer.getDeltaTime(), position, zoom);
 }
 void endRenderLoopViewStatic(GLFWwindow*& mWindow, DeltaTimer deltaTimer){
     glfwSwapBuffers(mWindow);
@@ -4424,11 +4459,12 @@ void getRecursiveSquareHolesHelper(const int preIterations, const glm::vec2 posi
     }
 }
 
-void getRecursiveSquareHoles(unsigned int iterations, PngData& pngData, std::vector<cdata::ColorRGBA> colors){
+void getRecursiveSquareHoles(unsigned int iterations, PngData& pngData, std::vector<cdata::ColorRGBA> colors, glm::vec2 origin=glm::vec2(0.5f,0.5f)){
     std::vector<std::vector<std::tuple<glm::vec2, float>>> squareHoles(iterations);
     generatePNGBlank(pngData, colors[0]);
     float width = pngData.width;
-    getRecursiveSquareHolesHelper(iterations - 1.0f, glm::vec2(pngData.width/2.0f,pngData.height/2.0f), width, pngData, colors);
+    glm::vec2 position = boundTransformation(origin, glm::vec2(0.0f), glm::vec2(1.0f), glm::vec2(0.0f), glm::vec2(pngData.width, pngData.height));
+    getRecursiveSquareHolesHelper(iterations - 1.0f, position, width, pngData, colors);
 }
 
 
@@ -4446,19 +4482,33 @@ void drawModelPositions(const std::vector<std::vector<glm::mat4>>& modelLayers, 
         }
     }
 }
+LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath){
+    glm::mat4 proj(1.0f);
+    glm::mat4 view(1.0f);
+    glm::mat4 model(1.0f);
+
+    Shader object_shader(vertexShaderPath, fragmentShaderPath);
+    Shader light_shader(vertexShaderPath, fragmentShaderPath);
+    object_shader.use();
+    object_shader.setUniformM4("projection", proj);
+    object_shader.setUniformM4("view", view);
+    object_shader.setUniformM4("model",model);
+    LightingEnvironment lightingEnvironment{model,view,proj,object_shader,light_shader};
+    return lightingEnvironment;
+}
 
 int mainRecursion(int argc, char * argv[]){
     int returnVal;
     GLFWwindow* mWindow;
     if((returnVal = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return returnVal;
-    LightingEnvironment lE = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    LightingEnvironment lE = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
     unsigned int borderTextureRed = obtainPNGBorder(255, 255, 2, 2, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
     OpenGLShape square(shapes::rectT, {borderTextureRed, borderTextureRed}, true);
     unsigned int borderTextureBlue = obtainPNGBorder(255, 255, 0, 0, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
     OpenGLShape squareHole(shapes::rectT, {borderTextureBlue, borderTextureBlue}, true);
 
-    PngData squareHolesPngData(243,243);
-    getRecursiveSquareHoles(5,  squareHolesPngData, std::vector<cdata::ColorRGBA>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4});
+    PngData squareHolesPngData(6561,6561);
+    getRecursiveSquareHoles(8,  squareHolesPngData, std::vector<cdata::ColorRGBA>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4, cdata::TURQUOISE_V4, cdata::WHITE_V4, cdata::DARK_YELLOW_V4, cdata::DARK_TURQUOISE_V4});
     unsigned int squareHolesTexture = getTextureFromData(squareHolesPngData);
     OpenGLShape squareHoleT(shapes::rectT, {squareHolesTexture, squareHolesTexture}, true);
     pngDataSavePng("../TestIt.png", squareHolesPngData);
@@ -4466,17 +4516,25 @@ int mainRecursion(int argc, char * argv[]){
     
     glDisable(GL_DEPTH_TEST);
     lE.object_shader.use();
-    glm::mat4 model(1.0f);
-    model = glm::scale(model, glm::vec3(2.0f,2.0f,1.0f));
-    lE.object_shader.setUniformM4("model", model);
+    lE.view = glm::mat4(1.0f);
+
     lE.object_shader.setUniformB("DISABLE_ALMOST_EVERYTHING", true);
     lE.object_shader.setUniformV4("INNER_COLOR", cdata::WHITE_V4);
+    glm::mat4 model(1.0f);
+    model = glm::scale(model, glm::vec3(glm::vec2(2.0f),1.0f));
+    
+    lE.object_shader.setUniformM4("model", model);
     std::vector<std::vector<glm::mat4>> models = getRecursiveSquareHolesModels(6, glm::vec2(0.0f), 2.0f);
+    glm::vec2 position(0.0f);
+    float zoom = 1.0f;
     while(!glfwWindowShouldClose(mWindow)){
         startDummyMPVLoop(deltaTimer, lE);
+        lE.view = glm::mat4(1.0f);
+        lE.view = glm::scale(lE.view, glm::vec3(glm::vec2(zoom),0.0f));
+        lE.view = glm::translate(lE.view, glm::vec3(position,0.0f));
         //drawModelPositions(models, squareHole, lE, std::deque<glm::vec4>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4});
         squareHoleT.draw(lE.object_shader);
-        endRenderLoopViewStatic(mWindow, deltaTimer);
+        endRenderLoopView2D(mWindow, deltaTimer, position, zoom);
     } glfwTerminate();
     
     return EXIT_SUCCESS;
