@@ -21,6 +21,7 @@ uniform float BORDER_THICKNESS;
 uniform vec4 INNER_COLOR;
 uniform vec4 OUTER_COLOR;
 uniform vec2 SL_SCALE;
+uniform bool DISABLE_ALMOST_EVERYTHING;
 
 
 const float SCALE_CONST = 1.0f;
@@ -58,48 +59,53 @@ vec3 hSLToRGB(vec3 hsl);
 
 void main(){
     
-    vec4 borderTextureColor = texture(borderTexture, ourTexCoord);
     vec4 textureColor = texture(ourTexture, ourTexCoord);
-    
-    float dist = getDist(borderTextureColor);
-    float AMOUNT_INNER = dist/BORDER_THICKNESS;
-    vec4 borderColor;
+    if(!DISABLE_ALMOST_EVERYTHING){
+        vec4 borderTextureColor = texture(borderTexture, ourTexCoord);
+        
+        float dist = getDist(borderTextureColor);
+        float AMOUNT_INNER = dist/BORDER_THICKNESS;
+        vec4 borderColor;
 
-    switch (borderCase){
-        case 0:
-            borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : OUTER_COLOR;
-            break;
-        case 1:
-            borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : (AMOUNT_INNER*INNER_COLOR + (1.0f-AMOUNT_INNER)*OUTER_COLOR);
-            break;
-        case 2:
-            borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : vec4(INNER_COLOR.xyz,INNER_COLOR.a*AMOUNT_INNER);
-            break;
-        case 3:
-            borderColor = isInner(dist, BORDER_THICKNESS) ? vec4(INNER_COLOR.xyz,INNER_COLOR.a*(1.0f-AMOUNT_INNER)) : INNER_COLOR;
-            break;
-        default:
-            borderColor = INNER_COLOR;
+        switch (borderCase){
+            case 0:
+                borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : OUTER_COLOR;
+                break;
+            case 1:
+                borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : (AMOUNT_INNER*INNER_COLOR + (1.0f-AMOUNT_INNER)*OUTER_COLOR);
+                break;
+            case 2:
+                borderColor = isInner(dist, BORDER_THICKNESS) ? INNER_COLOR : vec4(INNER_COLOR.xyz,INNER_COLOR.a*AMOUNT_INNER);
+                break;
+            case 3:
+                borderColor = isInner(dist, BORDER_THICKNESS) ? vec4(INNER_COLOR.xyz,INNER_COLOR.a*(1.0f-AMOUNT_INNER)) : INNER_COLOR;
+                break;
+            default:
+                borderColor = INNER_COLOR;
+        }
+
+
+        float fade = 0.0f;
+        vec4 fadeColor = borderColor;
+        if(DO_FADE){
+            fade = calcFade(destructionTimePassed, destructionTime, maxLayer, MID_LAYER, layer);
+            fadeColor.a = (1.0f - fade)*fadeColor.a;
+        }
+        
+        vec3 textureColorRGB = textureColor.xyz;
+        vec3 textureColorHSL = rGBToHSL(textureColorRGB);
+        vec3 textureColorHSLScaled = vec3(textureColorHSL.x, textureColorHSL.yz*SL_SCALE);
+        vec3 textureColorRGBScaled = hSLToRGB(textureColorHSLScaled);
+        vec4 finalTextureColor = vec4(textureColorRGBScaled, textureColor.a);
+
+        if(borderCase == 0 && isOuter(dist, BORDER_THICKNESS))
+            FragColor = fadeColor;
+        else
+            FragColor = fadeColor*finalTextureColor;
     }
-
-
-    float fade = 0.0f;
-    vec4 fadeColor = borderColor;
-    if(DO_FADE){
-        fade = calcFade(destructionTimePassed, destructionTime, maxLayer, MID_LAYER, layer);
-        fadeColor.a = (1.0f - fade)*fadeColor.a;
+    else{
+        FragColor = INNER_COLOR*textureColor;
     }
-    
-    vec3 textureColorRGB = textureColor.xyz;
-    vec3 textureColorHSL = rGBToHSL(textureColorRGB);
-    vec3 textureColorHSLScaled = vec3(textureColorHSL.x, textureColorHSL.yz*SL_SCALE);
-    vec3 textureColorRGBScaled = hSLToRGB(textureColorHSLScaled);
-    vec4 finalTextureColor = vec4(textureColorRGBScaled, textureColor.a);
-
-    if(borderCase == 0 && isOuter(dist, BORDER_THICKNESS))
-        FragColor = fadeColor;
-    else
-        FragColor = fadeColor*finalTextureColor;
 }
 
 float getDist(vec4 textureColor){

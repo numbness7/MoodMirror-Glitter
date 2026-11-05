@@ -658,6 +658,16 @@ void generatePNGBlank(PngData& pngData){
         pngData.setData(i, cdata::FULL_COLOR_D);
     }
 }
+void generatePNGBlank(PngData& pngData, cdata::ColorRGBA color){
+    for(int gI = 0; gI < pngData.gridSize(); gI++){
+        pngData.setColor(gI, color);
+    }
+}
+void generatePNGBlank(PngData& pngData, cdata::ColorRGB color){
+    for(int gI = 0; gI < pngData.gridSize(); gI++){
+        pngData.setColor(gI, color);
+    }
+}
 
 bool isInRange(float x, float min, float max){
    return min < x && x < max; 
@@ -1013,6 +1023,12 @@ float boundTransformation(float x, float min, float max, float minT, float maxT)
     float slope = (maxT - minT)/(max - min);
     float intercept = minT - slope*min;
     return slope*x + intercept;
+}
+glm::vec2 boundTransformation(glm::vec2 pos, glm::vec2 min, glm::vec2 max, glm::vec2 minT, glm::vec2 maxT){
+    assert(max != min);
+    float xT = boundTransformation(pos.x, min.x, max.x, minT.x, maxT.x);
+    float yT = boundTransformation(pos.y, min.y, max.y, minT.y, maxT.y);
+    return glm::vec2(xT, yT);
 }
 
 std::tuple<float,float> linearTransformation(float xf, float xi, float yf, float yi){
@@ -2071,7 +2087,7 @@ int startMineBensEmotionSimulator(float frequency, bool cycle, bool random){
     if (random)
         simulationType = 'r';
 
-    return runCommand("(cd ../Emotion_Gen_Sim && source venv/bin/activate && echo -e \"" + std::to_string(frequency) + "\n" + simulationType +"\" | nohup python emotion_generator_mine.py)");
+    return runCommand("(cd " + std::string(SIM_PATH) + " && source venv/bin/activate && echo -e \"" + std::to_string(frequency) + "\n" + simulationType +"\" | nohup " + std::string(SIM_PROGRAM) + ")");
 }
 
 int startBensVisualGenerationProgram(float frequency, int width, int height, bool doDisplay){
@@ -2082,8 +2098,8 @@ int startBensVisualGenerationProgram(float frequency, int width, int height, boo
     else
         display = 'n';
     
-    return runCommand("(cd ../VisualGen_Ben/V1_255x255/ && source venv/bin/activate && echo -e \"" + std::to_string(width) + "\n" 
-        + std::to_string(height) + "\n" + std::to_string(frequency) + "\n" + display + "\" | nohup python Gener2.py)");
+    return runCommand("(cd " + std::string(COLOR_PATH) + " && source venv/bin/activate && echo -e \"" + std::to_string(width) + "\n" 
+        + std::to_string(height) + "\n" + std::to_string(frequency) + "\n" + display + "\" | nohup " + COLOR_PROGRAM + ")");
 }
 
 
@@ -2401,6 +2417,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     
     DeltaTimer deltaTimer{};
     Alarm creationAlarm(SHAPE_INITIAL_SPAWN_TIME);
+    float currentDestructionTime = creationAlarm.getWaitTime();
     bool shapesFull = false;
     
 
@@ -2477,15 +2494,20 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     std::counting_semaphore<TOTAL_LAYERS> shapesSemaphore{0};
     bool notDone = true;
     int additions = 0;
+    int simPID, colPID;
 
-    //int killPID = runCommand("programs=(Gener2.py emotion_generator.py emotion_generator_mine.py); for program in ${programs[@]}; do ps -eo pid,args | grep $program | awk '{print $1}' | xargs -r kill -9; done");
-    //waitpid(killPID, nullptr, 0);
+    if(SIM_START){
+        killProgram(SIM_PROGRAM);
+        simPID = startMineBensEmotionSimulator(SIM_INITIAL_PERIOD, SIM_CYCLE, SIM_RANDOM);
+    }
+    if(COLOR_START){
+        killProgram(COLOR_PROGRAM);
+        colPID = startBensVisualGenerationProgram(COLOR_FREQUENCY, COLOR_WIDTH, COLOR_HEIGHT, COLOR_DISPLAY);
+    }
 
-    //int simPID = startMineBensEmotionSimulator(SIM_INITIAL_PERIOD, SIM_CYCLE, SIM_RANDOM);
-    //int colPID = startBensVisualGenerationProgram(COLOR_FREQUENCY, COLOR_WIDTH, COLOR_HEIGHT, COLOR_DISPLAY);
 
 
-    float currentDestructionTime = creationAlarm.getWaitTime();
+
     Alarm otherDestructionAlarm{SHAPE_INITIAL_SPAWN_TIME};
     Alarm simAlarm{SIM_INITIAL_READ_PERIOD};
     std::thread creationThread(shapeLayerGenerator,&shapeLayersBuffer,&creationAlarm, &simAlarm, &shapeLock, &timeLock, &shapesSemaphore, &notDone, &additions);
@@ -2543,8 +2565,10 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             creationAlarm.setWaitTime(DESTRUCTION_TIME);
             otherDestructionAlarm.setWaitTime(DESTRUCTION_TIME);
             simAlarm.setWaitTime(SIM_READ_PERIOD);
-            //killCommand(simPID);
-            //simPID = startMineBensEmotionSimulator(SIM_PERIOD, true, false);
+            if(SIM_START){
+                killCommand(simPID);
+                simPID = startMineBensEmotionSimulator(SIM_PERIOD, true, false);
+            }
             currentDestructionTime = creationAlarm.getWaitTime();
             currentPulseMaxTime = PULSE_TIME;
             shapesFull = true;
@@ -2574,11 +2598,14 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         notDone = false;
     }
     creationThread.join();
-    //killCommand(simPID);
-    //waitpid(simPID, nullptr, 0);
-    //killCommand(colPID);
-    //waitpid(colPID, nullptr, 0);
-    //killCommand(killPID);
+    if(SIM_START){
+        killCommand(simPID);
+        waitpid(simPID, nullptr, 0);
+    }
+    if(COLOR_START){
+        killCommand(colPID);
+        waitpid(colPID, nullptr, 0);
+    }
 
     glfwTerminate();
 
@@ -4288,4 +4315,170 @@ EmotionIntensities EmotionMapToEmotionIntensities(std::map<EMOTION, float> eIMap
 std::map<EMOTION, float> emotionArrayToEmotionMap(std::vector<float> emotionArray)
 {
     return emotionIntensitiesToEmotionMap(emotionArrayToEmotionIntensities(emotionArray));
+}
+
+int killProgram(std::string programName){
+    int killPID = runCommand("ps -eo pid,args | grep " + programName + " | awk '{print $1}' | xargs -r kill -9; done");
+    waitpid(killPID, nullptr, 0);
+    return killPID;
+}
+
+void drawRecursiveSquareHoles(GLFWwindow* window, OpenGLShape& square, OpenGLShape& squareHole, LightingEnvironment& lE, unsigned int iterations, glm::vec2 position, float size){
+    lE.object_shader.use();
+    glm::mat4 model(1.0f);
+    model = glm::translate(model, glm::vec3(position,0.0f));
+    model = glm::scale(model, glm::vec3(glm::vec2(size),1.0f));
+    lE.object_shader.setUniformM4("model", model);
+    square.draw(lE.object_shader);
+    drawRecursiveSquareHolesHelper(window, square, squareHole, lE, iterations, position, size);
+}
+void drawRecursiveSquareHolesHelper(GLFWwindow* window, OpenGLShape& square, OpenGLShape& squareHole, LightingEnvironment& lE, unsigned int iterations, glm::vec2 position, float size){
+    if(iterations > 0){
+        iterations--;
+        lE.object_shader.use();
+        glm::mat4 model(1.0f);
+        model = glm::translate(model, glm::vec3(position,0.0f));
+        size = size/3.0f;
+        model = glm::scale(model, glm::vec3(glm::vec2(size),1.0f));
+        lE.object_shader.setUniformM4("model", model);
+        squareHole.draw(lE.object_shader);
+        for(int row = -1; row <= 1; row++){
+            for(int col = -1; col <= 1; col++){
+                if(row != 0 || col != 0)
+                    drawRecursiveSquareHolesHelper(window, square, squareHole, lE, iterations, position + size*glm::vec2(row,col), size);
+            }
+        }
+    }
+}
+
+void getRecursiveSquareHolesHelper(unsigned int iterations, glm::vec2 position, float size, std::vector<std::vector<std::tuple<glm::vec2, float>>>& squareHoles){
+    if(iterations > 0){
+        iterations--;
+        size = size/3.0f;
+        squareHoles[squareHoles.size() - 1 - iterations].push_back(std::tuple<glm::vec2, float>(position, size));
+        for(int row = -1; row <= 1; row++){
+            for(int col = -1; col <= 1; col++){
+                if(row != 0 || col != 0)
+                    getRecursiveSquareHolesHelper(iterations, position + size*glm::vec2(row,col), size, squareHoles);
+            }
+        }
+    }
+}
+std::vector<std::vector<std::tuple<glm::vec2, float>>> getRecursiveSquareHoles(unsigned int iterations, glm::vec2 position, float size){
+    std::vector<std::vector<std::tuple<glm::vec2, float>>> squareHoles(iterations);
+    getRecursiveSquareHolesHelper(iterations, position, size, squareHoles);
+    return squareHoles;
+
+}
+std::vector<std::vector<glm::mat4>> getRecursiveSquareHolesModels(unsigned int iterations, glm::vec2 position, float size){
+    std::vector<std::vector<glm::mat4>> models{};
+    std::vector<std::vector<std::tuple<glm::vec2, float>>> squareHoleLayers(iterations);
+    if(iterations > 0){
+        iterations--;
+        squareHoleLayers[squareHoleLayers.size() - 1 - iterations].push_back(std::tuple<glm::vec2, float>(position, size));
+        getRecursiveSquareHolesHelper(iterations, position, size, squareHoleLayers);
+        for(const auto& holeLayer : squareHoleLayers){
+            models.push_back(std::vector<glm::mat4>{});
+            for(const auto& [position, size] : holeLayer){
+                glm::mat4 model(1.0f);
+                model = glm::translate(model, glm::vec3(position,0.0f));
+                model = glm::scale(model, glm::vec3(glm::vec2(size),1.0f));
+                models.back().push_back(model);
+            }
+        }
+    }
+    return models;
+
+}
+
+
+void fillSquare(PngData& pngData, const float size, const glm::vec2 position, const cdata::ColorRGBA color){
+    float offset = size/2.0f;
+    glm::vec2 bottomLeft = position - offset;
+    glm::vec2 topRight = position + offset;
+
+    int bottomLeftX = bottomLeft.x;
+    int bottomLeftY = bottomLeft.y;
+    int topRightX = topRight.x;
+    int topRightY = topRight.y;
+    for (int y = bottomLeftY; y <  topRightY; y++){
+        for (int x = bottomLeftX; x < topRightX; x++){
+            pngData.setColor(y, x, color);
+        }
+    }
+    
+}
+
+void getRecursiveSquareHolesHelper(const int preIterations, const glm::vec2 position, const float preWidth, PngData& pngData, const std::vector<cdata::ColorRGBA> colors){
+    if(preIterations >= 0){
+        float width = preWidth/3.0f;
+        int iterations = preIterations - 1;
+        auto const color = colors[colors.size() - 1 - preIterations];
+        fillSquare(pngData, width, position, color);
+        for(int row = -1; row <= 1; row++){
+            for(int col = -1; col <= 1; col++){
+                if(row != 0 || col != 0)
+                    getRecursiveSquareHolesHelper(iterations, position + width*glm::vec2(row,col), width, pngData, colors);
+            }
+        }
+    }
+}
+
+void getRecursiveSquareHoles(unsigned int iterations, PngData& pngData, std::vector<cdata::ColorRGBA> colors){
+    std::vector<std::vector<std::tuple<glm::vec2, float>>> squareHoles(iterations);
+    generatePNGBlank(pngData, colors[0]);
+    float width = pngData.width;
+    getRecursiveSquareHolesHelper(iterations - 1.0f, glm::vec2(pngData.width/2.0f,pngData.height/2.0f), width, pngData, colors);
+}
+
+
+
+void drawModelPositions(const std::vector<std::vector<glm::mat4>>& modelLayers, OpenGLShape& shape, LightingEnvironment& lE, std::deque<glm::vec4> colors){
+    lE.object_shader.use();
+    for(auto& modelLayer : modelLayers){
+        const glm::vec4 color = colors.front();
+        assert(!colors.empty());
+        colors.pop_front();
+        lE.object_shader.setUniformV4("INNER_COLOR", color);
+        for(auto& model : modelLayer){
+            lE.object_shader.setUniformM4("model", model);
+            shape.draw(lE.object_shader);
+        }
+    }
+}
+
+int mainRecursion(int argc, char * argv[]){
+    int returnVal;
+    GLFWwindow* mWindow;
+    if((returnVal = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return returnVal;
+    LightingEnvironment lE = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    unsigned int borderTextureRed = obtainPNGBorder(255, 255, 2, 2, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
+    OpenGLShape square(shapes::rectT, {borderTextureRed, borderTextureRed}, true);
+    unsigned int borderTextureBlue = obtainPNGBorder(255, 255, 0, 0, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
+    OpenGLShape squareHole(shapes::rectT, {borderTextureBlue, borderTextureBlue}, true);
+
+    PngData squareHolesPngData(243,243);
+    getRecursiveSquareHoles(5,  squareHolesPngData, std::vector<cdata::ColorRGBA>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4});
+    unsigned int squareHolesTexture = getTextureFromData(squareHolesPngData);
+    OpenGLShape squareHoleT(shapes::rectT, {squareHolesTexture, squareHolesTexture}, true);
+    pngDataSavePng("../TestIt.png", squareHolesPngData);
+    DeltaTimer deltaTimer{};
+    
+    glDisable(GL_DEPTH_TEST);
+    lE.object_shader.use();
+    glm::mat4 model(1.0f);
+    model = glm::scale(model, glm::vec3(2.0f,2.0f,1.0f));
+    lE.object_shader.setUniformM4("model", model);
+    lE.object_shader.setUniformB("DISABLE_ALMOST_EVERYTHING", true);
+    lE.object_shader.setUniformV4("INNER_COLOR", cdata::WHITE_V4);
+    std::vector<std::vector<glm::mat4>> models = getRecursiveSquareHolesModels(6, glm::vec2(0.0f), 2.0f);
+    while(!glfwWindowShouldClose(mWindow)){
+        startDummyMPVLoop(deltaTimer, lE);
+        //drawModelPositions(models, squareHole, lE, std::deque<glm::vec4>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4});
+        squareHoleT.draw(lE.object_shader);
+        endRenderLoopViewStatic(mWindow, deltaTimer);
+    } glfwTerminate();
+    
+    return EXIT_SUCCESS;
+
 }
