@@ -34,6 +34,12 @@ namespace shapes {
         0.5f, -0.5f,  0.0f,  1.0f, 0.0f, // bottom-right
        -0.5f, -0.5f,  0.0f,  0.0f, 0.0f, // bottom-left
     };
+    const float e_tri_t_right[] = {
+        // Position         Texture Coords
+         0.5f,  0.0f,  0.0f,  0.5f, 1.0f, // center-right
+        -0.5f, -0.5f,  0.0f,  1.0f, 0.0f, // bottom-left
+        -0.5f,  0.5f,  0.0f,  0.0f, 0.0f, // top-left
+    };
     
     const unsigned int e_tri_ind[] = {
         0, 1, 2
@@ -72,6 +78,7 @@ namespace shapes {
     
     const Shape rectT(rect_t,  sizeof(rect_t)/sizeof(float), rect_t_attribute_sizes,      rect_ind, sizeof(rect_ind)/sizeof(unsigned int));
     const Shape eTriT(e_tri_t, sizeof(e_tri_t)/sizeof(float),std::vector<unsigned>{3,2}, e_tri_ind, 3);
+    const Shape eTriTRight(e_tri_t_right, sizeof(e_tri_t_right)/sizeof(float),std::vector<unsigned>{3,2}, e_tri_ind, 3);
     const float cube[] = {
     -0.5f, -0.5f, -0.5f,
      0.5f, -0.5f, -0.5f,

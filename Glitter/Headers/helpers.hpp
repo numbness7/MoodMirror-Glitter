@@ -41,6 +41,9 @@
 
 // #Header Macros -------------------------------------------------------------
 
+// Window Configuration
+#define FULL_SCREEN false
+
 // Hardware Specific Configuration
 #define ON_PI false
 
@@ -53,10 +56,10 @@
 
 // Layer info
 
-#define TOTAL_LAYERS 100
-#define SHAPES_IN_BATCH 2
-#define MID_LAYER 10
-#define TOTAL_EMOTION_LAYERS 6
+#define TOTAL_LAYERS 50
+#define SHAPES_IN_BATCH 5
+#define MID_LAYER 25
+#define TOTAL_EMOTION_LAYERS 12 
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
 
@@ -66,7 +69,7 @@
 
 // Spawn Times
 
-#define SHAPE_INITIAL_SPAWN_TIME 0.1f
+#define SHAPE_INITIAL_SPAWN_TIME 0.5f
 #define DESTRUCTION_TIME         0.5f
 #define UPDATE_ITERATIONS 10.0f
 
@@ -76,11 +79,15 @@
 #define PULSE_TIME (DESTRUCTION_TIME*PULSE_TIME_RATIO)
 #define PULSE_TIME_INITAL (SHAPE_INITIAL_SPAWN_TIME*PULSE_TIME_RATIO)
 
+#define PULSE_FADE_MIN 0.0f
+#define PULSE_FADE_MAX 1.0f
+#define PULSE_NUMBER 2
+
 // Ben's Color Image Generator parameters
 
 #define COLOR_PATH "../VisualGen_Ben/V1_255x255"
 #define COLOR_PROGRAM "python Gener3.py"
-#define COLOR_START true
+#define COLOR_START false
 #define COLOR_FREQUENCY 0.015f
 #define COLOR_WIDTH 255
 #define COLOR_HEIGHT 255
@@ -92,11 +99,11 @@
 
 #define SIM_PATH "../Emotion_Gen_Sim/"
 #define SIM_PROGRAM "python emotion_generator_mine.py"
-#define SIM_START true
-#define SIM_PERIOD 0.001f
-#define SIM_READ_PERIOD 1.00f
-#define SIM_INITIAL_PERIOD 0.0001f
-#define SIM_INITIAL_READ_PERIOD 0.10f
+#define SIM_START false
+#define SIM_READ_PERIOD 0.001f
+#define SIM_INITIAL_READ_PERIOD 0.001f
+#define SIM_PERIOD 0.01f
+#define SIM_INITIAL_PERIOD 0.01f
 #define SIM_CYCLE true
 #define SIM_RANDOM false
 
@@ -183,7 +190,7 @@
 #define DEBUG_FUN false
 #define DEBUG_IMAGE true
 #define DEBUG_RECURSION_FILL true
-#define DEBUG_RECURSION false
+#define DEBUG_RECURSION true
 
 
 // Obsolete
@@ -561,6 +568,10 @@ namespace dir{
     const glm::vec3 BACKWARD(0.0f, 0.0f, 1.0f);
 }
 
+namespace mm_math{
+    const float PI = ((float)M_PI);
+}
+
 // #Main Programs -------------------------------------------------------------
 
 /// @brief Draws a 2D display of multiple colored shapes based on emotion data and Ben's visual simulator.
@@ -626,7 +637,7 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
 // #Initialization -------------------------------------------------------------
 
 LightingEnvironment initMPV(std::string vertexShaderPath, std::string fragmentShaderPath);
-GLFWwindow* loadGLFWCreateWindow(int width, int height);
+GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen=FULL_SCREEN);
 bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height);
 int initOpenGL(GLFWwindow*& mWindow, int width, int height);
 void initMouse(GLFWwindow* mWindow);
@@ -669,7 +680,7 @@ int emotionIndex(EMOTION emotion);
 
 // #Format -------------------------------------------------------------
 
-std::string formatFloat(float f, int digitsBefore, int digitsAfter);
+std::string formatFloat(float f, int digitsBefore, int digitsAfter, bool hasSign=true);
 std::string to_string(std::vector<std::vector<float>> coefficients);
 std::string to_string(std::vector<float> coefficients);
 
@@ -776,7 +787,8 @@ unsigned int createTexture(std::string texture_filepath, std::string filetype);
 // #Linear Operations -------------------------------------------------------------
 
 std::vector<glm::vec2> borderVerticesFromShape(const shapes::Shape& shape);
-std::tuple<float,float,float> getLineFromVertices(float xi, float xf, float yi, float yf);
+std::tuple<float,float,float> getLineFromVertices(const float xi, const float xf, const float yi, const float yf);
+std::tuple<float,float,float> getLineFromVertices(const glm::vec2 vi, const glm::vec2 vf);
 std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride);
 bool isInSquare(glm::vec2 point, glm::vec2 center,  float length);
 bool isInSquare(float x, float y, float centerX, float centerY, float length);
@@ -857,7 +869,13 @@ void drawRecursiveSquareHoles(GLFWwindow* window, OpenGLShape& square, OpenGLSha
 void generatePNGBlank(PngData& pngData, cdata::ColorRGBA color);
 void generatePNGBlank(PngData& pngData, cdata::ColorRGB color);
 template<typename T> std::string vec2str(T vec, unsigned int size);
+bool tryGetIntersection(glm::vec2& intersection, const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, bool lineSegmentsDefineLines=false);
+bool tryGetIntersection(glm::vec2& intersection, const std::tuple<float, float, float> line1, const std::tuple<float, float, float> line2);
+bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, const glm::vec2 lineIntersection);
+bool hasIntersection(const std::tuple<float, float, float> line1, const std::tuple<float, float, float> line2);
+std::string vec2ToString(glm::vec2 vec2);
 
+glm::vec2 rotate(const glm::vec2& vec2, const float& radians);
 
 
 #endif

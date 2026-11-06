@@ -388,7 +388,7 @@ void create_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO,
         glEnableVertexAttribArray(0);
     }
 
-GLFWwindow* loadGLFWCreateWindow(int width, int height){
+GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen){
     // Load GLFW and Create a Window
     glfwInit();
     if(!ON_PI)
@@ -406,13 +406,17 @@ GLFWwindow* loadGLFWCreateWindow(int width, int height){
 	    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
         
+    }
+    if(fullscreen){
         GLFWmonitor* monitor = glfwGetPrimaryMonitor();
         const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-        GLFWwindow* piWindow = glfwCreateWindow(mode->width, mode->height, "Glitter", monitor, NULL);
-        return piWindow;
+        GLFWwindow* mWindow = glfwCreateWindow(mode->width, mode->height, "Glitter", monitor, NULL);
+        return mWindow;
     }
-    auto mWindow = glfwCreateWindow(width, height, "OpenGL", nullptr, nullptr);
-    return mWindow;
+    else{
+        auto mWindow = glfwCreateWindow(width, height, "OpenGL", nullptr, nullptr);
+        return mWindow;
+    }
 }
 
 void create_textured_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
@@ -599,10 +603,6 @@ void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> bord
             borderVerticesN.push_back(curVertexNorm);
             auto line = getLineFromVertices(preVertexNorm.x, curVertexNorm.x, preVertexNorm.y, curVertexNorm.y);
             borderLines.push_back(line);
-            checkPrint(std::format(      "({:.2f},\t{:.2f})\t-> ",  prevVertex.x,  prevVertex.y), true, DEBUG_LINE);
-            checkPrint(std::format(    "\t({:.2f},\t{:.2f})"  ,   curVertex.x,   curVertex.y), true, DEBUG_LINE);
-            checkPrint(std::format(  "\t\t\t({:.2f}, {:.2f})\t-> ",  preVertexNorm.x,  preVertexNorm.y), true, DEBUG_LINE);
-            checkPrint(std::format(    "\t({:.2f}, {:.2f})\n"  ,   curVertexNorm.x,   curVertexNorm.y), true, DEBUG_LINE);
             prevVertex = curVertex;
         }
 
@@ -1063,12 +1063,15 @@ std::tuple<float,float> linearTransformation(float xf, float xi, float yf, float
     return std::tuple<float,float>(slope,intercept);
 }
 
-std::tuple<float,float,float> getLineFromVertices(float xi, float xf, float yi, float yf){
-    float A = yf - yi;
-    float B = xi - xf;
-    float C = xf*yi - xi*yf;
+std::tuple<float,float,float> getLineFromVertices(const float xi, const float xf, const float yi, const float yf){
+    const float A = yf - yi;
+    const float B = xi - xf;
+    const float C = xf*yi - xi*yf;
     return {A,B,C};
-    
+}
+
+std::tuple<float,float,float> getLineFromVertices(const glm::vec2 vi, const glm::vec2 vf){
+    return getLineFromVertices(vi.x, vf.x, vi.y, vf.y);
 }
 
 float boundTransformation(float x, std::tuple<float,float> line){
@@ -1097,19 +1100,29 @@ nlohmann::json readjsonfile(std::string filepath)
     }
 }
 
-std::string formatFloat(float f, int digitsBefore, int digitsAfter){
+std::string formatFloat(float f, int digitsBefore, int digitsAfter, bool hasSign){
     std::string floatString = std::to_string(f);
     int decimalPointIndex;
+	if(f < 0.0f)
+		floatString.erase(floatString.begin());
     for(decimalPointIndex = 0; floatString[decimalPointIndex] != '.'; decimalPointIndex++);
+	for(; decimalPointIndex > digitsBefore; decimalPointIndex--)
+		floatString.erase(floatString.begin());
     assert(decimalPointIndex <= digitsBefore);
-    for(int i = 0; i < decimalPointIndex - digitsBefore; i++){
+    for(int i = 0; i < digitsBefore - decimalPointIndex; i++){
         floatString = '0' + floatString;
     }
-    int digitsAfterPoint = floatString.size() - decimalPointIndex - 1;
-    assert(digitsAfterPoint <= digitsAfter);
+    int digitsAfterPoint = floatString.size() - digitsBefore  - 1;
+    for(; digitsAfterPoint > digitsAfter; digitsAfterPoint--) floatString.pop_back();
     for(; digitsAfterPoint < digitsAfter; digitsAfterPoint++) floatString += '0';
+	if(hasSign && floatString[0] != '-')
+		if(f < 0.0f)
+			floatString = '-' + floatString;
+		else
+			floatString = ' ' + floatString;
     return floatString;
 }
+
 EMOTION emotionIntToEnum(int emotion){
     switch(emotion){
         case 0:
@@ -1178,7 +1191,7 @@ void printEmotionLayers(std::deque<EmotionLayer> emotionLayers){
         emotionArrays.push_back(emotionLayer.emotionArray);
     }
     for(int row=0; row < emotionArrays.size(); row++){
-        float max = std::numeric_limits<float>::min();
+        float max = -std::numeric_limits<float>::max();
         int maxEmotion = -1;
         for(int col=0; col < emotionArrays[0].size(); col++){
             float current = emotionArrays[row][col];
@@ -1423,6 +1436,18 @@ SHAPE_TYPE_3D emotionArrayToShapeType3D(std::vector<float> emotionArray){
     else {
         return CUBE;
     }
+}
+std::string vec2ToString(glm::vec2 vec2)
+{
+    std::string s;
+    s += "(";
+    for(int i = 0; i < 2; i++){
+        s += std::to_string(vec2[i]);        
+        s += ",";
+    }
+    s.pop_back();
+    s+= ")";
+    return s;
 }
 std::string vec3ToString(glm::vec3 vec3)
 {
@@ -1786,7 +1811,7 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 glm::vec4 outerColor = shape.outerColor;    
 
                 if(pulses[FADE_P]){
-                    float fade = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, SHAPE_MIN_FADE, SHAPE_MAX_FADE, false);                    
+                    float fade = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, PULSE_FADE_MIN, PULSE_FADE_MAX, false);                    
                     innerColor.a *= (1.0f - fade);
                     outerColor.a *= (1.0f - fade);
                 }
@@ -2645,7 +2670,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer);
         endRenderLoop(mWindow,deltaTimer,camera);
 
-        if(printAlarm.checkAndUpdate()){
+        if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
             printEmotionLayers(shapeLayersStorage.back().emotionLayers);
             printEmotionArray(shapeLayersStorage.back().emotionArray);
         }
@@ -3462,8 +3487,8 @@ int mainTurning(int argc, char * argv[]){
         
         // Use emotion array to set properties of shapes
         glm::vec3 emotionRGB = emotionArrayToColor(emotionArrays[0]);
-        glm::vec3 rotationAxis = glm::vec3(sin(getElapsedTime()*1.0f + M_1_PI),-sin(getElapsedTime()*1.0f/2.7865432f + M_1_PI/2),sin(getElapsedTime()*1.0f/3.125105f + M_1_PI/3));
-        rotatedModel = glm::rotate(glm::mat4(1.0f), (float)(1.0f*((float)(M_PI))), rotationAxis);
+        glm::vec3 rotationAxis = glm::vec3(sin(getElapsedTime()*1.0f + mm_math::PI),-sin(getElapsedTime()*1.0f/2.7865432f + mm_math::PI/2),sin(getElapsedTime()*1.0f/3.125105f + mm_math::PI/3));
+        rotatedModel = glm::rotate(glm::mat4(1.0f), (float)(1.0f*((float)(mm_math::PI))), rotationAxis);
 
         
         // Stationary Cube
@@ -4174,13 +4199,20 @@ std::map<PULSES,bool> emotionArrayToPulses(std::vector<float> emotionArray){
     float disgust   = emotionArray[DISGUST];
     std::map<std::string, float> potentials {{"scale",disgust}, {"fade", (fear + sadness)/1.75f}, {"rumble", anger}, 
         {"spinr", (happiness)}, {"spinl", surprise}};
-    auto [key, trash] = maxM(potentials);
+    std::vector<std::string> pulsesStr{};
+    for(int i = 0; i < PULSE_NUMBER; i++){
+        auto [key, trash] = maxM(potentials);
+        pulsesStr.push_back(key);
+        potentials.erase(key);
+    }
     std::map<PULSES,bool> pulses{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
-    pulses[FADE_P  ] = key == "fade"   && DO_FADE_P  ;
-    pulses[SCALE_P ] = key == "scale"  && DO_SCALE_P ;
-    pulses[RUMBLE_P] = key == "rumble" && DO_RUMBLE_P;
-    pulses[SPINR_P ] = key == "spinr"  && DO_SPINR_P ;
-    pulses[SPINL_P ] = key == "spinl"  && DO_SPINL_P ;
+    for(const auto& pulse : pulsesStr){
+        pulses[FADE_P  ] = (pulses[FADE_P  ] || pulse == "fade"  ) && DO_FADE_P  ;
+        pulses[SCALE_P ] = (pulses[SCALE_P ] || pulse == "scale" ) && DO_SCALE_P ;
+        pulses[RUMBLE_P] = (pulses[RUMBLE_P] || pulse == "rumble") && DO_RUMBLE_P;
+        pulses[SPINR_P ] = (pulses[SPINR_P ] || pulse == "spinr" ) && DO_SPINR_P ;
+        pulses[SPINL_P ] = (pulses[SPINL_P ] || pulse == "spinl" ) && DO_SPINL_P ;
+    }
     return pulses;
 }
 
@@ -4414,60 +4446,160 @@ void drawRecursiveSquareHolesHelper(GLFWwindow* window, OpenGLShape& square, Ope
     }
 }
 
-void getRecursiveSquareHolesHelper(unsigned int iterations, std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes, glm::vec2 position, float rotation, float size, std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>>& squareHoles){
-    if(iterations > 0){
-        iterations--;
+// glm::vec2 getSpotInShapeFurthestFromBorder(std::vector<glm::vec2> borderVertices){
+//     std::vector<std::tuple<float,float,float>> borderLines{}; 
+//     glm::vec2 prevVertex  = borderVertices[borderVertices.size()-1];
+//     std::vector<glm::vec2> borderVerticesN{};
+//     for(int borderVertexIndex = 0; borderVertexIndex < borderVertices.size(); borderVertexIndex++){
+//         glm::vec2 curVertex;
+//         if(borderVertexIndex < borderVertices.size() - 1)
+//             curVertex = borderVertices[borderVertexIndex];
+//         else
+//             curVertex = borderVertices[borderVertices.size()-1];
+//         auto line = getLineFromVertices(prevVertex.x, curVertex.x, prevVertex.y, curVertex.y);
+//         borderLines.push_back(line);
+//         prevVertex = curVertex;
+//     }
+// 
+//     int preIndex = borderVertices.size()-1;
+//     prevVertex  = borderVertices[preIndex];
+//     for(int borderVertexIndex = 0; borderVertexIndex < borderVertices.size(); borderVertexIndex++){
+//         auto line = borderLines[borderVertexIndex];
+//         glm::vec2 curVertexN;
+//         int curIndex = borderVertexIndex;
+//         if(borderVertexIndex >= borderVertices.size() - 1)
+//             curIndex = borderVertices.size()-1;
+//         curVertexN = borderVertices[curIndex];
+// 
+//         float distance = distFromLine(line, gridVertex);
+//         // bool isOnPreCenterLine = isOnLine(centerlines[preIndex], gridVertex);
+//         // bool isOnCurCenterLine = isOnLine(centerlines[curIndex], gridVertex);
+//         if(distance < minDistance){
+//             minDistance = distance;
+//         }
+//         prevVertex = curVertexN;
+//     }
+// 
+// }
+//
+
+bool hasIntersection(const std::tuple<float, float, float> line1, const std::tuple<float, float, float> line2){
+    const auto [A1, B1, C1] = line1;
+    const auto [A2, B2, C2] = line2;
+    return A1 != A2 || B1 != B2;
+}
+
+bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, const glm::vec2 lineIntersection){
+    const glm::vec2 startPoint1 = std::get<0>(lineSegment1);
+    const glm::vec2 endPoint1 = std::get<1>(lineSegment1);
+    
+    const glm::vec2 startPoint2 = std::get<0>(lineSegment2);
+    const glm::vec2 endPoint2 = std::get<1>(lineSegment2);
+
+    const float minX1 = glm::min(startPoint1.x, endPoint1.x);
+    const float maxX1 = glm::max(startPoint1.x, endPoint1.x); 
+    const float minY1 = glm::min(startPoint1.y, endPoint1.y);
+    const float maxY1 = glm::max(startPoint1.y, endPoint1.y); 
+
+    const float minX2 = glm::min(startPoint2.x, endPoint2.x);
+    const float maxX2 = glm::max(startPoint2.x, endPoint2.x); 
+    const float minY2 = glm::min(startPoint2.y, endPoint2.y);
+    const float maxY2 = glm::max(startPoint2.y, endPoint2.y); 
+
+    const float minX = glm::max(minX1, minX2);
+    const float maxX = glm::min(maxX1, maxX2);
+    const float minY = glm::max(minY1, minY2);
+    const float maxY = glm::min(maxY1, maxY2);
+
+    return lineIntersection.x >= minX && lineIntersection.x <= maxX && lineIntersection.y >= minY && lineIntersection.y <= maxY;
+}
+
+
+bool tryGetIntersection(glm::vec2& intersection, const std::tuple<float, float, float> line1, const std::tuple<float, float, float> line2){
+    const auto [A1, B1, C1] = line1;
+    const auto [A2, B2, C2] = line2;
+
+    if(!hasIntersection(line1, line2))
+        return false;
+
+    const auto x = (B1*C2 - B2*C1)/(A1*B2-A2*B1);
+    const auto y = (A1*C2 - A2*C1)/(B1*A2-B2*A1);
+    intersection = glm::vec2(x,y);
+    return true;
+}
+
+bool tryGetIntersection(glm::vec2& intersection, const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, bool lineSegmentsDefineLines){
+    const auto line1= getLineFromVertices(std::get<0>(lineSegment1), std::get<1>(lineSegment1));
+    const auto line2= getLineFromVertices(std::get<0>(lineSegment2), std::get<1>(lineSegment2));
+    if(!tryGetIntersection(intersection, line1, line2))
+        return false;
+    return lineSegmentsDefineLines || hasIntersection(lineSegment1, lineSegment2, intersection);
+}
+
+glm::vec2 rotate(const glm::vec2& vec2, const float& radians){
+    return glm::vec2(glm::rotate(glm::mat4(1.0f), radians, dir::FORWARD) * glm::vec4(vec2, glm::vec2(0.0f)));
+}
+
+void getRecursiveShapeHolesHelper(unsigned int maxIterations, unsigned int iterations, std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes, glm::vec2 position, float rotation, float size, std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>>& shapeHoles){
+    if(iterations < maxIterations - 1){
+        iterations++;
         float preSize = size;
         size = size/3.0f;
 
-        auto const& [preShapeVec2s, preShapeType] = shapes[squareHoles.size() - iterations];
-        auto const& [postShapeVec2s, shapeType] = shapes[squareHoles.size() - 1 - iterations];
+        auto const& [preShapeVec2s, preShapeType] = shapes[iterations - 1];
+        auto const& [postShapeVec2s, shapeType] = shapes[iterations];
         auto preVec2 = preShapeVec2s[preShapeVec2s.size() - 1];
-        squareHoles[squareHoles.size() - 1 - iterations].push_back(std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>(position, size, rotation, shapeType));
-        getRecursiveSquareHolesHelper(iterations, shapes,  position, rotation, size, squareHoles);
+        shapeHoles[iterations].push_back(std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>(position, size, rotation, shapeType));
+        checkPrint(std::format("iterations: {}, position: {}, rotation: {}*PI\n", iterations, vec2ToString(position), formatFloat(rotation/mm_math::PI, 1, 4)),true, DEBUG_RECURSION);
+        getRecursiveShapeHolesHelper(maxIterations, iterations, shapes,  position, rotation, size, shapeHoles);
 
-        for(auto const& vec2 : preShapeVec2s){
+        for(int i = 0; i < preShapeVec2s.size(); i++){
             // TODO: calculate this stuff outside getRecursiveSquareHolesHelper
-            auto const midPointLarge = (vec2 + preVec2)/2.0f;
-            auto const midPointSmall = midPointLarge/3.0f;
-            auto const midPointSmallLarge = (midPointLarge + midPointSmall)/2.0f;
-            auto const ray = (midPointSmallLarge - midPointSmall);
-            auto const rayAngle = glm::atan(ray.y, ray.x); // Assumes shape is initially pointing to the right, this will have to be corrected later since the
-                                                           // shapes in shapes.hpp point upward initially.
-            auto const newAngle = rayAngle + rotation;
-            auto const newRay = glm::normalize(glm::vec2(glm::rotate(glm::mat4(1.0f), newAngle, dir::FORWARD) * glm::vec4(1.0f,0.0f,0.0f,0.0f)));
+            // Do calutations ignoring changes to position and size
+            const glm::vec2 vec2 = preShapeVec2s[i];
+            const glm::vec2 ray = vec2 - preVec2;
+            const float rayAngle = glm::atan(ray.y, ray.x); // Assumes shape is initially pointing to the right, this will have to be corrected later since the
+                                                      // shapes in shapes.hpp point upward initially.
+            const float perpRayAngle = rayAngle - mm_math::PI/2.0f;
+            const glm::vec2 newRay = glm::normalize(glm::vec2(glm::rotate(glm::mat4(1.0f), perpRayAngle, dir::FORWARD) * glm::vec4(1.0f,0.0f,0.0f,0.0f)));
+            const glm::vec2 perpRayFromPos = newRay;
+            glm::vec2 intersection;
+            tryGetIntersection(intersection, { glm::vec2(0.0f), perpRayFromPos}, {preVec2, vec2}, true);
+            const glm::vec2 newNormalPosition = 2.0f * intersection;
 
-            auto const newPosition = position + preSize*glm::length(midPointSmallLarge)*newRay;
-            squareHoles[squareHoles.size() - 1 - iterations].push_back(std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>(newPosition, size, newAngle, shapeType));
-            getRecursiveSquareHolesHelper(iterations, shapes, position + newPosition, newAngle, size, squareHoles);
+            // Now onto iteration specific calculations
+            const float newAngle = perpRayAngle + rotation;
+            const glm::vec2 offset = size*newNormalPosition;
+            const glm::vec2 newPosition = glm::vec2(offset.x + position.x, offset.y + position.y);
+            shapeHoles[iterations].push_back(std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>(newPosition, size, newAngle, shapeType));
+            getRecursiveShapeHolesHelper(maxIterations, iterations, shapes,  newPosition, newAngle, size, shapeHoles);
+            checkPrint(std::format("iterations: {}, {} -> {},  newPosit: {}, newAngle: {}*PI, intersection: {}\n", iterations, vec2ToString(preVec2), vec2ToString(vec2), vec2ToString(newPosition), formatFloat(newAngle/mm_math::PI,1,4), vec2ToString(intersection)),true, DEBUG_RECURSION);
+
             preVec2 = vec2;
         }
     }
 }
 std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>> getRecursiveSquareHoles(unsigned int iterations, std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes, glm::vec2 position, float size){
     std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>> squareHoles(iterations);
-    getRecursiveSquareHolesHelper(iterations, shapes, position, 0.0f, size, squareHoles);
+    getRecursiveShapeHolesHelper(iterations, iterations, shapes, position, 0.0f, size, squareHoles);
     return squareHoles;
 }
 
 
-std::vector<std::vector<std::tuple<glm::mat4, SHAPE_TYPE_2D>>> getRecursiveSquareHolesModels(unsigned int iterations, std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes, glm::vec2 position, float size){
+std::vector<std::vector<std::tuple<glm::mat4, SHAPE_TYPE_2D>>> getRecursiveSquareHolesModels(unsigned int maxIterations, std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes, glm::vec2 position, float size){
     std::vector<std::vector<std::tuple<glm::mat4, SHAPE_TYPE_2D>>> models{};
-    std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>> squareHoleLayers(iterations);
-    if(iterations > 0){
-        iterations--;
-        float firstAngle = 0.0f;
-        squareHoleLayers[squareHoleLayers.size() - 1 - iterations].push_back(std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>(position, size, firstAngle, std::get<SHAPE_TYPE_2D>(shapes[0])));
-        getRecursiveSquareHolesHelper(iterations, shapes, position, firstAngle, size, squareHoleLayers);
-        for(const auto& holeLayer : squareHoleLayers){
-            models.push_back(std::vector<std::tuple<glm::mat4,SHAPE_TYPE_2D>>{});
-            for(const auto& [position, size, rotation, shapeType] : holeLayer){
-                glm::mat4 model(1.0f);
-                model = glm::translate(model, glm::vec3(position,0.0f));
-                model = glm::rotate(model, rotation + ((float)M_PI)/2.0f, dir::FORWARD);
-                model = glm::scale(model, glm::vec3(glm::vec2(size),1.0f));
-                models.back().push_back({model,shapeType});
-            }
+    std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>> squareHoleLayers(maxIterations);
+    float firstAngle = 0.0f;
+    squareHoleLayers[0].push_back(std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>(position, size, firstAngle, std::get<SHAPE_TYPE_2D>(shapes[0])));
+    getRecursiveShapeHolesHelper(maxIterations, 0, shapes, position, firstAngle, size, squareHoleLayers);
+    for(const auto& holeLayer : squareHoleLayers){
+        models.push_back(std::vector<std::tuple<glm::mat4,SHAPE_TYPE_2D>>{});
+        for(const auto& [position, size, rotation, shapeType] : holeLayer){
+            glm::mat4 model(1.0f);
+            model = glm::translate(model, glm::vec3(position,0.0f));
+            model = glm::rotate(model, rotation, dir::FORWARD);
+            model = glm::scale(model, glm::vec3(glm::vec2(size),1.0f));
+            models.back().push_back({model,shapeType});
         }
     }
     return models;
@@ -4516,8 +4648,8 @@ int mainRecursion(int argc, char * argv[]){
     OpenGLShape square(shapes::rectT, {borderTextureRed, borderTextureRed}, true);
     unsigned int borderTextureBlue = obtainPNGBorder(255, 255, 0, 0, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
     OpenGLShape squareHole(shapes::rectT, {borderTextureBlue, borderTextureBlue}, true);
-    OpenGLShape triangle(shapes::eTriT, {borderTextureRed, borderTextureRed}, true);
-    OpenGLShape triangleHole(shapes::eTriT, {borderTextureBlue, borderTextureBlue}, true);
+    OpenGLShape triangle(shapes::eTriTRight, {borderTextureRed, borderTextureRed}, true);
+    OpenGLShape triangleHole(shapes::eTriTRight, {borderTextureBlue, borderTextureBlue}, true);
 
     DeltaTimer deltaTimer{};
     
@@ -4530,8 +4662,8 @@ int mainRecursion(int argc, char * argv[]){
     glm::mat4 model(1.0f);
     model = glm::scale(model, glm::vec3(glm::vec2(2.0f),1.0f));
     auto squareBorder = std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>{borderVerticesFromShape(shapes::rectT), SQUARE};
-    auto triangleBorder = std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>{borderVerticesFromShape(shapes::eTriT), TRIANGLE};
-    std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes{squareBorder, triangleBorder, squareBorder, squareBorder, triangleBorder, triangleBorder, squareBorder};
+    auto triangleBorder = std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>{borderVerticesFromShape(shapes::eTriTRight), TRIANGLE};
+    std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes{triangleBorder, triangleBorder, triangleBorder};
     
     lE.object_shader.setUniformM4("model", model);
     auto models = getRecursiveSquareHolesModels(2, shapes, glm::vec2(0.0f), 2.0f);
