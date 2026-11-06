@@ -405,6 +405,11 @@ GLFWwindow* loadGLFWCreateWindow(int width, int height){
 	    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API); 
 	    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+        
+        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+        GLFWwindow* piWindow = glfwCreateWindow(mode->width, mode->height, "Glitter", monitor, NULL);
+        return piWindow;
     }
     auto mWindow = glfwCreateWindow(width, height, "OpenGL", nullptr, nullptr);
     return mWindow;
