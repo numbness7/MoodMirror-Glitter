@@ -82,6 +82,11 @@ float ceilWrap(float x, float y)
     return ceil(x/y);
 }
 
+float ceilWrap(float dividend)
+{
+    return ceil(dividend);
+}
+
 int floorWrap(int x, int y) {
     int mod = x % y;
     if(mod == 0)
@@ -114,6 +119,19 @@ template <typename V> std::vector<V> average(std::vector<std::vector<V>> vec){
         averages[col] /= rowSize;
     }
     return averages;
+}
+
+template <typename T>
+std::string vec2str(T vec, unsigned int size)
+{
+    std::string s = "(";
+    assert(size > 0);
+    unsigned char part;
+    for(part=0; part < size - 1; part++){
+        s += std::to_string(vec[part]) + ',';
+    }
+    s += std::to_string(vec[part])  + ')';
+    return s;
 }
 
 std::random_device rd;
@@ -2529,14 +2547,12 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     std::counting_semaphore<TOTAL_LAYERS> shapesSemaphore{0};
     bool notDone = true;
     int additions = 0;
-    int simPID, colPID;
+    int simPID, colPID, killPID;
 
     if(SIM_START){
-        killProgram(SIM_PROGRAM);
         simPID = startMineBensEmotionSimulator(SIM_INITIAL_PERIOD, SIM_CYCLE, SIM_RANDOM);
     }
     if(COLOR_START){
-        killProgram(COLOR_PROGRAM);
         colPID = startBensVisualGenerationProgram(COLOR_FREQUENCY, COLOR_WIDTH, COLOR_HEIGHT, COLOR_DISPLAY);
     }
 
@@ -2636,10 +2652,14 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     if(SIM_START){
         killCommand(simPID);
         waitpid(simPID, nullptr, 0);
+        int killPPID = killProgram(SIM_PROGRAM);
+        waitpid(killPPID, nullptr, 0);
     }
     if(COLOR_START){
         killCommand(colPID);
         waitpid(colPID, nullptr, 0);
+        int killPPID = killProgram(COLOR_PROGRAM);
+        waitpid(killPPID, nullptr, 0);
     }
 
     glfwTerminate();
@@ -4353,7 +4373,7 @@ std::map<EMOTION, float> emotionArrayToEmotionMap(std::vector<float> emotionArra
 }
 
 int killProgram(std::string programName){
-    int killPID = runCommand("ps -eo pid,args | grep " + programName + " | awk '{print $1}' | xargs -r kill -9; done");
+    int killPID = runCommand("ps -eo pid,args | grep '" + programName + "' | awk '{print $1}' | xargs -r kill -9;");
     waitpid(killPID, nullptr, 0);
     return killPID;
 }
@@ -4405,6 +4425,7 @@ std::vector<std::vector<std::tuple<glm::vec2, float>>> getRecursiveSquareHoles(u
     return squareHoles;
 
 }
+
 std::vector<std::vector<glm::mat4>> getRecursiveSquareHolesModels(unsigned int iterations, glm::vec2 position, float size){
     std::vector<std::vector<glm::mat4>> models{};
     std::vector<std::vector<std::tuple<glm::vec2, float>>> squareHoleLayers(iterations);
@@ -4423,48 +4444,55 @@ std::vector<std::vector<glm::mat4>> getRecursiveSquareHolesModels(unsigned int i
         }
     }
     return models;
-
 }
 
 
-void fillSquare(PngData& pngData, const float size, const glm::vec2 position, const cdata::ColorRGBA color){
+
+
+void fillSquare(PngData& pngData, const float size, const glm::vec2 position, const cdata::ColorRGBA& color, const int iterations){
     float offset = size/2.0f;
     glm::vec2 bottomLeft = position - offset;
     glm::vec2 topRight = position + offset;
-
-    int bottomLeftX = bottomLeft.x;
-    int bottomLeftY = bottomLeft.y;
-    int topRightX = topRight.x;
-    int topRightY = topRight.y;
-    for (int y = bottomLeftY; y <  topRightY; y++){
-        for (int x = bottomLeftX; x < topRightX; x++){
-            pngData.setColor(y, x, color);
+    assert(topRight.x >= bottomLeft.x && topRight.y >= bottomLeft.y);
+    glm::vec2 difference = (topRight - bottomLeft);
+    if(glm::length(difference) >= 1.0f){
+        int bottomLeftX = glm::round(bottomLeft.x);
+        int bottomLeftY = glm::round(bottomLeft.y);
+        int topRightX = glm::round(topRight.x);
+        int topRightY = glm::round(topRight.y);
+        for (int y = bottomLeftY; y <  topRightY; y++){
+            for (int x = bottomLeftX; x < topRightX; x++){
+                checkPrint(std::format("==========\nx: {}, y: {}, \nblx: {}, bly: {}, \ntrx: {}, try: {}\nbl: {}\ntr: {}\n", x, y, bottomLeftX, bottomLeftY, topRightX, topRightY, vec2str(bottomLeft,2), vec2str( topRight,2)), iterations == 6, DEBUG_RECURSION_FILL);
+                pngData.setColor(y, x, color);
+            }
         }
     }
     
 }
 
-void getRecursiveSquareHolesHelper(const int preIterations, const glm::vec2 position, const float preWidth, PngData& pngData, const std::vector<cdata::ColorRGBA> colors){
-    if(preIterations >= 0){
+void getRecursiveSquareHolesHelper(const int maxIterations, const int preIterations, const glm::vec2 position, const float preWidth, PngData& pngData, const std::vector<cdata::ColorRGBA>& colors){
+    if(preIterations < maxIterations){
         float width = preWidth/3.0f;
-        int iterations = preIterations - 1;
-        auto const color = colors[colors.size() - 1 - preIterations];
-        fillSquare(pngData, width, position, color);
+        int iterations = preIterations + 1;
+        auto const color = colors[iterations];
+        checkPrint(std::format("=========================\n{}\n",col2str(color)), iterations==6, DEBUG_RECURSION);
+        fillSquare(pngData, width, position, color, iterations);
         for(int row = -1; row <= 1; row++){
             for(int col = -1; col <= 1; col++){
                 if(row != 0 || col != 0)
-                    getRecursiveSquareHolesHelper(iterations, position + width*glm::vec2(row,col), width, pngData, colors);
+                    getRecursiveSquareHolesHelper(maxIterations, iterations, position + width*glm::vec2(row,col), width, pngData, colors);
             }
         }
     }
 }
 
 void getRecursiveSquareHoles(unsigned int iterations, PngData& pngData, std::vector<cdata::ColorRGBA> colors, glm::vec2 origin=glm::vec2(0.5f,0.5f)){
+    assert(pngData.width >= glm::pow(3,iterations) && pngData.height >= glm::pow(3,iterations));
     std::vector<std::vector<std::tuple<glm::vec2, float>>> squareHoles(iterations);
     generatePNGBlank(pngData, colors[0]);
     float width = pngData.width;
     glm::vec2 position = boundTransformation(origin, glm::vec2(0.0f), glm::vec2(1.0f), glm::vec2(0.0f), glm::vec2(pngData.width, pngData.height));
-    getRecursiveSquareHolesHelper(iterations - 1.0f, position, width, pngData, colors);
+    getRecursiveSquareHolesHelper(iterations, 0, position, width, pngData, colors);
 }
 
 
@@ -4507,8 +4535,8 @@ int mainRecursion(int argc, char * argv[]){
     unsigned int borderTextureBlue = obtainPNGBorder(255, 255, 0, 0, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
     OpenGLShape squareHole(shapes::rectT, {borderTextureBlue, borderTextureBlue}, true);
 
-    PngData squareHolesPngData(6561,6561);
-    getRecursiveSquareHoles(8,  squareHolesPngData, std::vector<cdata::ColorRGBA>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4, cdata::TURQUOISE_V4, cdata::WHITE_V4, cdata::DARK_YELLOW_V4, cdata::DARK_TURQUOISE_V4});
+    PngData squareHolesPngData(255,255);
+    getRecursiveSquareHoles(5,  squareHolesPngData, std::vector<cdata::ColorRGBA>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4, cdata::TURQUOISE_V4, cdata::WHITE_V4, cdata::DARK_YELLOW_V4, cdata::DARK_TURQUOISE_V4});
     unsigned int squareHolesTexture = getTextureFromData(squareHolesPngData);
     OpenGLShape squareHoleT(shapes::rectT, {squareHolesTexture, squareHolesTexture}, true);
     pngDataSavePng("../TestIt.png", squareHolesPngData);

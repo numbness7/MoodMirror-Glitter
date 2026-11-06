@@ -4,7 +4,6 @@ int runCommand (std::string command) {
     pid_t pid = fork();
 
     if (pid == 0) {
-        setpgid(0, 0);
         execl("/bin/bash", "bash", "-c",
               command.c_str(),
               (char*)nullptr);
@@ -22,7 +21,7 @@ int runCommand (std::string command) {
 
 void killCommand(int pid){
     // Later, terminate the entire process group:
-    kill(-pid, SIGTERM);
+    kill(pid, SIGKILL);
     waitpid(pid, nullptr, 0);
 }
 // ChatGPT End

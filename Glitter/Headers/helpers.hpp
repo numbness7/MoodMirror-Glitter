@@ -182,6 +182,8 @@
 #define DEBUG_DISTANCE false
 #define DEBUG_FUN false
 #define DEBUG_IMAGE true
+#define DEBUG_RECURSION_FILL true
+#define DEBUG_RECURSION false
 
 
 // Obsolete
@@ -210,6 +212,7 @@ float clamp(const float x, const float min, const float max);
 float floorWrap(float dividend, float divisor);
 float floorWrap(float quotient);
 float ceilWrap(float dividend, float divisor);
+float ceilWrap(float dividend);
 int floorWrap(int dividend, int divisor);
 int ceilWrap(int dividend, int divisor);
 
@@ -854,5 +857,8 @@ void drawRecursiveSquareHoles(GLFWwindow* window, OpenGLShape& square, OpenGLSha
 std::vector<std::vector<std::tuple<glm::vec2, float>>> getRecursiveSquareHoles(unsigned int iterations, glm::vec2 position=glm::vec2(0.0f,0.0f), float size=1.0f);
 void generatePNGBlank(PngData& pngData, cdata::ColorRGBA color);
 void generatePNGBlank(PngData& pngData, cdata::ColorRGB color);
+template<typename T> std::string vec2str(T vec, unsigned int size);
+
+
 
 #endif

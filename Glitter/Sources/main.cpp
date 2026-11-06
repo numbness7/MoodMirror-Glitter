@@ -21,5 +21,5 @@
 
 
 int main(int argc, char * argv[]) {
-    return mainRecursion(argc, argv);
+    return mainCoordsBasic2D(argc, argv);
 }

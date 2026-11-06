@@ -16,6 +16,7 @@ namespace cdata{
         const unsigned char green;
         const unsigned char blue;
         const unsigned char alpha;
+        bool operator==(const ColorRGBA& color) const;
     };
     struct ColorRGB{
         ColorRGB(glm::vec3 vec3) : red{vec3PartToColorPart(vec3,0)}, green{vec3PartToColorPart(vec3, 1)}, blue{vec3PartToColorPart(vec3, 2)} {};
