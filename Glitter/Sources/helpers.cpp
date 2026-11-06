@@ -1771,8 +1771,14 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 if (!LAYER_PULSES)
                     pulses = shapeBatch.pulses;
 
+                glm::mat4 translationRotation(1.0f);
+                if(pulses[SPINL_P]){
+                    static const float spinScale = 0.5f;
+                    shape.spin -= deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
+                    translationRotation = glm::rotate(translationRotation, shape.spin, dir::FORWARD);
+                }
                 glm::mat4 model(1.0f);
-                glm::mat4 transition(shape.transition);
+                glm::mat4 transition(translationRotation*shape.transition);
                 glm::mat4 rotation(shape.rotationMatrix);
                 glm::mat4 scale(shape.scaleMatrix);
                 lightingEnvironment.object_shader.setUniformM4("model", shape.model);
@@ -1827,11 +1833,6 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 if(pulses[SPINR_P]){
                     static const float spinScale = 0.5f;
                     shape.spin += deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
-                    rotation = glm::rotate(rotation, shape.spin, dir::FORWARD);
-                }
-                if(pulses[SPINL_P]){
-                    static const float spinScale = 0.5f;
-                    shape.spin -= deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
                     rotation = glm::rotate(rotation, shape.spin, dir::FORWARD);
                 }
                 model = transition*rotation*scale;
