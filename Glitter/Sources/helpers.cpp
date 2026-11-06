@@ -1860,8 +1860,19 @@ void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera){
     }
 }
 void processInputView2D(GLFWwindow* mWindow, float deltatime, glm::vec2& position, float& zoom){
-    static const float maxZoom = 30.0f;
-    static const float minZoom = 1/9.0f;
+    static const float maxZoom = 500.0f;
+    static const float minZoom = 1.0f;
+    static const float midZoom = 1.0f;
+    float zoomChange;
+    if(zoom > midZoom){
+        zoomChange = zoom*deltatime;
+    }
+    else if(zoom > minZoom){
+        zoomChange = deltatime/zoom; 
+    }
+    else{
+        zoomChange = deltatime/minZoom;
+    }
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(mWindow, true);
     if (glfwGetKey(mWindow,   GLFW_KEY_A) == GLFW_PRESS)
@@ -1873,20 +1884,12 @@ void processInputView2D(GLFWwindow* mWindow, float deltatime, glm::vec2& positio
     if (glfwGetKey(mWindow,   GLFW_KEY_W) == GLFW_PRESS)
         position.y -= deltatime;
     if (glfwGetKey(mWindow,   GLFW_KEY_SPACE) == GLFW_PRESS){
-        float curRatio = zoom/maxZoom;
-        float ratioChange = 0.1f;
-        float nextRatio = (curRatio + deltatime*ratioChange);
-        nextRatio = (nextRatio < 1.0f) ? nextRatio : 1.0f;
-        zoom = nextRatio*maxZoom;
-//      zoom += deltatime*1.0f;
+        zoom += zoomChange;
+        zoom = (zoom < maxZoom) ? zoom : maxZoom;
     }
     if (glfwGetKey(mWindow,   GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
-        float curRatio = zoom/minZoom;
-        float ratioChange = 30.0f;
-        float nextRatio = (curRatio - deltatime*ratioChange);
-        nextRatio = (nextRatio > 1.0f) ? nextRatio : 1.0f;
-        zoom = nextRatio*minZoom;
-//      zoom -= deltatime*1.0f;
+        zoom -= zoomChange;
+        zoom = (zoom > minZoom) ? zoom : minZoom;
     }
 }
 void endRenderLoopView2D(GLFWwindow*& mWindow, DeltaTimer& deltaTimer, glm::vec2& position, float& zoom){
@@ -4413,7 +4416,7 @@ void getRecursiveSquareHolesHelper(unsigned int iterations, glm::vec2 position, 
         squareHoles[squareHoles.size() - 1 - iterations].push_back(std::tuple<glm::vec2, float>(position, size));
         for(int row = -1; row <= 1; row++){
             for(int col = -1; col <= 1; col++){
-                if(row != 0 || col != 0)
+                if(abs(row)+ abs(col) != 2)
                     getRecursiveSquareHolesHelper(iterations, position + size*glm::vec2(row,col), size, squareHoles);
             }
         }
@@ -4423,8 +4426,8 @@ std::vector<std::vector<std::tuple<glm::vec2, float>>> getRecursiveSquareHoles(u
     std::vector<std::vector<std::tuple<glm::vec2, float>>> squareHoles(iterations);
     getRecursiveSquareHolesHelper(iterations, position, size, squareHoles);
     return squareHoles;
-
 }
+
 
 std::vector<std::vector<glm::mat4>> getRecursiveSquareHolesModels(unsigned int iterations, glm::vec2 position, float size){
     std::vector<std::vector<glm::mat4>> models{};
@@ -4479,7 +4482,7 @@ void getRecursiveSquareHolesHelper(const int maxIterations, const int preIterati
         fillSquare(pngData, width, position, color, iterations);
         for(int row = -1; row <= 1; row++){
             for(int col = -1; col <= 1; col++){
-                if(row != 0 || col != 0)
+                if(abs(row) + abs(col) != 2)
                     getRecursiveSquareHolesHelper(maxIterations, iterations, position + width*glm::vec2(row,col), width, pngData, colors);
             }
         }
@@ -4535,7 +4538,7 @@ int mainRecursion(int argc, char * argv[]){
     unsigned int borderTextureBlue = obtainPNGBorder(255, 255, 0, 0, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
     OpenGLShape squareHole(shapes::rectT, {borderTextureBlue, borderTextureBlue}, true);
 
-    PngData squareHolesPngData(255,255);
+    PngData squareHolesPngData(243,243);
     getRecursiveSquareHoles(5,  squareHolesPngData, std::vector<cdata::ColorRGBA>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4, cdata::TURQUOISE_V4, cdata::WHITE_V4, cdata::DARK_YELLOW_V4, cdata::DARK_TURQUOISE_V4});
     unsigned int squareHolesTexture = getTextureFromData(squareHolesPngData);
     OpenGLShape squareHoleT(shapes::rectT, {squareHolesTexture, squareHolesTexture}, true);
@@ -4552,7 +4555,7 @@ int mainRecursion(int argc, char * argv[]){
     model = glm::scale(model, glm::vec3(glm::vec2(2.0f),1.0f));
     
     lE.object_shader.setUniformM4("model", model);
-    std::vector<std::vector<glm::mat4>> models = getRecursiveSquareHolesModels(6, glm::vec2(0.0f), 2.0f);
+    std::vector<std::vector<glm::mat4>> models = getRecursiveSquareHolesModels(8, glm::vec2(0.0f), 2.0f);
     glm::vec2 position(0.0f);
     float zoom = 1.0f;
     while(!glfwWindowShouldClose(mWindow)){
@@ -4560,8 +4563,8 @@ int mainRecursion(int argc, char * argv[]){
         lE.view = glm::mat4(1.0f);
         lE.view = glm::scale(lE.view, glm::vec3(glm::vec2(zoom),0.0f));
         lE.view = glm::translate(lE.view, glm::vec3(position,0.0f));
-        //drawModelPositions(models, squareHole, lE, std::deque<glm::vec4>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4});
-        squareHoleT.draw(lE.object_shader);
+        drawModelPositions(models, squareHole, lE, std::deque<glm::vec4>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4, cdata::TURQUOISE_V4, cdata::DARK_TURQUOISE_V4, cdata::BLACK_V4, cdata::WHITE_V4});
+        //squareHoleT.draw(lE.object_shader);
         endRenderLoopView2D(mWindow, deltaTimer, position, zoom);
     } glfwTerminate();
     
