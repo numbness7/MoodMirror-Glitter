@@ -854,7 +854,6 @@ void printEmotionArray(std::vector<float> emotionArray);
 int killProgram(std::string programName);
 void drawRecursiveSquareHolesHelper(GLFWwindow* window, OpenGLShape& square, OpenGLShape& squareHole, LightingEnvironment& lE, unsigned int iterations, glm::vec2 position=glm::vec2(0.0f,0.0f), float size=1.0f);
 void drawRecursiveSquareHoles(GLFWwindow* window, OpenGLShape& square, OpenGLShape& squareHole, LightingEnvironment& lE, unsigned int iterations, glm::vec2 position=glm::vec2(0.0f,0.0f), float size=1.0f);
-std::vector<std::vector<std::tuple<glm::vec2, float>>> getRecursiveSquareHoles(unsigned int iterations, glm::vec2 position=glm::vec2(0.0f,0.0f), float size=1.0f);
 void generatePNGBlank(PngData& pngData, cdata::ColorRGBA color);
 void generatePNGBlank(PngData& pngData, cdata::ColorRGB color);
 template<typename T> std::string vec2str(T vec, unsigned int size);

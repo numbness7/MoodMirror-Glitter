@@ -4414,40 +4414,59 @@ void drawRecursiveSquareHolesHelper(GLFWwindow* window, OpenGLShape& square, Ope
     }
 }
 
-void getRecursiveSquareHolesHelper(unsigned int iterations, glm::vec2 position, float size, std::vector<std::vector<std::tuple<glm::vec2, float>>>& squareHoles){
+void getRecursiveSquareHolesHelper(unsigned int iterations, std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes, glm::vec2 position, float rotation, float size, std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>>& squareHoles){
     if(iterations > 0){
         iterations--;
+        float preSize = size;
         size = size/3.0f;
-        squareHoles[squareHoles.size() - 1 - iterations].push_back(std::tuple<glm::vec2, float>(position, size));
-        for(int row = -1; row <= 1; row++){
-            for(int col = -1; col <= 1; col++){
-                if(abs(row)+ abs(col) != 2)
-                    getRecursiveSquareHolesHelper(iterations, position + size*glm::vec2(row,col), size, squareHoles);
-            }
+
+        auto const& [preShapeVec2s, preShapeType] = shapes[squareHoles.size() - iterations];
+        auto const& [postShapeVec2s, shapeType] = shapes[squareHoles.size() - 1 - iterations];
+        auto preVec2 = preShapeVec2s[preShapeVec2s.size() - 1];
+        squareHoles[squareHoles.size() - 1 - iterations].push_back(std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>(position, size, rotation, shapeType));
+        getRecursiveSquareHolesHelper(iterations, shapes,  position, rotation, size, squareHoles);
+
+        for(auto const& vec2 : preShapeVec2s){
+            // TODO: calculate this stuff outside getRecursiveSquareHolesHelper
+            auto const midPointLarge = (vec2 + preVec2)/2.0f;
+            auto const midPointSmall = midPointLarge/3.0f;
+            auto const midPointSmallLarge = (midPointLarge + midPointSmall)/2.0f;
+            auto const ray = (midPointSmallLarge - midPointSmall);
+            auto const rayAngle = glm::atan(ray.y, ray.x); // Assumes shape is initially pointing to the right, this will have to be corrected later since the
+                                                           // shapes in shapes.hpp point upward initially.
+            auto const newAngle = rayAngle + rotation;
+            auto const newRay = glm::normalize(glm::vec2(glm::rotate(glm::mat4(1.0f), newAngle, dir::FORWARD) * glm::vec4(1.0f,0.0f,0.0f,0.0f)));
+
+            auto const newPosition = position + preSize*glm::length(midPointSmallLarge)*newRay;
+            squareHoles[squareHoles.size() - 1 - iterations].push_back(std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>(newPosition, size, newAngle, shapeType));
+            getRecursiveSquareHolesHelper(iterations, shapes, position + newPosition, newAngle, size, squareHoles);
+            preVec2 = vec2;
         }
     }
 }
-std::vector<std::vector<std::tuple<glm::vec2, float>>> getRecursiveSquareHoles(unsigned int iterations, glm::vec2 position, float size){
-    std::vector<std::vector<std::tuple<glm::vec2, float>>> squareHoles(iterations);
-    getRecursiveSquareHolesHelper(iterations, position, size, squareHoles);
+std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>> getRecursiveSquareHoles(unsigned int iterations, std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes, glm::vec2 position, float size){
+    std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>> squareHoles(iterations);
+    getRecursiveSquareHolesHelper(iterations, shapes, position, 0.0f, size, squareHoles);
     return squareHoles;
 }
 
 
-std::vector<std::vector<glm::mat4>> getRecursiveSquareHolesModels(unsigned int iterations, glm::vec2 position, float size){
-    std::vector<std::vector<glm::mat4>> models{};
-    std::vector<std::vector<std::tuple<glm::vec2, float>>> squareHoleLayers(iterations);
+std::vector<std::vector<std::tuple<glm::mat4, SHAPE_TYPE_2D>>> getRecursiveSquareHolesModels(unsigned int iterations, std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes, glm::vec2 position, float size){
+    std::vector<std::vector<std::tuple<glm::mat4, SHAPE_TYPE_2D>>> models{};
+    std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>> squareHoleLayers(iterations);
     if(iterations > 0){
         iterations--;
-        squareHoleLayers[squareHoleLayers.size() - 1 - iterations].push_back(std::tuple<glm::vec2, float>(position, size));
-        getRecursiveSquareHolesHelper(iterations, position, size, squareHoleLayers);
+        float firstAngle = 0.0f;
+        squareHoleLayers[squareHoleLayers.size() - 1 - iterations].push_back(std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>(position, size, firstAngle, std::get<SHAPE_TYPE_2D>(shapes[0])));
+        getRecursiveSquareHolesHelper(iterations, shapes, position, firstAngle, size, squareHoleLayers);
         for(const auto& holeLayer : squareHoleLayers){
-            models.push_back(std::vector<glm::mat4>{});
-            for(const auto& [position, size] : holeLayer){
+            models.push_back(std::vector<std::tuple<glm::mat4,SHAPE_TYPE_2D>>{});
+            for(const auto& [position, size, rotation, shapeType] : holeLayer){
                 glm::mat4 model(1.0f);
                 model = glm::translate(model, glm::vec3(position,0.0f));
+                model = glm::rotate(model, rotation + ((float)M_PI)/2.0f, dir::FORWARD);
                 model = glm::scale(model, glm::vec3(glm::vec2(size),1.0f));
-                models.back().push_back(model);
+                models.back().push_back({model,shapeType});
             }
         }
     }
@@ -4456,6 +4475,81 @@ std::vector<std::vector<glm::mat4>> getRecursiveSquareHolesModels(unsigned int i
 
 
 
+
+
+
+void drawModelPositions(const std::vector<std::vector<std::tuple<glm::mat4,SHAPE_TYPE_2D>>>& modelLayers, std::map<SHAPE_TYPE_2D,OpenGLShape*>& shapes, LightingEnvironment& lE, std::deque<glm::vec4> colors){
+    lE.object_shader.use();
+    for(auto& modelLayer : modelLayers){
+        const glm::vec4 color = colors.front();
+        assert(!colors.empty());
+        colors.pop_front();
+        lE.object_shader.setUniformV4("INNER_COLOR", color);
+        for(auto const& [model, shapeType] : modelLayer){
+            lE.object_shader.setUniformM4("model", model);
+            auto& shape = shapes[shapeType];
+            shape->draw(lE.object_shader);
+        }
+    }
+}
+LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath){
+    glm::mat4 proj(1.0f);
+    glm::mat4 view(1.0f);
+    glm::mat4 model(1.0f);
+
+    Shader object_shader(vertexShaderPath, fragmentShaderPath);
+    Shader light_shader(vertexShaderPath, fragmentShaderPath);
+    object_shader.use();
+    object_shader.setUniformM4("projection", proj);
+    object_shader.setUniformM4("view", view);
+    object_shader.setUniformM4("model",model);
+    LightingEnvironment lightingEnvironment{model,view,proj,object_shader,light_shader};
+    return lightingEnvironment;
+}
+
+int mainRecursion(int argc, char * argv[]){
+    int returnVal;
+    GLFWwindow* mWindow;
+    if((returnVal = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return returnVal;
+    LightingEnvironment lE = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    unsigned int borderTextureRed = obtainPNGBorder(255, 255, 2, 2, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
+    OpenGLShape square(shapes::rectT, {borderTextureRed, borderTextureRed}, true);
+    unsigned int borderTextureBlue = obtainPNGBorder(255, 255, 0, 0, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
+    OpenGLShape squareHole(shapes::rectT, {borderTextureBlue, borderTextureBlue}, true);
+    OpenGLShape triangle(shapes::eTriT, {borderTextureRed, borderTextureRed}, true);
+    OpenGLShape triangleHole(shapes::eTriT, {borderTextureBlue, borderTextureBlue}, true);
+
+    DeltaTimer deltaTimer{};
+    
+    glDisable(GL_DEPTH_TEST);
+    lE.object_shader.use();
+    lE.view = glm::mat4(1.0f);
+
+    lE.object_shader.setUniformB("DISABLE_ALMOST_EVERYTHING", true);
+    lE.object_shader.setUniformV4("INNER_COLOR", cdata::WHITE_V4);
+    glm::mat4 model(1.0f);
+    model = glm::scale(model, glm::vec3(glm::vec2(2.0f),1.0f));
+    auto squareBorder = std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>{borderVerticesFromShape(shapes::rectT), SQUARE};
+    auto triangleBorder = std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>{borderVerticesFromShape(shapes::eTriT), TRIANGLE};
+    std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes{squareBorder, triangleBorder, squareBorder, squareBorder, triangleBorder, triangleBorder, squareBorder};
+    
+    lE.object_shader.setUniformM4("model", model);
+    auto models = getRecursiveSquareHolesModels(2, shapes, glm::vec2(0.0f), 2.0f);
+    glm::vec2 position(0.0f);
+    float zoom = 1.0f;
+    std::map<SHAPE_TYPE_2D, OpenGLShape*> shapeMap{{SQUARE, &squareHole},{TRIANGLE, &triangleHole}};
+    while(!glfwWindowShouldClose(mWindow)){
+        startDummyMPVLoop(deltaTimer, lE);
+        lE.view = glm::mat4(1.0f);
+        lE.view = glm::scale(lE.view, glm::vec3(glm::vec2(zoom),0.0f));
+        lE.view = glm::translate(lE.view, glm::vec3(position,0.0f));
+        drawModelPositions(models, shapeMap, lE, std::deque<glm::vec4>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4, cdata::TURQUOISE_V4, cdata::DARK_TURQUOISE_V4, cdata::BLACK_V4, cdata::WHITE_V4});
+        endRenderLoopView2D(mWindow, deltaTimer, position, zoom);
+    } glfwTerminate();
+    
+    return EXIT_SUCCESS;
+
+}
 
 void fillSquare(PngData& pngData, const float size, const glm::vec2 position, const cdata::ColorRGBA& color, const int iterations){
     float offset = size/2.0f;
@@ -4501,78 +4595,4 @@ void getRecursiveSquareHoles(unsigned int iterations, PngData& pngData, std::vec
     float width = pngData.width;
     glm::vec2 position = boundTransformation(origin, glm::vec2(0.0f), glm::vec2(1.0f), glm::vec2(0.0f), glm::vec2(pngData.width, pngData.height));
     getRecursiveSquareHolesHelper(iterations, 0, position, width, pngData, colors);
-}
-
-
-
-void drawModelPositions(const std::vector<std::vector<glm::mat4>>& modelLayers, OpenGLShape& shape, LightingEnvironment& lE, std::deque<glm::vec4> colors){
-    lE.object_shader.use();
-    for(auto& modelLayer : modelLayers){
-        const glm::vec4 color = colors.front();
-        assert(!colors.empty());
-        colors.pop_front();
-        lE.object_shader.setUniformV4("INNER_COLOR", color);
-        for(auto& model : modelLayer){
-            lE.object_shader.setUniformM4("model", model);
-            shape.draw(lE.object_shader);
-        }
-    }
-}
-LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath){
-    glm::mat4 proj(1.0f);
-    glm::mat4 view(1.0f);
-    glm::mat4 model(1.0f);
-
-    Shader object_shader(vertexShaderPath, fragmentShaderPath);
-    Shader light_shader(vertexShaderPath, fragmentShaderPath);
-    object_shader.use();
-    object_shader.setUniformM4("projection", proj);
-    object_shader.setUniformM4("view", view);
-    object_shader.setUniformM4("model",model);
-    LightingEnvironment lightingEnvironment{model,view,proj,object_shader,light_shader};
-    return lightingEnvironment;
-}
-
-int mainRecursion(int argc, char * argv[]){
-    int returnVal;
-    GLFWwindow* mWindow;
-    if((returnVal = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return returnVal;
-    LightingEnvironment lE = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
-    unsigned int borderTextureRed = obtainPNGBorder(255, 255, 2, 2, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
-    OpenGLShape square(shapes::rectT, {borderTextureRed, borderTextureRed}, true);
-    unsigned int borderTextureBlue = obtainPNGBorder(255, 255, 0, 0, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
-    OpenGLShape squareHole(shapes::rectT, {borderTextureBlue, borderTextureBlue}, true);
-
-    PngData squareHolesPngData(243,243);
-    getRecursiveSquareHoles(5,  squareHolesPngData, std::vector<cdata::ColorRGBA>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4, cdata::TURQUOISE_V4, cdata::WHITE_V4, cdata::DARK_YELLOW_V4, cdata::DARK_TURQUOISE_V4});
-    unsigned int squareHolesTexture = getTextureFromData(squareHolesPngData);
-    OpenGLShape squareHoleT(shapes::rectT, {squareHolesTexture, squareHolesTexture}, true);
-    pngDataSavePng("../TestIt.png", squareHolesPngData);
-    DeltaTimer deltaTimer{};
-    
-    glDisable(GL_DEPTH_TEST);
-    lE.object_shader.use();
-    lE.view = glm::mat4(1.0f);
-
-    lE.object_shader.setUniformB("DISABLE_ALMOST_EVERYTHING", true);
-    lE.object_shader.setUniformV4("INNER_COLOR", cdata::WHITE_V4);
-    glm::mat4 model(1.0f);
-    model = glm::scale(model, glm::vec3(glm::vec2(2.0f),1.0f));
-    
-    lE.object_shader.setUniformM4("model", model);
-    std::vector<std::vector<glm::mat4>> models = getRecursiveSquareHolesModels(8, glm::vec2(0.0f), 2.0f);
-    glm::vec2 position(0.0f);
-    float zoom = 1.0f;
-    while(!glfwWindowShouldClose(mWindow)){
-        startDummyMPVLoop(deltaTimer, lE);
-        lE.view = glm::mat4(1.0f);
-        lE.view = glm::scale(lE.view, glm::vec3(glm::vec2(zoom),0.0f));
-        lE.view = glm::translate(lE.view, glm::vec3(position,0.0f));
-        drawModelPositions(models, squareHole, lE, std::deque<glm::vec4>{cdata::BLUE_V4, cdata::RED_V4, cdata::GREEN_V4, cdata::YELLOW_V4, cdata::PURPLE_V4, cdata::DARK_BLUE_V4, cdata::TURQUOISE_V4, cdata::DARK_TURQUOISE_V4, cdata::BLACK_V4, cdata::WHITE_V4});
-        //squareHoleT.draw(lE.object_shader);
-        endRenderLoopView2D(mWindow, deltaTimer, position, zoom);
-    } glfwTerminate();
-    
-    return EXIT_SUCCESS;
-
 }
