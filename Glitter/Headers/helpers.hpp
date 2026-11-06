@@ -41,22 +41,28 @@
 
 // #Header Macros -------------------------------------------------------------
 
+// Hardware Specific Configuration
+#define ON_PI false
+
 // Data sizes
 
 #define BYTESIZE 8
 #define SUPER_SMALL_FLOAT 0.00000000000001f
 #define SMALL_FLOAT 0.002f
 #define NOT_THAT_SMALL_FLOAT 0.01f
-#define ON_PI true
 
 // Layer info
 
-#define TOTAL_LAYERS 40
-#define SHAPES_IN_BATCH 1
+#define TOTAL_LAYERS 100
+#define SHAPES_IN_BATCH 2
 #define MID_LAYER 10
 #define TOTAL_EMOTION_LAYERS 6
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
+
+// Emotion Data File
+#define EMOTION_DATA_FILE_PATH "../data.json"
+#define EMOTION_PNG_FILE_PATH "../background.png"
 
 // Spawn Times
 
@@ -72,6 +78,9 @@
 
 // Ben's Color Image Generator parameters
 
+#define COLOR_PATH "../VisualGen_Ben/V1_255x255"
+#define COLOR_PROGRAM "python Gener3.py"
+#define COLOR_START true
 #define COLOR_FREQUENCY 0.015f
 #define COLOR_WIDTH 255
 #define COLOR_HEIGHT 255
@@ -81,6 +90,9 @@
 
 // Ben's Simulator Parameters
 
+#define SIM_PATH "../Emotion_Gen_Sim/"
+#define SIM_PROGRAM "python emotion_generator_mine.py"
+#define SIM_START true
 #define SIM_PERIOD 0.001f
 #define SIM_READ_PERIOD 1.00f
 #define SIM_INITIAL_PERIOD 0.0001f
@@ -135,10 +147,10 @@
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define MAX_SCALE 12.0f
-#define MIN_SCALE 0.95f
-#define AVE_SCALE 1.750f
-#define DEV_SCALE 1.750f
+#define MAX_SCALE 8.0f
+#define MIN_SCALE 0.55f
+#define AVE_SCALE 0.750f
+#define DEV_SCALE 0.750f
 
 // Random Alpha Differences Between Shapes in Same Batch
 
@@ -285,27 +297,27 @@ class PngData{
         /// @param gridIndex index ignoring nrChannels.
         /// @param channel
         /// @return 
-        int indexFromGrid(int gridIndex, int channel) { return gridIndex*nrChannels + channel; }
+        int indexFromGrid(const int gridIndex, const int channel) { return gridIndex*nrChannels + channel; }
         int size() const { return height*width*nrChannels; }
         /// @brief Size ignoring nrChannels.
         /// @return 
         int gridSize() { return height*width; }
         int row(int index) { return floorWrap(index,(width*nrChannels)); }
         int col(int index) { return floorWrap(index - row(index)*width*nrChannels,nrChannels); }
-        int rowFromGrid(int gridIndex) { return floorWrap(gridIndex,(width)); }
-        int colFromGrid(int gridIndex) { return gridIndex - rowFromGrid(gridIndex)*width; }
-        int rFG(int gridIndex) { return rowFromGrid(gridIndex); }
-        int cFG(int gridIndex) { return colFromGrid(gridIndex); }
+        int rowFromGrid(const int gridIndex) const { return floorWrap(gridIndex,(width)); }
+        int colFromGrid(const int gridIndex) const { return gridIndex - rowFromGrid(gridIndex)*width; }
+        int rFG(int gridIndex) const { return rowFromGrid(gridIndex); }
+        int cFG(int gridIndex) const { return colFromGrid(gridIndex); }
         int gridIndex(int row, int col){ return width*row + col; }
         int gridIndex(int index){ return floorWrap(index,nrChannels); }
         int channel(int index) { return index - row(index)*width*nrChannels - col(index)*nrChannels; }
         void setData(int row, int col, int channel, const unsigned char& byte);
-        void setData(int gridIndex, int channel, const unsigned char& byte) { data[indexFromGrid(gridIndex,channel)] = byte; }
+        void setData(const int gridIndex, const int channel, const unsigned char& byte) { data[indexFromGrid(gridIndex,channel)] = byte; }
         void setData(int index, const unsigned char& byte) { data[index] = byte; }
         /// @brief Set the color of a pixel with RGBA channels.
         /// @param gridIndex 
         /// @param color 
-        void setColor(int gridIndex, cdata::ColorRGBA color){
+        void setColor(const int gridIndex, const cdata::ColorRGBA color){
             setData(gridIndex, redChannel, color.red);
             setData(gridIndex, blueChannel, color.blue);
             setData(gridIndex, greenChannel, color.green);
@@ -323,7 +335,7 @@ class PngData{
         /// @param row 
         /// @param col 
         /// @param color 
-        void setColor(int row, int col, cdata::ColorRGBA color){
+        void setColor(const int row, const int col, const cdata::ColorRGBA color){
             setColor(gridIndex(row,col), color);
         }
         /// @brief Set the color of a pixel with RGB channels.
@@ -566,6 +578,7 @@ int mainTextureGenerate(int argc, char * argv[]);
 int mainPathCube(int argc, char * argv[]);
 int mainPathRectangle(int argc, char * argv[]);
 int mainSolve(int argc, char * argv[]);
+int mainRecursion(int argc, char * argv[]);
 
 
 // #Draw -------------------------------------------------------------
@@ -621,7 +634,7 @@ LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], g
 void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment);
 void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor = glm::vec4(0.0f,0.0f,0.0f,1.0f));
 void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor);
-void startDummyMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor);
+void startDummyMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor=glm::vec4(1.0f));
 void setupDummyMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment);
 
 // #RenderLoop End -------------------------------------------------------------
@@ -788,6 +801,7 @@ float boundTransformation(float x, float min, float max, float minT, float maxT)
 /// @param borderVertices vertices of shape border in clockwise order.
 /// @return reference to OpenGL texture.
 unsigned int obtainPNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices);
+glm::vec2 boundTransformation(glm::vec2 pos, glm::vec2 min, glm::vec2 max, glm::vec2 minT, glm::vec2 maxT);
 
 
 // #Debug -------------------------------------------------------------
@@ -833,5 +847,12 @@ float getMaxWeightingSum(EmotionIntensities weights);
 float getMinWeightingSum(EmotionIntensities weights);
 float emotionIntensitiesWeighting(EmotionIntensities eI, EmotionIntensities weights);
 void printEmotionArray(std::vector<float> emotionArray);
+
+int killProgram(std::string programName);
+void drawRecursiveSquareHolesHelper(GLFWwindow* window, OpenGLShape& square, OpenGLShape& squareHole, LightingEnvironment& lE, unsigned int iterations, glm::vec2 position=glm::vec2(0.0f,0.0f), float size=1.0f);
+void drawRecursiveSquareHoles(GLFWwindow* window, OpenGLShape& square, OpenGLShape& squareHole, LightingEnvironment& lE, unsigned int iterations, glm::vec2 position=glm::vec2(0.0f,0.0f), float size=1.0f);
+std::vector<std::vector<std::tuple<glm::vec2, float>>> getRecursiveSquareHoles(unsigned int iterations, glm::vec2 position=glm::vec2(0.0f,0.0f), float size=1.0f);
+void generatePNGBlank(PngData& pngData, cdata::ColorRGBA color);
+void generatePNGBlank(PngData& pngData, cdata::ColorRGB color);
 
 #endif
