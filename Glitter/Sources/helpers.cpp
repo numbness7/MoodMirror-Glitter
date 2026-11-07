@@ -1541,6 +1541,20 @@ void initMouse(GLFWwindow* mWindow){
     glfwSetCursorPosCallback(mWindow, mouse_callback);
     glfwSetScrollCallback(mWindow, scroll_callback);
 }
+LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath){
+    glm::mat4 proj(1.0f);
+    glm::mat4 view(1.0f);
+    glm::mat4 model(1.0f);
+
+    Shader object_shader(vertexShaderPath, fragmentShaderPath);
+    Shader light_shader(vertexShaderPath, fragmentShaderPath);
+    object_shader.use();
+    object_shader.setUniformM4("projection", proj);
+    object_shader.setUniformM4("view", view);
+    object_shader.setUniformM4("model",model);
+    LightingEnvironment lightingEnvironment{model,view,proj,object_shader,light_shader};
+    return lightingEnvironment;
+}
 LightingEnvironment initMPV(std::string vertexShaderPath, std::string fragmentShaderPath){
     glm::mat4 proj;
     proj = glm::perspective(glm::radians(45.0f), (float)mWidth / (float)mHeight, 0.1f, 100000.0f);
@@ -1618,8 +1632,6 @@ LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], g
 }
 void setupDummyMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment){
     lightingEnvironment.object_shader.use();
-    //lightingEnvironment.view = glm::mat4(1.0f);
-    //lightingEnvironment.projection = glm::mat4(1.0f);
     lightingEnvironment.object_shader.setUniformM4("view",lightingEnvironment.view);
     lightingEnvironment.object_shader.setUniformM4("projection",lightingEnvironment.projection);
 
@@ -1782,7 +1794,7 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 glm::mat4 rotation(shape.rotationMatrix);
                 glm::mat4 scale(shape.scaleMatrix);
                 lightingEnvironment.object_shader.setUniformM4("model", shape.model);
-                lightingEnvironment.object_shader.setUniformB("DO_FADE", true);
+                lightingEnvironment.object_shader.setUniformB("DO_FADE", ALWAYS_FADE_T || transitions[FADE_T]);
                 lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
                 lightingEnvironment.object_shader.setUniformI("layer", layer);
                 
@@ -2538,15 +2550,17 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     
     
     
-    LightingEnvironment lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    LightingEnvironment lightingEnvironment;
+
     
     if(ON_PI){
-        lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color-pi.vs", "Glitter/Shaders/texture-mvp-color-pi.fs");
+        lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color-pi.vs", "Glitter/Shaders/texture-mvp-color-pi.fs");
     }
     else{
-        lightingEnvironment = initMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+        lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
     }
 
+    lightingEnvironment.view = glm::scale(lightingEnvironment.view, glm::vec3(1.2f,1.2f,0.0f));
     glm::mat4 model(1.0f);
     lightingEnvironment.object_shader.use();
     lightingEnvironment.object_shader.setUniformI("ourTexture", 0);
@@ -4224,35 +4238,18 @@ std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionA
     float fear      = emotionArray[FEAR];
     float surprise  = emotionArray[SURPRISE];
     float disgust   = emotionArray[DISGUST];
-    float scalePotential  = (DO_FADE_T         )  ?    (anger + surprise           )/2.0f              : 0.0f;
-    float fadePotential   = (DO_SCALE_T        )  ?    (fear + sadness             )/2.0f                : 0.0f;
-    float rightPotential  = (DO_MOVE_FORWARD_T )  ?    (happiness + anger - sadness)/2.0f   : 0.0f;
-    float leftPotential   = (DO_BACK_OUT_T     )  ?    (disgust + fear - sadness   )/2.0f      : 0.0f;
-    std::map<TRANSITIONS,bool> transitions{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
-    bool isEmpty = true;
-    if(!ONLY_ONE_T){
-        transitions[FADE_T]         = fadePotential >= 0.35f     ; 
-        transitions[SCALE_T]        = scalePotential >= 0.35f    ; 
-        transitions[MOVE_FORWARD_T] = rightPotential >= 0.35f   ; 
-        transitions[BACK_OUT_T]     = leftPotential >= 0.35f    ; 
-        if(transitions[MOVE_FORWARD_T] && transitions[BACK_OUT_T]){
-            if(leftPotential > rightPotential) transitions[BACK_OUT_T] = false;
-            else transitions[MOVE_FORWARD_T] = false;
-        }
-        for(auto const value : transitions){
-            if(value.second){
-                isEmpty = false;
-                break;
-            }
-            
-        }
+    float scalePotential  = (DO_SCALE_T         )  ?    (anger + surprise           )/2.0f              : 0.0f;
+    float fadePotential   = (DO_FADE_T        )  ?    (fear + sadness             )/2.0f              : 0.0f;
+    float rightPotential  = (DO_MOVE_FORWARD_T )  ?    (happiness + anger          )/2.0f              : 0.0f;
+    float leftPotential   = (DO_BACK_OUT_T     )  ?    (disgust + fear             )/2.0f              : 0.0f;
+    std::map<TRANSITIONS,bool> transitionsMap{}; // Assuming when a key is used to access a value when the key is not in the map then the value returned is false
+    std::map<TRANSITIONS,float> transitionPotentials{{FADE_T,fadePotential},{SCALE_T,scalePotential},{MOVE_FORWARD_T,rightPotential},{BACK_OUT_T,leftPotential}};
+    for(int i = 0; i < TRANSITIONS_NUMBER; i++){
+        auto [key, trash] = maxM(transitionPotentials);
+        transitionsMap[key] = true;
+        transitionPotentials.erase(key);
     }
-
-    if(isEmpty){
-        auto [key, val] = maxM(std::map<TRANSITIONS, float> {{FADE_T,fadePotential}, {SCALE_T,scalePotential}, {MOVE_FORWARD_T,rightPotential}, {BACK_OUT_T, leftPotential}});
-        transitions[key] = true;
-    }
-    return transitions;
+    return transitionsMap;
 
     
 }
@@ -4625,21 +4622,6 @@ void drawModelPositions(const std::vector<std::vector<std::tuple<glm::mat4,SHAPE
         }
     }
 }
-LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath){
-    glm::mat4 proj(1.0f);
-    glm::mat4 view(1.0f);
-    glm::mat4 model(1.0f);
-
-    Shader object_shader(vertexShaderPath, fragmentShaderPath);
-    Shader light_shader(vertexShaderPath, fragmentShaderPath);
-    object_shader.use();
-    object_shader.setUniformM4("projection", proj);
-    object_shader.setUniformM4("view", view);
-    object_shader.setUniformM4("model",model);
-    LightingEnvironment lightingEnvironment{model,view,proj,object_shader,light_shader};
-    return lightingEnvironment;
-}
-
 int mainRecursion(int argc, char * argv[]){
     int returnVal;
     GLFWwindow* mWindow;

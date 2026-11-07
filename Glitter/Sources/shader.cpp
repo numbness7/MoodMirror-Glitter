@@ -15,12 +15,16 @@ std::string readfile(const char filepath[]){
     return s;
 }
 
-Shader::Shader(std::string vertex_shader_filepath, std::string fragment_shader_filepath): vertex_shader_filepath(vertex_shader_filepath), fragment_shader_filepath(fragment_shader_filepath){
+Shader::Shader()
+{
+}
+
+Shader::Shader(std::string vertex_shader_filepath, std::string fragment_shader_filepath) : vertex_shader_filepath(vertex_shader_filepath), fragment_shader_filepath(fragment_shader_filepath)
+{
     std::string vertex_shader_source = readfile(vertex_shader_filepath.c_str());
     std::string fragment_shader_source = readfile(fragment_shader_filepath.c_str());
     compileShader(vertex_shader_source.c_str(), fragment_shader_source.c_str());
 }
-
 
 void Shader::compileShader(const char vertex_shader_source[], const char fragment_shader_source[]){
     unsigned int vertex_shader;

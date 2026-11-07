@@ -81,7 +81,7 @@
 
 #define PULSE_FADE_MIN 0.0f
 #define PULSE_FADE_MAX 1.0f
-#define PULSE_NUMBER 2
+#define PULSE_NUMBER 1
 
 // Ben's Color Image Generator parameters
 
@@ -117,6 +117,10 @@
 #define SHAPE_MAX_FADE_SCALE 1.0f
 #define SHAPE_MIN_FADE_SCALE 0.0f
 
+// Set transition to always occur
+
+#define ALWAYS_FADE_T true
+
 // Set whether certain transitions are allowed
 
 #define DO_SCALE_T true
@@ -125,10 +129,13 @@
 #define DO_BACK_OUT_T true
 #define DO_VORTEX false
 
-#define ONLY_ONE_T true
+#define TRANSITIONS_NUMBER 2
 
 #define LAYER_TRANSITIONS true
 #define LAYER_PULSES true
+
+// Set Pulses to always occur
+#define ALWAYS_FADE_P
 
 // Set whether certain pulses are allowed
 
@@ -637,6 +644,7 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
 // #Initialization -------------------------------------------------------------
 
 LightingEnvironment initMPV(std::string vertexShaderPath, std::string fragmentShaderPath);
+LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath);
 GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen=FULL_SCREEN);
 bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height);
 int initOpenGL(GLFWwindow*& mWindow, int width, int height);
