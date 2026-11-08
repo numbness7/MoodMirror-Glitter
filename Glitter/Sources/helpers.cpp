@@ -2156,7 +2156,7 @@ void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, cons
             }
             else{
                 std::this_thread::sleep_for(std::chrono::nanoseconds(1));
-                checkPrint("ERROR: loading image\n", false, DEBUG_IMAGE);
+                debug::checkPrint("ERROR: loading image\n", false, DEBUG_IMAGE);
             }
         }
 	}
@@ -2610,13 +2610,13 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     float requiredLayersFloat = 0.0f;
     float currentPulseMaxTime = PULSE_TIME_INITAL;
     Alarm printAlarm(PRINT_TIME);
-    RunawayPrinter printTimer{1.3f, "log.txt"};
+    debug::RunawayPrinter runawayPrinter{1.3f, "log.txt"};
+    debug::StopWatch stopWatch{};
 
     int trashCounter = 0;
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
-        printTimer.pushMessage("Trash: " + std::to_string(trashCounter));
         trashCounter++;
 
         startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
@@ -2683,7 +2683,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             std::cout << "Shapes loaded!" << std::endl;
         }
         // Draw cubes
+        
+        
+        stopWatch.start();
         drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer);
+        runawayPrinter.pushMessage(std::to_string(stopWatch.time()));
         endRenderLoop(mWindow,deltaTimer,camera);
 
         if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
@@ -4199,8 +4203,8 @@ void generatePNGLineToBordersFromPoint(PngData& pngData, std::vector<glm::vec2> 
         auto line = getLineFromVertices(preVertexNorm.x, curVertexNorm.x, preVertexNorm.y, curVertexNorm.y);
         float distance = distFromLine(line, gridVertex);
         // checkPrint("NORM=============\n",  combine, DEBUG_BORDER);
-        checkPrint(std::format("({},{}) -> ",  preVertexNorm.x,  preVertexNorm.y), combine, DEBUG_BORDER);
-        checkPrint(std::format("({},{})\n"  ,   curVertexNorm.x,   curVertexNorm.y), combine, DEBUG_BORDER);
+        debug::checkPrint(std::format("({},{}) -> ",  preVertexNorm.x,  preVertexNorm.y), combine, DEBUG_BORDER);
+        debug::checkPrint(std::format("({},{})\n"  ,   curVertexNorm.x,   curVertexNorm.y), combine, DEBUG_BORDER);
         // checkPrint("NORM=============\n",  combine, DEBUG_BORDER);
         prevVertex = curVertex;
     }
@@ -4549,7 +4553,7 @@ void getRecursiveShapeHolesHelper(unsigned int maxIterations, unsigned int itera
         auto const& [postShapeVec2s, shapeType] = shapes[iterations];
         auto preVec2 = preShapeVec2s[preShapeVec2s.size() - 1];
         shapeHoles[iterations].push_back(std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>(position, size, rotation, shapeType));
-        checkPrint(std::format("iterations: {}, position: {}, rotation: {}*PI\n", iterations, vec2ToString(position), formatFloat(rotation/mm_math::PI, 1, 4)),true, DEBUG_RECURSION);
+        debug::checkPrint(std::format("iterations: {}, position: {}, rotation: {}*PI\n", iterations, vec2ToString(position), formatFloat(rotation/mm_math::PI, 1, 4)),true, DEBUG_RECURSION);
         getRecursiveShapeHolesHelper(maxIterations, iterations, shapes,  position, rotation, size, shapeHoles);
 
         for(int i = 0; i < preShapeVec2s.size(); i++){
@@ -4572,7 +4576,7 @@ void getRecursiveShapeHolesHelper(unsigned int maxIterations, unsigned int itera
             const glm::vec2 newPosition = glm::vec2(offset.x + position.x, offset.y + position.y);
             shapeHoles[iterations].push_back(std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>(newPosition, size, newAngle, shapeType));
             getRecursiveShapeHolesHelper(maxIterations, iterations, shapes,  newPosition, newAngle, size, shapeHoles);
-            checkPrint(std::format("iterations: {}, {} -> {},  newPosit: {}, newAngle: {}*PI, intersection: {}\n", iterations, vec2ToString(preVec2), vec2ToString(vec2), vec2ToString(newPosition), formatFloat(newAngle/mm_math::PI,1,4), vec2ToString(intersection)),true, DEBUG_RECURSION);
+            debug::checkPrint(std::format("iterations: {}, {} -> {},  newPosit: {}, newAngle: {}*PI, intersection: {}\n", iterations, vec2ToString(preVec2), vec2ToString(vec2), vec2ToString(newPosition), formatFloat(newAngle/mm_math::PI,1,4), vec2ToString(intersection)),true, DEBUG_RECURSION);
 
             preVec2 = vec2;
         }
@@ -4680,7 +4684,7 @@ void fillSquare(PngData& pngData, const float size, const glm::vec2 position, co
         int topRightY = glm::round(topRight.y);
         for (int y = bottomLeftY; y <  topRightY; y++){
             for (int x = bottomLeftX; x < topRightX; x++){
-                checkPrint(std::format("==========\nx: {}, y: {}, \nblx: {}, bly: {}, \ntrx: {}, try: {}\nbl: {}\ntr: {}\n", x, y, bottomLeftX, bottomLeftY, topRightX, topRightY, vec2str(bottomLeft,2), vec2str( topRight,2)), iterations == 6, DEBUG_RECURSION_FILL);
+                debug::checkPrint(std::format("==========\nx: {}, y: {}, \nblx: {}, bly: {}, \ntrx: {}, try: {}\nbl: {}\ntr: {}\n", x, y, bottomLeftX, bottomLeftY, topRightX, topRightY, vec2str(bottomLeft,2), vec2str( topRight,2)), iterations == 6, DEBUG_RECURSION_FILL);
                 pngData.setColor(y, x, color);
             }
         }
@@ -4693,7 +4697,7 @@ void getRecursiveSquareHolesHelper(const int maxIterations, const int preIterati
         float width = preWidth/3.0f;
         int iterations = preIterations + 1;
         auto const color = colors[iterations];
-        checkPrint(std::format("=========================\n{}\n",col2str(color)), iterations==6, DEBUG_RECURSION);
+        debug::checkPrint(std::format("=========================\n{}\n",col2str(color)), iterations==6, DEBUG_RECURSION);
         fillSquare(pngData, width, position, color, iterations);
         for(int row = -1; row <= 1; row++){
             for(int col = -1; col <= 1; col++){

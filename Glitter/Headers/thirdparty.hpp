@@ -13,7 +13,11 @@
 
 
 // ChatGPT Start
+typedef std::chrono::_V2::system_clock::time_point simple_time_point;
 
+int64_t duration(std::chrono::_V2::system_clock::time_point start,std::chrono::_V2::system_clock::time_point end);
+std::chrono::_V2::system_clock::time_point getNow();
+std::string unixTimeStamp();
 std::string getWorldTime();
 /// @brief 
 /// @param filename 
@@ -30,5 +34,6 @@ int runCommand (std::string command);
 /// @brief Terminates program created with runCommand
 /// @param pid The program to be terminated
 void killCommand (int pid);
+std::string unixTimeStamp();
 // ChatGPT End
 #endif

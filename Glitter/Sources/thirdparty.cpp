@@ -4,7 +4,28 @@
 // ChatGPT Start
 
 
+int64_t duration(std::chrono::_V2::system_clock::time_point start,std::chrono::_V2::system_clock::time_point end){
+    auto duration = end - start;
+    auto seconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
+    return seconds;
+}
 
+std::chrono::_V2::system_clock::time_point getNow(){
+    auto now = std::chrono::system_clock::now();
+    return now;
+}
+
+std::string unixTimeStamp(){
+    std::ostringstream ss;
+    auto now = std::chrono::system_clock::now();
+
+    auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+        now.time_since_epoch()
+    ).count();
+
+    ss << timestamp;
+    return ss.str();
+}
 
 
 std::string getWorldTime() {
