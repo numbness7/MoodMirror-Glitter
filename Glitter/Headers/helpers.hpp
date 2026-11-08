@@ -8,6 +8,7 @@
 #include <iterator>
 #include <shader.hpp>
 #include <camera.hpp>
+#include <debugging.hpp>
 #include <shapes.hpp>
 #include <vector>
 #include <random>
@@ -24,6 +25,7 @@
 // System Headers
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
 
 // Standard Headers
 #include <cstdio>
@@ -827,13 +829,6 @@ unsigned int obtainPNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2
 glm::vec2 boundTransformation(glm::vec2 pos, glm::vec2 min, glm::vec2 max, glm::vec2 minT, glm::vec2 maxT);
 
 
-// #Debug -------------------------------------------------------------
-
-/// @brief Prints a message if a condition is fulfilled and if this print has been enabled.
-/// @param message printed.
-/// @param check condition to check, true if fulfilled, false otherwise.
-/// @param debugIt true if enabled, false otherwise.
-void checkPrint(std::string message, bool check, bool debugIt);
 
 
 

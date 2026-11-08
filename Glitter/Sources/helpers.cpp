@@ -566,10 +566,6 @@ std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsign
     
 }
 
-void checkPrint(std::string message, bool check, bool debugIt){
-    if(check && debugIt)
-        std::cout << message;
-}
 bool isInSquare(float x, float y, float centerX, float centerY, float length){
     float dx = abs(centerX - x);
     float dy = abs(centerY - y);
@@ -2614,10 +2610,15 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     float requiredLayersFloat = 0.0f;
     float currentPulseMaxTime = PULSE_TIME_INITAL;
     Alarm printAlarm(PRINT_TIME);
+    RunawayPrinter printTimer{1.3f, "log.txt"};
 
+    int trashCounter = 0;
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
+        printTimer.pushMessage("Trash: " + std::to_string(trashCounter));
+        trashCounter++;
+
         startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
         requiredLayersFloat += deltaTimer.getDeltaTime()/currentDestructionTime;
         unsigned int requiredLayers = (unsigned int) floorWrap(requiredLayersFloat);
