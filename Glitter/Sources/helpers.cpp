@@ -1161,6 +1161,26 @@ void crappyClearScreen(int lines=1000){
     for(int i = 0; i < lines; i++) std::cout << std::endl;
 }
 
+
+std::string emotionArrayToString(std::vector<float> emotionArray){
+    std::ostringstream ss;
+    ss << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
+    ss << "----------------------------------------------------------------------------------------------------" << std::endl;
+    float max = std::numeric_limits<float>::min();
+    int maxEmotion = -1;
+    for(int col=0; col < emotionArray.size(); col++){
+        float current = emotionArray[col];
+        ss << formatFloat(current, 1, 7) << "\t";
+        if(current > max){
+            maxEmotion = col;
+            max = current;
+        }
+    }
+    ss << emotionENUMToString(emotionIntToEnum(maxEmotion)) << std::endl;
+    ss << std::endl;
+    return ss.str();
+    
+}
 void printEmotionArray(std::vector<float> emotionArray){
     std::cout << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
     std::cout << "----------------------------------------------------------------------------------------------------" << std::endl;
@@ -1177,6 +1197,31 @@ void printEmotionArray(std::vector<float> emotionArray){
     std::cout << emotionENUMToString(emotionIntToEnum(maxEmotion)) << std::endl;
 std::cout << std::endl;
     
+}
+
+std::string emotionLayersToString(std::deque<EmotionLayer> emotionLayers){
+    std::ostringstream ss;
+    ss << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
+    ss << "----------------------------------------------------------------------------------------------------" << std::endl;
+    std::vector<std::vector<float>> emotionArrays{};
+    for(auto const& emotionLayer : emotionLayers){
+        emotionArrays.push_back(emotionLayer.emotionArray);
+    }
+    for(int row=0; row < emotionArrays.size(); row++){
+        float max = -std::numeric_limits<float>::max();
+        int maxEmotion = -1;
+        for(int col=0; col < emotionArrays[0].size(); col++){
+            float current = emotionArrays[row][col];
+            ss << formatFloat(current, 1, 7) << "\t";
+            if(current > max){
+                maxEmotion = col;
+                max = current;
+            }
+        }
+        ss << emotionENUMToString(emotionIntToEnum(maxEmotion)) << std::endl;
+    }
+    ss << std::endl;
+    return ss.str();
 }
 
 void printEmotionLayers(std::deque<EmotionLayer> emotionLayers){
@@ -2610,14 +2655,15 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     float requiredLayersFloat = 0.0f;
     float currentPulseMaxTime = PULSE_TIME_INITAL;
     Alarm printAlarm(PRINT_TIME);
-    debug::RunawayPrinter runawayPrinter{1.3f, "log.txt"};
+
+    debug::RunawayPrinter runawayPrinter{1.3f};
+    debug::RunawayPrinter runawayLogger{1.3f, "log.txt"};
     debug::StopWatch stopWatch{};
 
-    int trashCounter = 0;
+
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
-        trashCounter++;
 
         startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
         requiredLayersFloat += deltaTimer.getDeltaTime()/currentDestructionTime;
@@ -2685,14 +2731,13 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         // Draw cubes
         
         
-        stopWatch.start();
         drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer);
-        runawayPrinter.pushMessage(std::to_string(stopWatch.time()));
         endRenderLoop(mWindow,deltaTimer,camera);
 
         if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
-            printEmotionLayers(shapeLayersStorage.back().emotionLayers);
-            printEmotionArray(shapeLayersStorage.back().emotionArray);
+            runawayPrinter.pushMessage(emotionLayersToString(shapeLayersStorage.back().emotionLayers));
+            runawayPrinter.pushMessage(emotionArrayToString(shapeLayersStorage.back().emotionArray));
+            runawayPrinter.pushMessage(std::to_string(getFPS(deltaTimer)));
         }
         
     }   
@@ -2721,6 +2766,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     
     
 }
+
+float getFPS(DeltaTimer deltaTimer){
+    return 1.0f/deltaTimer.getDeltaTime();
+}
+
 int mainDrawRectangle(int argc, char* argv[]){
     
     int return_status;

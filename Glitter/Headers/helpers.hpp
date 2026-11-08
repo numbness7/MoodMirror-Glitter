@@ -879,6 +879,7 @@ bool hasIntersection(const std::tuple<float, float, float> line1, const std::tup
 std::string vec2ToString(glm::vec2 vec2);
 
 glm::vec2 rotate(const glm::vec2& vec2, const float& radians);
+float getFPS(DeltaTimer deltaTimer);
 
 
 #endif
