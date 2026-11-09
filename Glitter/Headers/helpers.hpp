@@ -43,6 +43,9 @@
 
 // #Header Macros -------------------------------------------------------------
 
+// Do Test
+#define DO_TEST true
+
 // Window Configuration
 #define FULL_SCREEN false
 
@@ -97,7 +100,7 @@
 #define COLOR_HEIGHT 255
 #define COLOR_DISPLAY false
 
-#define USE_BEN_CHANCE 0.0f
+#define USE_BEN_CHANCE 1.0f
 
 // Ben's Simulator Parameters
 
@@ -450,6 +453,7 @@ class OpenGLShape {
         void draw(Shader shader);
         void draw(Shader shader, std::vector<unsigned int> textures);
         void drawBatch(Shader shader, const std::vector<unsigned int>& textures, unsigned int count);
+        void drawBatch(Shader shader, unsigned int count);
         void setTexture(const unsigned int texture, unsigned const int index=0){ this->textures[index] = texture; }
         void swapTexture(const unsigned int indexA, unsigned const int indexB){ mySwap(textures[indexA], textures[indexB]); }
         void pushTexture(const unsigned int texture){ textures.push_back(texture); }

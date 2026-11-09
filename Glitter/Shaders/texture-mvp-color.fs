@@ -14,7 +14,6 @@ const float maxDistData_CONST = pow(2.0f,8.0f*4.0f)-1.0f;
 const float maxColorToDistRatio_CONST = (maxColor_CONST/maxDistData_CONST);
 const float maxDistNormal_CONST = sqrt(2.0f);
 const int   maxInt_CONST = 2147483647;
-const int INSTANCES_CONST = 100;
 
 uniform sampler2D borderTexture;
 uniform int borderCase;
@@ -107,7 +106,7 @@ void main(){
             FragColor = fadeColor*finalTextureColor;
     }
     else{
-        FragColor = INNER_COLOR*textureColor;
+        FragColor = INNER_COLOR;
     }
 }
 

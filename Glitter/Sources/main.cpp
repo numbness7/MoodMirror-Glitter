@@ -21,5 +21,10 @@
 
 
 int main(int argc, char * argv[]) {
-    return mainDrawInstancedBatch(argc, argv);
+    if (DO_TEST) {
+        return mainDrawInstancedBatch(argc, argv);
+    }
+    else {
+        return mainCoordsBasic2D(argc, argv);
+    }
 }

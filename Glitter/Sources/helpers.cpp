@@ -766,6 +766,23 @@ void generatePNGData(unsigned char *data, int width, int height, int nrChannels)
     }
     std::cout << "O: " << other << std::endl;
 }
+unsigned int useTextureDataToCreateTexture(const void* data, GLsizei width, GLsizei height, GLenum target = GL_TEXTURE_2D, GLint level = 0, GLint internalFormat = GL_RGBA,  GLenum format = GL_RGBA, GLenum type = GL_UNSIGNED_BYTE){
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    
+    
+    glBindTexture(GL_TEXTURE_2D, texture);
+    // CHATGPT START
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // CHATGPT END
+    
+    glTexImage2D(target, level, internalFormat, width, height, 0 /* border (must be zero smh) */ , format, type, data);
+    return texture;
+}
 unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width, int height, std::string filetype){
     unsigned int texture;
     glGenTextures(1, &texture);
@@ -2573,6 +2590,11 @@ void OpenGLShape::drawBatch(Shader shader, const std::vector<unsigned int> &text
     drawMultipleTexturedShapeBatch(VAO, EBO, shader, ind_cnt, textures, count);
 }
 
+void OpenGLShape::drawBatch(Shader shader, unsigned int count)
+{
+    drawMultipleTexturedShapeBatch(VAO, EBO, shader, ind_cnt, textures, count);
+}
+
 // #Main Programs -------------------------------------------------------------
 
 int mainCoordsBasic2D(int argc, char * argv[]){
@@ -2648,6 +2670,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     lightingEnvironment.object_shader.setUniformF("ABOVE_INTERCEPT", interceptAT);
     lightingEnvironment.object_shader.setUniformF("BELOW_SLOPE", slopeBT);
     lightingEnvironment.object_shader.setUniformF("BELOW_INTERCEPT", interceptBT);
+    lightingEnvironment.object_shader.setUniformF("DISABLE_ALMOST_EVERYTHING", false);
     
     
 
@@ -4811,7 +4834,7 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
     LightingEnvironment lE = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
     lE.object_shader.use();
     lE.object_shader.setUniformV4("INNER_COLOR", glm::vec4(1.0f,0.0f,1.0f,1.0f));
-    lE.object_shader.setUniformV4("OUTER_COLOR", glm::vec4(1.0f,1.0f,0.0f,1.0f));
+    lE.object_shader.setUniformV4("OUTER_COLOR", glm::vec4(0.0f,1.0f,0.0f,1.0f));
     lE.object_shader.setUniformI("borderCase", 1);
     lE.object_shader.setUniformI("ourTexture", 0);
     lE.object_shader.setUniformI("borderTexture", 1);
@@ -4819,32 +4842,49 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
     lE.object_shader.setUniformV2("SL_SCALE", glm::vec2(1.0f,1.0f));
     lE.object_shader.setUniformF("BORDER_THICKNESS", 0.5f);
     lE.object_shader.setUniformB("DO_FADE", false);
+    lE.object_shader.setUniformB("USE_MODEL_ARRAY", true);
     DeltaTimer deltaTimer{};
     PngData blankPngData(255,255);
     PngData borderPngData(255,255);
     unsigned int borderTexture = obtainPNGDistanceFromBorder(borderPngData, borderVerticesFromShape(shapes::rectT));
     unsigned int blankTexture = obtainPNGBlank(blankPngData);
-    OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture}, true);
-    pngDataSavePng("testSSR.png", borderPngData);
-    glm::mat4 model(1.0f);
-    static const int maxRow = 10;
-    static const int maxCol = 10;
-    for(int row = 0; row < maxRow; row++){
-        for(int col = 0; col < maxCol; col++){
-            model = glm::mat4(1.0f);
-            glm::vec2 offset = boundTransformation(glm::vec2(col,row),glm::vec2(0.0f,0.0f), glm::vec2(9.0f,9.0f), glm::vec2(-1.0f,-1.0f), glm::vec2(1.0f,1.0f));
-            model = glm::translate(model, glm::vec3(offset,0.0f));
-            model = glm::scale(model, glm::vec3(1.0f/5.0f,1.0f/5.0f,1.0f));
-            lE.object_shader.setUniformM4("models[" + std::to_string(maxCol*row + col) + "]", model);
+    static const unsigned int ROWS = 25;
+    static const unsigned int COLS = ROWS;
+    static const unsigned int dimensions = 2;
+    static const unsigned int totalSize = ROWS*COLS*dimensions;
+    std::vector<glm::vec2> positions;
+
+    positions.reserve(ROWS * COLS);
+
+    for(unsigned int row = 1; row <= ROWS; row++){
+        for(unsigned int col = 1; col <= COLS; col++){
+            auto pos = boundTransformation(
+                glm::vec2(col, row),
+                glm::vec2(0.0f),
+                glm::vec2(COLS+1.0f),
+                glm::vec2(-1.0f),
+                glm::vec2(1.0f)
+            );
+
+            positions.push_back(pos);
         }
     }
+    unsigned int positionTexture = useTextureDataToCreateTexture(&positions[0], COLS, ROWS, GL_TEXTURE_2D, 0, GL_RG32F, GL_RG, GL_FLOAT);
+    OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture, positionTexture}, true);
+    pngDataSavePng("testSSR.png", borderPngData);
+
+    glm::mat4 model(1.0f);
+    lE.object_shader.setUniformF("SCALE", 1/((float)COLS));
+    lE.object_shader.setUniformI("POSITION_TEXTURE", 2);
+    lE.object_shader.setUniformI("ROWS", ROWS);
+    lE.object_shader.setUniformI("COLS", COLS);
     
     glm::vec2 pos = glm::vec2(0.0f);
     float zoom = 1.0f;
     
     while(!glfwWindowShouldClose(mWindow)){
         startDummyMPVLoop(deltaTimer, lE);
-        rectangle.drawBatch(lE.object_shader, {blankTexture, borderTexture}, maxCol*maxRow);
+        rectangle.drawBatch(lE.object_shader,  COLS*ROWS);
         endRenderLoopView2D(mWindow, deltaTimer, pos, zoom);
     } glfwTerminate();
     
