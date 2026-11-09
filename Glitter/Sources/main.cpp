@@ -21,5 +21,5 @@
 
 
 int main(int argc, char * argv[]) {
-    return mainCoordsBasic2D(argc, argv);
+    return mainDrawInstancedBatch(argc, argv);
 }

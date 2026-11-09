@@ -71,7 +71,7 @@
 
 // Spawn Times
 
-#define SHAPE_INITIAL_SPAWN_TIME 0.5f
+#define SHAPE_INITIAL_SPAWN_TIME 0.1f
 #define DESTRUCTION_TIME         0.5f
 #define UPDATE_ITERATIONS 10.0f
 
@@ -83,6 +83,8 @@
 
 #define PULSE_FADE_MIN 0.0f
 #define PULSE_FADE_MAX 1.0f
+#define PULSE_FADE_SCALE_MIN 0.0f
+#define PULSE_FADE_SCALE_MAX 1.0f
 #define PULSE_NUMBER 1
 
 // Ben's Color Image Generator parameters
@@ -95,7 +97,7 @@
 #define COLOR_HEIGHT 255
 #define COLOR_DISPLAY false
 
-#define USE_BEN_CHANCE 1.0f
+#define USE_BEN_CHANCE 0.0f
 
 // Ben's Simulator Parameters
 
@@ -447,6 +449,7 @@ class OpenGLShape {
         OpenGLShape(const shapes::Shape& shape, unsigned int texture, bool hasTexture);
         void draw(Shader shader);
         void draw(Shader shader, std::vector<unsigned int> textures);
+        void drawBatch(Shader shader, const std::vector<unsigned int>& textures, unsigned int count);
         void setTexture(const unsigned int texture, unsigned const int index=0){ this->textures[index] = texture; }
         void swapTexture(const unsigned int indexA, unsigned const int indexB){ mySwap(textures[indexA], textures[indexB]); }
         void pushTexture(const unsigned int texture){ textures.push_back(texture); }
@@ -559,6 +562,8 @@ struct ShapeLayer{
    std::map<TRANSITIONS,bool> transitions{};
    std::deque<EmotionLayer> emotionLayers{};
    std::map<PULSES,bool> pulses{};
+   glm::vec4 innerColor = glm::vec4(1.0f);
+   glm::vec4 outerColor = glm::vec4(1.0f);
 };
 
 typedef std::deque<ShapeLayer> VisualLayer;
@@ -602,6 +607,7 @@ int mainPathCube(int argc, char * argv[]);
 int mainPathRectangle(int argc, char * argv[]);
 int mainSolve(int argc, char * argv[]);
 int mainRecursion(int argc, char * argv[]);
+int mainDrawInstancedBatch(int argc, char* argv[]);
 
 
 // #Draw -------------------------------------------------------------

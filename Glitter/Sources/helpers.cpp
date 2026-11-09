@@ -1817,6 +1817,32 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
         lightingEnvironment.object_shader.setUniformV2("SL_SCALE", shapeLayer.SL_SCALE);
         auto transitions = shapeLayer.transitions;
         auto pulses = shapeLayer.pulses;
+        bool doFade = ALWAYS_FADE_T || transitions[FADE_T];
+        glm::vec4 innerColor = shapeLayer.innerColor;    
+        glm::vec4 outerColor = shapeLayer.outerColor;    
+        if(doFade){
+            float fade = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
+            innerColor.a *= (1.0f - fade);
+            outerColor.a *= (1.0f - fade);
+        }
+        if(pulses[FADE_P]){
+            float fade = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, PULSE_FADE_MIN, PULSE_FADE_MAX, false);                    
+            innerColor.a *= (1.0f - fade);
+            outerColor.a *= (1.0f - fade);
+        }
+        float scaleDown = 0.0f;
+        if(transitions[SCALE_T]){
+            scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
+        }
+        float dX = 0.0f;
+        if(transitions[BACK_OUT_T] || transitions[MOVE_FORWARD_T]){
+            dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
+        }
+        float scaleDownPulse = 0.0f;
+        if(pulses[SCALE_P]){
+            scaleDownPulse = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, PULSE_FADE_SCALE_MIN, PULSE_FADE_SCALE_MAX, false);                    
+        }
+        lightingEnvironment.object_shader.setUniformI("layer", layer);
         for(auto& shapeBatch : shapeLayer.batches){
             for(auto& shape : shapeBatch.shapes){
                 if (!LAYER_TRANSITIONS)
@@ -1834,30 +1860,22 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 glm::mat4 transition(translationRotation*shape.transition);
                 glm::mat4 rotation(shape.rotationMatrix);
                 glm::mat4 scale(shape.scaleMatrix);
-                lightingEnvironment.object_shader.setUniformM4("model", shape.model);
-                lightingEnvironment.object_shader.setUniformB("DO_FADE", ALWAYS_FADE_T || transitions[FADE_T]);
+                lightingEnvironment.object_shader.setUniformB("DO_FADE", false);
+
                 lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
-                lightingEnvironment.object_shader.setUniformI("layer", layer);
                 
 
 
 
+                float inverse = (transitions[BACK_OUT_T]) ? -1.0f : 1.0f;
 
-                if(transitions[BACK_OUT_T]){
-                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
+                if(transitions[BACK_OUT_T] || transitions[MOVE_FORWARD_T]){
                     transition = glm::mat4(1.0f);
                     transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
-                    transition = glm::translate(transition, -speed*dX*shape.direction);
-                }
-                else if(transitions[MOVE_FORWARD_T]){
-                    float dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
-                    transition = glm::mat4(1.0f);
-                    transition = glm::translate(transition, -2.0f*shape.direction - shape.rotatedCoords);
-                    transition = glm::translate(transition, speed*dX*shape.direction);
+                    transition = glm::translate(transition, inverse*speed*dX*shape.direction);
                 }
                 
                 if(transitions[SCALE_T]){
-                    float scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
                     scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
                 }
                 
@@ -1865,18 +1883,9 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 assert(layer < TOTAL_LAYERS);
                 
                 
-                //model = scale*rotation*transition;
-                glm::vec4 innerColor = shape.innerColor;    
-                glm::vec4 outerColor = shape.outerColor;    
 
-                if(pulses[FADE_P]){
-                    float fade = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, PULSE_FADE_MIN, PULSE_FADE_MAX, false);                    
-                    innerColor.a *= (1.0f - fade);
-                    outerColor.a *= (1.0f - fade);
-                }
                 if(pulses[SCALE_P]){
-                    float scaleDown = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, SHAPE_MIN_FADE, SHAPE_MAX_FADE, false);                    
-                    scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
+                    scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDownPulse),1.0f));
                 }
                 if(pulses[RUMBLE_P]){
                     static const float rumbleScale = 3.0f;
@@ -1891,8 +1900,8 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 model = transition*rotation*scale;
 
                 lightingEnvironment.object_shader.setUniformM4("model", model);
-                lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", innerColor);
-                lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", outerColor);
+                lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", innerColor * shape.innerColor);
+                lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", outerColor * shape.outerColor);
                 lightingEnvironment.object_shader.setUniformF("BORDER_THICKNESS", shape.borderThickness);
 
 
@@ -2547,6 +2556,23 @@ void OpenGLShape::draw(Shader shader, std::vector<unsigned int> textures)
     drawMultipleTexturedShape(VAO, EBO, shader, ind_cnt, textures);
 }
 
+void drawMultipleTexturedShapeBatch(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures, unsigned int count){
+    shader.use();
+    for(int i = 0; i < textures.size(); i++){
+        unsigned int GL_TEXTUREX = getGL_TextureX(i);
+        glActiveTexture(GL_TEXTUREX);
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+    }
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glDrawElementsInstanced(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0, count);
+    glBindVertexArray(0);
+}
+void OpenGLShape::drawBatch(Shader shader, const std::vector<unsigned int> &textures, unsigned int count)
+{
+    drawMultipleTexturedShapeBatch(VAO, EBO, shader, ind_cnt, textures, count);
+}
+
 // #Main Programs -------------------------------------------------------------
 
 int mainCoordsBasic2D(int argc, char * argv[]){
@@ -2661,6 +2687,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     debug::StopWatch stopWatch{};
 
 
+    PngData pd(255,255,3);
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -2729,9 +2756,20 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             std::cout << "Shapes loaded!" << std::endl;
         }
         // Draw cubes
+        glDisable(GL_DEPTH_TEST);
         
+        // if(!shapeLayersStorage.empty()){
+        //     lightingEnvironment.object_shader.use();
+        //     lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", cdata::WHITE_V4);
+        //     lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", cdata::WHITE_V4);
+        //     lightingEnvironment.object_shader.setUniformM4("model", glm::scale(glm::mat4(1.0f), glm::vec3(4.0f,4.0f,1.0f)));
+        //     lightingEnvironment.object_shader.setUniformI("baseCase", 4);
+        //     shapeTypes[SQUARE]->draw(lightingEnvironment.object_shader, {shapeLayersStorage.front().batches.front().texture, shapeTypes[SQUARE]->getTexture(1)});
+        // }
         
         drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer);
+        glEnable(GL_DEPTH_TEST);
+        
         endRenderLoop(mWindow,deltaTimer,camera);
 
         if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
@@ -2772,7 +2810,6 @@ float getFPS(DeltaTimer deltaTimer){
 }
 
 int mainDrawRectangle(int argc, char* argv[]){
-    
     int return_status;
     GLFWwindow*  mWindow; 
     if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
@@ -4765,4 +4802,52 @@ void getRecursiveSquareHoles(unsigned int iterations, PngData& pngData, std::vec
     float width = pngData.width;
     glm::vec2 position = boundTransformation(origin, glm::vec2(0.0f), glm::vec2(1.0f), glm::vec2(0.0f), glm::vec2(pngData.width, pngData.height));
     getRecursiveSquareHolesHelper(iterations, 0, position, width, pngData, colors);
+}
+
+int mainDrawInstancedBatch(int argc, char* argv[]){
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    LightingEnvironment lE = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    lE.object_shader.use();
+    lE.object_shader.setUniformV4("INNER_COLOR", glm::vec4(1.0f,0.0f,1.0f,1.0f));
+    lE.object_shader.setUniformV4("OUTER_COLOR", glm::vec4(1.0f,1.0f,0.0f,1.0f));
+    lE.object_shader.setUniformI("borderCase", 1);
+    lE.object_shader.setUniformI("ourTexture", 0);
+    lE.object_shader.setUniformI("borderTexture", 1);
+    lE.object_shader.setUniformB("DISABLE_ALMOST_EVERYTHING", false);
+    lE.object_shader.setUniformV2("SL_SCALE", glm::vec2(1.0f,1.0f));
+    lE.object_shader.setUniformF("BORDER_THICKNESS", 0.5f);
+    lE.object_shader.setUniformB("DO_FADE", false);
+    DeltaTimer deltaTimer{};
+    PngData blankPngData(255,255);
+    PngData borderPngData(255,255);
+    unsigned int borderTexture = obtainPNGDistanceFromBorder(borderPngData, borderVerticesFromShape(shapes::rectT));
+    unsigned int blankTexture = obtainPNGBlank(blankPngData);
+    OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture}, true);
+    pngDataSavePng("testSSR.png", borderPngData);
+    glm::mat4 model(1.0f);
+    static const int maxRow = 10;
+    static const int maxCol = 10;
+    for(int row = 0; row < maxRow; row++){
+        for(int col = 0; col < maxCol; col++){
+            model = glm::mat4(1.0f);
+            glm::vec2 offset = boundTransformation(glm::vec2(col,row),glm::vec2(0.0f,0.0f), glm::vec2(9.0f,9.0f), glm::vec2(-1.0f,-1.0f), glm::vec2(1.0f,1.0f));
+            model = glm::translate(model, glm::vec3(offset,0.0f));
+            model = glm::scale(model, glm::vec3(1.0f/5.0f,1.0f/5.0f,1.0f));
+            lE.object_shader.setUniformM4("models[" + std::to_string(maxCol*row + col) + "]", model);
+        }
+    }
+    
+    glm::vec2 pos = glm::vec2(0.0f);
+    float zoom = 1.0f;
+    
+    while(!glfwWindowShouldClose(mWindow)){
+        startDummyMPVLoop(deltaTimer, lE);
+        rectangle.drawBatch(lE.object_shader, {blankTexture, borderTexture}, maxCol*maxRow);
+        endRenderLoopView2D(mWindow, deltaTimer, pos, zoom);
+    } glfwTerminate();
+    
+    return EXIT_SUCCESS;
+    
 }
