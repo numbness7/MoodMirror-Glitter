@@ -37,6 +37,7 @@
 #include <sstream>
 
 
+#include <algorithm>
 #include <deque>
 #include <json.hpp>
 #include <thirdparty.hpp>
@@ -230,8 +231,8 @@ float getElapsedTime();
 
 template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable);
 template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
-template <typename ITERATOR> ITERATOR::value_type maxM(ITERATOR begin, ITERATOR end);
-template <typename ITERATOR> ITERATOR::value_type minM(ITERATOR begin, ITERATOR end);
+template <typename CONTAINER> CONTAINER::value_type  maxM(const CONTAINER c);
+template <typename CONTAINER> CONTAINER::value_type  minM(const CONTAINER c);
 template <typename KEY, typename NUMBER> std::tuple<KEY, NUMBER> maxM(std::map<KEY,NUMBER> mapping);
 float clamp(const float x, const float min, const float max);
 float floorWrap(float dividend, float divisor);
@@ -629,6 +630,7 @@ int mainCoordsBasic2D(int argc, char * argv[]);
 int mainDrawFloats(int argc, char* argv[]);
 int mainDrawRectangle(int argc, char* argv[]);
 int mainDrawCircle(int argc, char* argv[]);
+int mainDrawDistances(int argc, char* argv[]);
 int mainCoords(int argc, char * argv[]);
 int mainCoordsBasic(int argc, char * argv[]);
 int mainCoordsBasicStream(int argc, char * argv[]);
@@ -923,5 +925,12 @@ float getFPS(DeltaTimer deltaTimer);
 
 std::tuple<unsigned int, unsigned int, unsigned int> transferShapeLayers(std::counting_semaphore<TOTAL_LAYERS>& shapesSemaphore, std::mutex& shapeLock, const unsigned int& requiredLayers, std::deque<ShapeLayer>& shapeLayersBuffer, ShapeLayerStorage& shapeLayersStorage, float currentDestructionTime, float currentPulseMaxTime);
 std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>> modelsToCols(std::vector<glm::mat4> models);
+/// @brief Returns distance from point to line
+/// @param line a line defined by Ax + By + C = 0. A B and C are passed as a tuple.
+/// @param point 
+/// @param absolute determines whether the distance can be negative. If it is negative then the point on a specific side of the line, (I don't know which)
+/// @return 
+float distFromLine(std::tuple<float,float,float> line, glm::vec2 point, bool absolute=true);
+bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, bool lineSegmentsDefineLines);
 
 #endif

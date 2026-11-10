@@ -21,24 +21,22 @@ template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable){
     for(auto const number : iterable) summation += number;
     return summation;
 }
-template <typename ITERATOR> ITERATOR::value_type maxM(ITERATOR begin, ITERATOR end)
+template <typename CONTAINER> CONTAINER::value_type  maxM(const CONTAINER c)
 {
-    auto& maxi = *begin;
-    for(auto it = begin + 1; it != end; ++it){
-        auto& n = *it;
-        if(n > maxi){
-            maxi = n;
+    typename CONTAINER::value_type maxi = c[0];
+    for(auto v : c){
+        if(v > maxi){
+            maxi = v;
         }
     }
     return maxi;
 }
-template <typename ITERATOR> ITERATOR::value_type minM(ITERATOR begin, ITERATOR end)
+template <typename CONTAINER> CONTAINER::value_type  minM(const CONTAINER c)
 {
-    auto& mini = *begin;
-    for(auto it = begin + 1; it != end; ++it){
-        auto& n = *it;
-        if(n < mini){
-            mini = n;
+    typename CONTAINER::value_type mini = c[0];
+    for(auto v : c){
+        if(v < mini){
+            mini = v;
         }
     }
     return mini;
@@ -548,10 +546,13 @@ unsigned int obtainPNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2
     return texture;
 }
 
-float distFromLine(std::tuple<float,float,float> line, glm::vec2 point){
+float distFromLine(std::tuple<float,float,float> line, glm::vec2 point, bool absolute){
     const auto [A, B, C] = line;
     assert(A != 0 || B != 0);
-    return glm::abs(A*point.x + B*point.y + C)/glm::sqrt(glm::pow(A,2) + glm::pow(B,2));
+    auto lineValue = A*point.x + B*point.y + C;
+    lineValue = (absolute) ? glm::abs(lineValue) : lineValue;
+    auto lineNormalizer = glm::sqrt(glm::pow(A,2) + glm::pow(B,2));
+    return lineValue/lineNormalizer;
 }
 
 std::vector<glm::vec2> borderVerticesFromShape(const shapes::Shape& shape){
@@ -576,6 +577,82 @@ bool isInSquare(glm::vec2 point, glm::vec2 center,  float length){
     return isInSquare(point.x, point.y, center.x, center.y, length);
 }
 
+void generatePNGDistanceFromBorder(std::vector<float>& distances, int width, int height, const std::vector<glm::vec2>& borderVertices){
+        std::vector<std::tuple<float,float,float>> borderLines{}; 
+        glm::vec2 prevVertex  = borderVertices[borderVertices.size()-1];
+        std::vector<glm::vec2> borderVerticesN{};
+        glm::vec2 centerN = glm::vec2(
+                boundTransformation(0, -0.5f, 0.5f, 0, width),
+                boundTransformation(0, -0.5f, 0.5f, 0, height));
+        for(int borderVertexIndex = 0; borderVertexIndex < borderVertices.size(); borderVertexIndex++){
+            glm::vec2 curVertex;
+            if(borderVertexIndex < borderVertices.size() - 1)
+                curVertex = borderVertices[borderVertexIndex];
+            else
+                curVertex = borderVertices[borderVertices.size()-1];
+            float  preVertexNormX = boundTransformation(prevVertex.x, -0.5f, 0.5f, 0, width);
+            float  preVertexNormY = boundTransformation(prevVertex.y, -0.5f, 0.5f, 0, height);
+            glm::vec2 preVertexNorm(preVertexNormX,preVertexNormY);
+            float  curVertexNormX = boundTransformation(curVertex.x, -0.5f, 0.5f, 0, width);
+            float  curVertexNormY = boundTransformation(curVertex.y, -0.5f, 0.5f, 0, height);
+            glm::vec2 curVertexNorm(curVertexNormX,curVertexNormY);
+            borderVerticesN.push_back(curVertexNorm);
+            auto line = getLineFromVertices(preVertexNorm.x, curVertexNorm.x, preVertexNorm.y, curVertexNorm.y);
+            borderLines.push_back(line);
+            prevVertex = curVertex;
+        }
+    
+
+    for(int rowI = 0; rowI < height; rowI++){
+        for(int colI = 0; colI < width; colI++){
+            float row = (float) rowI;
+            float col = (float) colI;
+            float gridY = row;
+            float gridX = col;
+            glm::vec2 tileCenter(0.5,0.5);
+            glm::vec2 gridVertex(gridX + tileCenter.x, gridY + tileCenter.y);
+
+            float minDistance = std::numeric_limits<float>::max();
+            glm::vec2 prevVertex  = borderVerticesN[borderVerticesN.size()-1];
+            auto curVertex = borderVerticesN[0];
+            glm::vec2 midVertex = (curVertex + prevVertex)/2.0f;
+            auto  rayDirection = glm::normalize(midVertex - gridVertex);
+            auto endRayPoint = gridVertex + rayDirection*length(glm::vec2(width,height))*10.0f;
+
+            int intersections = 0;
+            for(int borderLineIndex = 0; borderLineIndex < borderLines.size(); borderLineIndex++){
+                curVertex = borderVerticesN[borderLineIndex];
+
+
+                auto line = borderLines[borderLineIndex];
+                glm::vec2 intersection;
+                if(tryGetIntersection(intersection,{gridVertex, endRayPoint}, {prevVertex, curVertex}, false)){
+                    intersections++;
+                }
+                float distance = distFromLine(line, gridVertex, true);
+                if(glm::abs(distance) < glm::abs(minDistance)){
+                    minDistance = distance;
+                }
+                prevVertex = curVertex;
+            }
+            
+            bool isInside = intersections % 2 == 1;
+            debug::checkPrint(std::format("row: {}, col : {}\n", rowI, colI), intersections == 1, true);
+            //debug::checkPrint(std::format("intersections: {}, row: {}, col : {}\n", intersections, rowI, colI), intersections != 1, true);
+            
+            if(isInside)
+                distances.push_back(minDistance);
+            else
+                distances.push_back(-minDistance);
+        }
+    }
+    float maxDistance = maxM(distances);
+    float minDistance = minM(distances);
+    float normDistance = (glm::abs(maxDistance) > glm::abs(minDistance)) ? glm::abs(maxDistance) : glm::abs(minDistance);
+    for(int i = 0; i < distances.size(); i++){
+        distances[i]/=normDistance;
+    }
+}
 
 void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices){
         std::vector<std::tuple<float,float,float>> borderLines{}; 
@@ -1379,12 +1456,12 @@ float getMaxWeightingSum(EmotionIntensities weights){
 
 float getMaxWeight(EmotionIntensities weights){
     std::vector<float> fWeights{weights.disgust,weights.anger, weights.sadness, weights.happiness, weights.fear, weights.surprise};
-    float maxi = maxM(fWeights.begin(), fWeights.end());
+    float maxi = maxM(fWeights);
     return maxi;
 }
 float getMinWeight(EmotionIntensities weights){
     std::vector<float> fWeights{weights.disgust,weights.anger, weights.sadness, weights.happiness, weights.fear, weights.surprise};
-    float mini = minM(fWeights.begin(), fWeights.end()); 
+    float mini = minM(fWeights); 
     return mini;
 }
 
@@ -2304,9 +2381,51 @@ int startBensVisualGenerationProgram(float frequency, int width, int height, boo
         + std::to_string(height) + "\n" + std::to_string(frequency) + "\n" + display + "\" | nohup " + COLOR_PROGRAM + ")");
 }
 
+std::tuple<shapes::Shape, std::vector<glm::vec2>> createCircleShapeBorder(unsigned int tri_cnt){
+    std::vector<float> circleVertices{};
+    std::vector<unsigned> ind{};
+    unsigned int index = 0;
+    std::vector<glm::vec2> border;
+
+    for(unsigned int tri = 0; tri < tri_cnt; tri++){
+       
+        
+        for(int vi = 0; vi<3;vi++){
+
+            glm::vec3 vert;
+            if(vi > 0){
+                glm::mat4 transform(1.0f);
+                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
+                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
+                glm::vec3 radius_vec(0.5f,0.0f,0.0f);
+                glm::vec4 radius_vec4(radius_vec,1.0f);
+                radius_vec4 = transform * radius_vec4;
+                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
+                assert(vert.x != 0.0f || vert.y != 0.0f);
+                if(vi == 1) // Vetice in middle of right turn path
+                    border.push_back(glm::vec2(vert.x,vert.y));
+            }
+            else{
+                vert = glm::vec3(0.0f,0.0f,0.0f); // Center Vertex
+            }
+            circleVertices.push_back(vert.x);
+            circleVertices.push_back(vert.y);
+            circleVertices.push_back(vert.z);
+            circleVertices.push_back(boundTransformation(vert.x, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
+            circleVertices.push_back(boundTransformation(vert.y, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
+            
+            for(unsigned int i = 0; i<3; i++){
+                ind.push_back(index);
+                index++;
+            }
+        }
+    }
+    
+    shapes::Shape circleShape(circleVertices.data(), (unsigned) (tri_cnt*3), std::vector<unsigned>{3, 2}, ind.data(), (unsigned) (tri_cnt)*3);
+    return {circleShape, border};
+}
 
 OpenGLShape create_circle(unsigned int tri_cnt, PngData& pngData){
-
     std::vector<float> circle{};
     std::vector<unsigned> ind{};
     unsigned int index = 0;
@@ -2350,6 +2469,7 @@ OpenGLShape create_circle(unsigned int tri_cnt, PngData& pngData){
     
     return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, texture, true);
 }
+
 void pngDataSavePng(const std::string filepath, const PngData& pngData){
     
     stbi_write_png(filepath.c_str(), pngData.width, pngData.height, pngData.nrChannels, pngData.getData(), pngData.nrChannels * pngData.width);
@@ -4664,6 +4784,14 @@ bool tryGetIntersection(glm::vec2& intersection, const std::tuple<glm::vec2,glm:
     return lineSegmentsDefineLines || hasIntersection(lineSegment1, lineSegment2, intersection);
 }
 
+bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, bool lineSegmentsDefineLines){
+    glm::vec2 intersection;
+    const auto line1= getLineFromVertices(std::get<0>(lineSegment1), std::get<1>(lineSegment1));
+    const auto line2= getLineFromVertices(std::get<0>(lineSegment2), std::get<1>(lineSegment2));
+    if(!tryGetIntersection(intersection, line1, line2))
+        return false;
+    return lineSegmentsDefineLines || hasIntersection(lineSegment1, lineSegment2, intersection);
+}
 glm::vec2 rotate(const glm::vec2& vec2, const float& radians){
     return glm::vec2(glm::rotate(glm::mat4(1.0f), radians, dir::FORWARD) * glm::vec4(vec2, glm::vec2(0.0f)));
 }
@@ -5012,6 +5140,41 @@ int mainDrawFloats(int argc, char* argv[]){
             floats.push_back(f);
         }
     }
+
+    //unsigned int modelsTexture = useTextureDataToCreateTexture(&models[0], SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int floatsTexture = useTextureDataToCreateTexture(&floats[0], 255, 255, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
+    floatsS.setUniformI("TEXTURE", 0);
+    OpenGLShape square(shapes::rectT, {floatsTexture}, true);
+
+
+
+    glm::vec2 pos = glm::vec2(0.0f);
+    float zoom = 1.0f;
+    
+
+    while(!glfwWindowShouldClose(mWindow)){
+        minimumStartRenderLoop(deltaTimer);
+        square.draw(floatsS);
+        endRenderLoopViewStatic(mWindow, deltaTimer);
+    } glfwTerminate();
+    
+    return EXIT_SUCCESS;
+
+}
+    
+int mainDrawDistances(int argc, char* argv[]){
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    DeltaTimer deltaTimer;
+    Shader floatsS(SHADER_PATH + "floats");
+    floatsS.use();
+    std::vector<float> floats;
+    auto [circleShape, circleBorder] = createCircleShapeBorder(11);
+
+    floats.reserve(255*255);
+    generatePNGDistanceFromBorder(floats, 255, 255, circleBorder);
+    //generatePNGDistanceFromBorder(floats, 255, 255, borderVerticesFromShape(shapes::eTriT));
 
     //unsigned int modelsTexture = useTextureDataToCreateTexture(&models[0], SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
     unsigned int floatsTexture = useTextureDataToCreateTexture(&floats[0], 255, 255, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
