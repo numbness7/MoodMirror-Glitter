@@ -928,9 +928,8 @@ std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4
 /// @brief Returns distance from point to line
 /// @param line a line defined by Ax + By + C = 0. A B and C are passed as a tuple.
 /// @param point 
-/// @param absolute determines whether the distance can be negative. If it is negative then the point on a specific side of the line, (I don't know which)
 /// @return 
-float distFromLine(std::tuple<float,float,float> line, glm::vec2 point, bool absolute=true);
+float distFromLine(std::tuple<float,float,float> line, glm::vec2 point);
 bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, bool lineSegmentsDefineLines);
 
 #endif

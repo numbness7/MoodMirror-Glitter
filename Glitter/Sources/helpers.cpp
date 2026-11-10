@@ -546,11 +546,11 @@ unsigned int obtainPNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2
     return texture;
 }
 
-float distFromLine(std::tuple<float,float,float> line, glm::vec2 point, bool absolute){
+float distFromLine(std::tuple<float,float,float> line, glm::vec2 point){
     const auto [A, B, C] = line;
     assert(A != 0 || B != 0);
     auto lineValue = A*point.x + B*point.y + C;
-    lineValue = (absolute) ? glm::abs(lineValue) : lineValue;
+    lineValue = glm::abs(lineValue);
     auto lineNormalizer = glm::sqrt(glm::pow(A,2) + glm::pow(B,2));
     return lineValue/lineNormalizer;
 }
@@ -615,29 +615,51 @@ void generatePNGDistanceFromBorder(std::vector<float>& distances, int width, int
             float minDistance = std::numeric_limits<float>::max();
             glm::vec2 prevVertex  = borderVerticesN[borderVerticesN.size()-1];
             auto curVertex = borderVerticesN[0];
-            glm::vec2 midVertex = (curVertex + prevVertex)/2.0f;
-            auto  rayDirection = glm::normalize(midVertex - gridVertex);
-            auto endRayPoint = gridVertex + rayDirection*length(glm::vec2(width,height))*10.0f;
+            glm::vec2 leftVertex = dir::LEFT*(float)width*10.0f;
+            glm::vec2 rightVertex = dir::RIGHT*(float)width*10.0f;
+            auto [allRight, allLeft, allDown, allUp] = std::tuple<bool,bool,bool,bool>{true,true,true,true};
+            for(int borderLineIndex = 0; borderLineIndex < borderLines.size(); borderLineIndex++){
+                curVertex = borderVerticesN[borderLineIndex];
+                if(curVertex.x < gridVertex.x)
+                    allRight = false;
+                if(curVertex.x > gridVertex.x)
+                    allLeft = false;
+                if(curVertex.y < gridVertex.y)
+                    allUp = false;
+                if(curVertex.y > gridVertex.y)
+                    allDown = false;
+                if(curVertex.x > leftVertex.x && curVertex.x < gridVertex.x){
+                    leftVertex = curVertex;
+                }
+                if(curVertex.x < rightVertex.x && curVertex.x > gridVertex.x){
+                    rightVertex = curVertex;
+                }
+            }
+
+
+            glm::vec2  endRayPoint;
+            endRayPoint = ((glm::vec2(leftVertex.x, height*10.0f) + glm::vec2(rightVertex.x, height*10.0f))/2.0f);
 
             int intersections = 0;
+            bool onBorder = false;
             for(int borderLineIndex = 0; borderLineIndex < borderLines.size(); borderLineIndex++){
                 curVertex = borderVerticesN[borderLineIndex];
 
 
                 auto line = borderLines[borderLineIndex];
-                glm::vec2 intersection;
-                if(tryGetIntersection(intersection,{gridVertex, endRayPoint}, {prevVertex, curVertex}, false)){
+                glm::vec2 trash;
+                if(tryGetIntersection(trash,{gridVertex, endRayPoint}, {prevVertex, curVertex}, false)){
                     intersections++;
                 }
-                float distance = distFromLine(line, gridVertex, true);
+                float distance = distFromLine(line, gridVertex);
                 if(glm::abs(distance) < glm::abs(minDistance)){
                     minDistance = distance;
                 }
                 prevVertex = curVertex;
             }
             
-            bool isInside = intersections % 2 == 1;
-            debug::checkPrint(std::format("row: {}, col : {}\n", rowI, colI), intersections == 1, true);
+            bool isInside = (intersections % 2 == 1 && !(allDown || allLeft || allRight || allUp)) || onBorder;
+            //debug::checkPrint(std::format("row: {}, col : {}\n", rowI, colI), intersections == 1, true);
             //debug::checkPrint(std::format("intersections: {}, row: {}, col : {}\n", intersections, rowI, colI), intersections != 1, true);
             
             if(isInside)
@@ -5170,14 +5192,16 @@ int mainDrawDistances(int argc, char* argv[]){
     Shader floatsS(SHADER_PATH + "floats");
     floatsS.use();
     std::vector<float> floats;
-    auto [circleShape, circleBorder] = createCircleShapeBorder(11);
+    auto [circleShape, circleBorder] = createCircleShapeBorder(60);
+    static const int width = 255;
+    static const int height = 255;
 
-    floats.reserve(255*255);
-    generatePNGDistanceFromBorder(floats, 255, 255, circleBorder);
+    floats.reserve(width*height);
+    generatePNGDistanceFromBorder(floats, width, height, circleBorder);
     //generatePNGDistanceFromBorder(floats, 255, 255, borderVerticesFromShape(shapes::eTriT));
 
     //unsigned int modelsTexture = useTextureDataToCreateTexture(&models[0], SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int floatsTexture = useTextureDataToCreateTexture(&floats[0], 255, 255, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
+    unsigned int floatsTexture = useTextureDataToCreateTexture(&floats[0], width, height, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
     floatsS.setUniformI("TEXTURE", 0);
     OpenGLShape square(shapes::rectT, {floatsTexture}, true);
 
