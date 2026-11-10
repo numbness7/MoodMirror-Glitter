@@ -4841,6 +4841,38 @@ void getRecursiveSquareHoles(unsigned int iterations, PngData& pngData, std::vec
     getRecursiveSquareHolesHelper(iterations, 0, position, width, pngData, colors);
 }
 
+std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>> modelsToCols(std::vector<glm::mat4> models){
+    std::vector<glm::vec4> modelCols0;
+    std::vector<glm::vec4> modelCols1;
+    std::vector<glm::vec4> modelCols2;
+    std::vector<glm::vec4> modelCols3;
+    modelCols0.reserve(models.size());
+    modelCols1.reserve(models.size());
+    modelCols2.reserve(models.size());
+    modelCols3.reserve(models.size());
+    for(int i = 0; i < models.size(); i++){
+        modelCols0.push_back(models[i][0]);
+        modelCols1.push_back(models[i][1]);
+        modelCols2.push_back(models[i][2]);
+        modelCols3.push_back(models[i][3]);
+    }
+    return std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>>{modelCols0, modelCols1, modelCols2, modelCols3};
+}
+
+std::tuple<unsigned int, unsigned int, unsigned int, unsigned int> modelColsToTextures( std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>> modelCols){
+    auto& [modelCols0, modelCols1, modelCols2, modelCols3] = modelCols;
+    unsigned int modelsTexture0 = useTextureDataToCreateTexture(&modelCols0[0], modelCols0.size(), 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int modelsTexture1 = useTextureDataToCreateTexture(&modelCols1[0], modelCols1.size(), 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int modelsTexture2 = useTextureDataToCreateTexture(&modelCols2[0], modelCols2.size(), 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int modelsTexture3 = useTextureDataToCreateTexture(&modelCols3[0], modelCols3.size(), 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    return std::tuple<unsigned int, unsigned int, unsigned int, unsigned int> {modelsTexture0, modelsTexture1, modelsTexture2, modelsTexture3};
+}
+std::tuple<unsigned int, unsigned int, unsigned int, unsigned int> modelsToTextures(std::vector<glm::mat4> models){
+    return modelColsToTextures(modelsToCols(models));
+}
+
+
+
 int mainDrawInstancedBatch(int argc, char* argv[]){
     int return_status;
     GLFWwindow*  mWindow; 
@@ -4862,18 +4894,12 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
     PngData borderPngData(255,255);
     unsigned int borderTexture = obtainPNGDistanceFromBorder(borderPngData, borderVerticesFromShape(shapes::rectT));
     unsigned int blankTexture = obtainPNGBlank(blankPngData);
+
     static const unsigned int ROWS = 50;
     static const unsigned int COLS = ROWS;
     static const unsigned int SIZE = COLS*ROWS;
-    std::vector<glm::vec4> modelCols0;
-    std::vector<glm::vec4> modelCols1;
-    std::vector<glm::vec4> modelCols2;
-    std::vector<glm::vec4> modelCols3;
+    std::vector<glm::mat4> models;
 
-    modelCols0.reserve(ROWS * COLS);
-    modelCols1.reserve(ROWS * COLS);
-    modelCols2.reserve(ROWS * COLS);
-    modelCols3.reserve(ROWS * COLS);
 
     for(unsigned int row = 1;     row <= ROWS; row++){
         for(unsigned int col = 1; col <= COLS; col++){
@@ -4887,31 +4913,19 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
             glm::mat4 model(1.0f);
             model = glm::translate(model, glm::vec3(pos, 0.0f));
             model = glm::scale(model, glm::vec3(0.1f, 0.1f, 1.0f));
+            models.push_back(model);
 
-            modelCols0.push_back(model[0]);
-            modelCols1.push_back(model[1]);
-            modelCols2.push_back(model[2]);
-            modelCols3.push_back(model[3]);
         }
     }
-    unsigned int modelsTexture0 = useTextureDataToCreateTexture(&modelCols0[0], COLS, ROWS, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int modelsTexture1 = useTextureDataToCreateTexture(&modelCols1[0], COLS, ROWS, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int modelsTexture2 = useTextureDataToCreateTexture(&modelCols2[0], COLS, ROWS, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int modelsTexture3 = useTextureDataToCreateTexture(&modelCols3[0], COLS, ROWS, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int modelsTexture = useTextureDataToCreateTexture(&models[0], SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
     OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture, 
-        modelsTexture0,
-        modelsTexture1,
-        modelsTexture2,
-        modelsTexture3
-    
+        modelsTexture,
     }, true);
     pngDataSavePng("testSSR.png", borderPngData);
 
     glm::mat4 model(1.0f);
-    lE.object_shader.setUniformI("MODEL_TEXTURE0", 2);
-    lE.object_shader.setUniformI("MODEL_TEXTURE1", 3);
-    lE.object_shader.setUniformI("MODEL_TEXTURE2", 4);
-    lE.object_shader.setUniformI("MODEL_TEXTURE3", 5);
+    lE.object_shader.setUniformI("MODEL_TEXTURE", 2);
+
     lE.object_shader.setUniformI("SIZE", SIZE);
     lE.object_shader.setUniformI("COLS", COLS);
     

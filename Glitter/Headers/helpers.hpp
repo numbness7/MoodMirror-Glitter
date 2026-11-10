@@ -44,7 +44,7 @@
 // #Header Macros -------------------------------------------------------------
 
 // Do Test
-#define DO_TEST false
+#define DO_TEST true
 
 // Window Configuration
 #define FULL_SCREEN false
@@ -917,5 +917,6 @@ glm::vec2 rotate(const glm::vec2& vec2, const float& radians);
 float getFPS(DeltaTimer deltaTimer);
 
 std::tuple<unsigned int, unsigned int, unsigned int> transferShapeLayers(std::counting_semaphore<TOTAL_LAYERS>& shapesSemaphore, std::mutex& shapeLock, const unsigned int& requiredLayers, std::deque<ShapeLayer>& shapeLayersBuffer, ShapeLayerStorage& shapeLayersStorage, float currentDestructionTime, float currentPulseMaxTime);
+std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>> modelsToCols(std::vector<glm::mat4> models);
 
 #endif

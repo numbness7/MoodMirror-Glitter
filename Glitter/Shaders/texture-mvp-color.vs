@@ -14,10 +14,7 @@ uniform mat4 view;
 uniform int ROWS;
 uniform int COLS;
 uniform int SIZE;
-uniform sampler2D MODEL_TEXTURE0;
-uniform sampler2D MODEL_TEXTURE1;
-uniform sampler2D MODEL_TEXTURE2;
-uniform sampler2D MODEL_TEXTURE3;
+uniform sampler2D MODEL_TEXTURE;
 
 mat4 scaleMatrix(mat4 matrix, vec4 scale);
 mat4 translateMatrix(mat4 matrix, vec4 translation);
@@ -44,14 +41,10 @@ void main(){
 
 mat4 getModel(){
     // CHATGPT START
-    ivec2 texelCoord = ivec2(
-        (gl_InstanceID) % COLS,
-        (gl_InstanceID) / COLS
-    );
-    vec4 col0 = texelFetch( MODEL_TEXTURE0, texelCoord, 0);
-    vec4 col1 = texelFetch( MODEL_TEXTURE1, texelCoord, 0);
-    vec4 col2 = texelFetch( MODEL_TEXTURE2, texelCoord, 0);
-    vec4 col3 = texelFetch( MODEL_TEXTURE3, texelCoord, 0);
+    vec4 col0 = texelFetch( MODEL_TEXTURE, ivec2(4*gl_InstanceID,0), 0);
+    vec4 col1 = texelFetch( MODEL_TEXTURE, ivec2(4*gl_InstanceID+1,0), 0);
+    vec4 col2 = texelFetch( MODEL_TEXTURE, ivec2(4*gl_InstanceID+2,0), 0);
+    vec4 col3 = texelFetch( MODEL_TEXTURE, ivec2(4*gl_InstanceID+3,0), 0);
     mat4 model = mat4(1.0f);
     model[0] = col0;
     model[1] = col1;
