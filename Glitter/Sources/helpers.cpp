@@ -872,8 +872,23 @@ unsigned int useTextureDataToCreateTexture(const void* data, GLsizei width, GLsi
     
     glBindTexture(GL_TEXTURE_2D, texture);
     // CHATGPT START
+    int stores = 0;
     
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    switch(format){
+        case GL_RGBA:
+            stores = 4;
+            break;
+        case GL_RGB:
+            stores = 3;
+            break;
+        case GL_RG:
+            stores = 2;
+            break;
+        case GL_RED:
+            stores = 1;
+            break;
+    }
+    glPixelStorei(GL_UNPACK_ALIGNMENT, stores);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
