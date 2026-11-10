@@ -773,7 +773,8 @@ unsigned int useTextureDataToCreateTexture(const void* data, GLsizei width, GLsi
     
     glBindTexture(GL_TEXTURE_2D, texture);
     // CHATGPT START
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -4994,3 +4995,42 @@ std::tuple<unsigned int, unsigned int, unsigned int> transferShapeLayers(std::co
     }
     return transferCounts;
 }
+
+int mainDrawFloats(int argc, char* argv[]){
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    DeltaTimer deltaTimer;
+    Shader floatsS(SHADER_PATH + "floats");
+    floatsS.use();
+    std::vector<float> floats;
+
+    floats.reserve(255*255);
+    for(int row = 0; row < 255; row++){
+        for(int col = 0; col < 255; col++){
+            float f = (float)(row*255 + col)/(float)(255*255 + 255);
+            floats.push_back(f);
+        }
+    }
+
+    //unsigned int modelsTexture = useTextureDataToCreateTexture(&models[0], SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int floatsTexture = useTextureDataToCreateTexture(&floats[0], 255, 255, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
+    floatsS.setUniformI("TEXTURE", 0);
+    OpenGLShape square(shapes::rectT, {floatsTexture}, true);
+
+
+
+    glm::vec2 pos = glm::vec2(0.0f);
+    float zoom = 1.0f;
+    
+
+    while(!glfwWindowShouldClose(mWindow)){
+        minimumStartRenderLoop(deltaTimer);
+        square.draw(floatsS);
+        endRenderLoopViewStatic(mWindow, deltaTimer);
+    } glfwTerminate();
+    
+    return EXIT_SUCCESS;
+
+}
+    

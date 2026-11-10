@@ -52,6 +52,10 @@
 // Hardware Specific Configuration
 #define ON_PI false
 
+// Default paths
+#define SHADER_PATH (std::string("Glitter/Shaders/"))
+
+
 // Data sizes
 
 #define BYTESIZE 8
@@ -622,6 +626,7 @@ namespace mm_math{
 /// @param argv 
 /// @return 
 int mainCoordsBasic2D(int argc, char * argv[]);
+int mainDrawFloats(int argc, char* argv[]);
 int mainDrawRectangle(int argc, char* argv[]);
 int mainDrawCircle(int argc, char* argv[]);
 int mainCoords(int argc, char * argv[]);

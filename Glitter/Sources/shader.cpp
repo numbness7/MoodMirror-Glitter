@@ -26,6 +26,10 @@ Shader::Shader(std::string vertex_shader_filepath, std::string fragment_shader_f
     compileShader(vertex_shader_source.c_str(), fragment_shader_source.c_str());
 }
 
+Shader::Shader(std::string shader_filepath) : Shader(shader_filepath + ".vs", shader_filepath + ".fs")
+{
+}
+
 void Shader::compileShader(const char vertex_shader_source[], const char fragment_shader_source[]){
     unsigned int vertex_shader;
     vertex_shader = glCreateShader(GL_VERTEX_SHADER);

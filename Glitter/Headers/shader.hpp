@@ -18,7 +18,13 @@ std::string readfile(const char filepath[]);
 class Shader {
     public:
         Shader();
+        /// @brief load and compile vertex and fragment shaders
+        /// @param vertex_shader_filepath 
+        /// @param fragment_shader_filepath 
         Shader(std::string vertex_shader_filepath, std::string fragment_shader_filepath) ;
+        /// @brief load shader and compile vertex and fragment shaders with just one filepath
+        /// @param shader_filepath path of both vertex and fragment shader but with their extensions removed
+        Shader(std::string shader_filepath) ;
         void use() { glUseProgram(shaderProgram); }
         void setUniformV4(std::string name, const glm::vec4 vec4);
         void setUniformAV4(std::string name, const glm::vec4 vec4[], const int size);

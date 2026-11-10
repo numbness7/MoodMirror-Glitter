@@ -1,0 +1,8 @@
+These two lines are not equivalent
+unsigned int floatsTexture = useTextureDataToCreateTexture(&floats[0], 255, 255, GL_TEXTURE_2D, 0, GL_R32F, GL_R, GL_FLOAT);
+unsigned int floatsTexture = useTextureDataToCreateTexture(&floats[0], 255, 255, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
+
+
+Explanation from stack exchange: https://stackoverflow.com/questions/41396731/in-opengl-whats-the-difference-between-the-gl-red-and-gl-r-color-formats
+The is no GL_R color format, hence one cannot describe its differences to GL_RED.
+The GL_R enum is totally invalid for any use as a color format, and does not mean "red". This enum is part of the four enums GL_S, GL_T, GL_R, GL_Q, which are the symbolic names for the four-dimensional texture coordinates in the GL. Note that this enum was used to specify the old fixed-function texture coordinate generation (see for example glTexGen()), which is deprecated nowadays. As a result, the GL_R enum does not even exist in modern OpenGL at all (so you find it in the legacy gl.h, but for example not in glcorearb.h).
