@@ -1807,14 +1807,49 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
     return forwardDistance(a.coords) < forwardDistance(b.coords);
 }
 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer){
+struct LayersData{
+    std::vector<glm::vec2> innerColors;
+    std::vector<glm::vec2> outerColors;
+    std::vector<glm::vec2> SL_SCALEs;
+    std::vector<float>     destructionTimes;
+    std::vector<float>     destructionTimePasseds;
+};
+
+struct BatchData{
+    std::vector<float> BORDER_THICKNESS;
+    std::vector<unsigned int> textures;
+};
+
+struct ShapeData{
+    std::vector<glm::mat4> models;
+};
+
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer){
     glDepthMask(false);
     unsigned layerCount = 0;
-    lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS);
+    unsigned batchCount = 0;
+    unsigned shapeCount = 0;
+    lightingEnvironment.object_shader.use(); // TAG
+    lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS); // TAG
+    lightingEnvironment.object_shader.setUniformB("DO_FADE", false); // TAG
+    lightingEnvironment.object_shader.setUniformI("borderCase", 2); // TAG
     // Draw cubes
+    LayersData lD;
+    ShapeData sD;
+    BatchData bD;
+
+    sD.models.reserve(shapeLayers.getShapeCnt());
+
+    bD.textures.reserve(shapeLayers.getBatchCnt());
+    bD.BORDER_THICKNESS.reserve(shapeLayers.getBatchCnt());
+
+    lD.innerColors.reserve(shapeLayers.getLayerCnt());
+    lD.outerColors.reserve(shapeLayers.getLayerCnt());
+    lD.destructionTimes.reserve(shapeLayers.getLayerCnt());
+    lD.destructionTimePasseds.reserve(shapeLayers.getLayerCnt());
+    
     const float speed = 4.0f;
-    for(auto& shapeLayer : cubeMatrices){
+    for(auto& shapeLayer : shapeLayers){
         int layer = TOTAL_LAYERS - 1 - layerCount;
         if(layer != shapeLayer.previousLayer){
             shapeLayer.previousLayer = layer;
@@ -1825,13 +1860,9 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
         }
         float passedTime = shapeLayer.destructionTimer.getPassedTime();
         float waitTime = shapeLayer.destructionTimer.getWaitTime();
-        lightingEnvironment.object_shader.setUniformF("destructionTime", waitTime);
-        lightingEnvironment.object_shader.setUniformF("destructionTimePassed", passedTime);
-        unsigned int batchCount = 0;
         shapeLayer.pulseTimer.checkAndUpdate();
         float pulseTime = shapeLayer.pulseTimer.getPassedTime();
         float pulseMaxTime = shapeLayer.pulseTimer.getWaitTime();
-        lightingEnvironment.object_shader.setUniformV2("SL_SCALE", shapeLayer.SL_SCALE);
         auto transitions = shapeLayer.transitions;
         auto pulses = shapeLayer.pulses;
         bool doFade = ALWAYS_FADE_T || transitions[FADE_T];
@@ -1859,7 +1890,6 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
         if(pulses[SCALE_P]){
             scaleDownPulse = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, PULSE_FADE_SCALE_MIN, PULSE_FADE_SCALE_MAX, false);                    
         }
-        lightingEnvironment.object_shader.setUniformI("layer", layer);
         for(auto& shapeBatch : shapeLayer.batches){
             for(auto& shape : shapeBatch.shapes){
                 if (!LAYER_TRANSITIONS)
@@ -1877,9 +1907,6 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                 glm::mat4 transition(translationRotation*shape.transition);
                 glm::mat4 rotation(shape.rotationMatrix);
                 glm::mat4 scale(shape.scaleMatrix);
-                lightingEnvironment.object_shader.setUniformB("DO_FADE", false);
-
-                lightingEnvironment.object_shader.setUniformI("borderCase", shape.borderCase);
                 
 
 
@@ -1915,24 +1942,32 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<Shap
                     rotation = glm::rotate(rotation, shape.spin, dir::FORWARD);
                 }
                 model = transition*rotation*scale;
-
-                lightingEnvironment.object_shader.setUniformM4("model", model);
-                lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", innerColor * shape.innerColor);
-                lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", outerColor * shape.outerColor);
-                lightingEnvironment.object_shader.setUniformF("BORDER_THICKNESS", shape.borderThickness);
+                
+                
 
 
 
-                if(shape.useBenTexture)
-                    shapes[shape.type]->draw(lightingEnvironment.object_shader, {shapeBatch.texture, shapes[shape.type]->getTexture(1)});
-                else
-                    shapes[shape.type]->draw(lightingEnvironment.object_shader);
+
+
                     
+                sD.models[shapeCount] = model;
+                shapeCount++;
             }
+            bD.BORDER_THICKNESS[batchCount] = shapeBatch.shapes.back().borderThickness;
+            bD.textures[batchCount] = shapeBatch.texture;
             batchCount++;
         }
+        lD.innerColors[layer] = innerColor;
+        lD.outerColors[layer] = outerColor;
+        lD.destructionTimes[layerCount] = waitTime;
+        lD.destructionTimePasseds[layerCount] = passedTime;
+        lD.SL_SCALEs[layerCount] = shapeLayer.SL_SCALE;
         layerCount++;
     }
+    static const int modelRows = 4;
+    unsigned int modelsTexture = useTextureDataToCreateTexture(&sD.models[0], TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH*modelRows, 1, GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_FLOAT);
+
+    shapes[TRIANGLE]->drawBatch(lightingEnvironment.object_shader, {shapeLayers.back().batches.back().texture, shapes[TRIANGLE]->getTexture(1), modelsTexture}, shapeCount); // TAG
     glDepthMask(true);
 }
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
@@ -2677,7 +2712,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
     
     std::deque<ShapeLayer> shapeLayersBuffer{};
-    std::deque<ShapeLayer> shapeLayersStorage{};
+    ShapeLayerStorage shapeLayersStorage{};
     std::deque<ShapeLayer> shapeLayersDraw{};
     glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
     std::mutex shapeLock{};
@@ -2722,20 +2757,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         if(requiredLayers > 0)
         {
             requiredLayersFloat -= (float) requiredLayers;
-            shapesSemaphore.release(requiredLayers);
-            std::lock_guard guard(shapeLock);
-            while(!shapeLayersBuffer.empty()){
-                auto shapeLayerB = shapeLayersBuffer.back();
-                ShapeLayer shapeLayer = shapeLayerB;
-                for(auto& shapeBatch : shapeLayer.batches){
-                    shapeBatch.texture = createPngTexture(shapeBatch.pngData);
-                }
-
-                shapeLayer.destructionTimer.setWaitTime(currentDestructionTime);
-                shapeLayer.pulseTimer.setWaitTime(currentPulseMaxTime);
-                shapeLayersStorage.push_front(shapeLayer);
-                shapeLayersBuffer.pop_back();
-            }
+            transferShapeLayers(shapesSemaphore, shapeLock, requiredLayers, shapeLayersBuffer, shapeLayersStorage, currentDestructionTime, currentPulseMaxTime);
         }
 
 
@@ -2781,14 +2803,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         // Draw cubes
         glDisable(GL_DEPTH_TEST);
         
-        // if(!shapeLayersStorage.empty()){
-        //     lightingEnvironment.object_shader.use();
-        //     lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", cdata::WHITE_V4);
-        //     lightingEnvironment.object_shader.setUniformV4("OUTER_COLOR", cdata::WHITE_V4);
-        //     lightingEnvironment.object_shader.setUniformM4("model", glm::scale(glm::mat4(1.0f), glm::vec3(4.0f,4.0f,1.0f)));
-        //     lightingEnvironment.object_shader.setUniformI("baseCase", 4);
-        //     shapeTypes[SQUARE]->draw(lightingEnvironment.object_shader, {shapeLayersStorage.front().batches.front().texture, shapeTypes[SQUARE]->getTexture(1)});
-        // }
         
         drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer);
         glEnable(GL_DEPTH_TEST);
@@ -2798,7 +2812,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
             runawayPrinter.pushMessage(emotionLayersToString(shapeLayersStorage.back().emotionLayers));
             runawayPrinter.pushMessage(emotionArrayToString(shapeLayersStorage.back().emotionArray));
-            runawayPrinter.pushMessage(std::to_string(getFPS(deltaTimer)));
+            runawayPrinter.pushMessage("FPS: " + std::to_string(getFPS(deltaTimer)));
         }
         
     }   
@@ -4838,7 +4852,7 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
     lE.object_shader.setUniformI("borderCase", 1);
     lE.object_shader.setUniformI("ourTexture", 0);
     lE.object_shader.setUniformI("borderTexture", 1);
-    lE.object_shader.setUniformB("DISABLE_ALMOST_EVERYTHING", false);
+    lE.object_shader.setUniformB("DISABLE_ALMOST_EVERYTHING", true);
     lE.object_shader.setUniformV2("SL_SCALE", glm::vec2(1.0f,1.0f));
     lE.object_shader.setUniformF("BORDER_THICKNESS", 0.5f);
     lE.object_shader.setUniformB("DO_FADE", false);
@@ -4848,15 +4862,20 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
     PngData borderPngData(255,255);
     unsigned int borderTexture = obtainPNGDistanceFromBorder(borderPngData, borderVerticesFromShape(shapes::rectT));
     unsigned int blankTexture = obtainPNGBlank(blankPngData);
-    static const unsigned int ROWS = 25;
+    static const unsigned int ROWS = 50;
     static const unsigned int COLS = ROWS;
-    static const unsigned int dimensions = 2;
-    static const unsigned int totalSize = ROWS*COLS*dimensions;
-    std::vector<glm::vec2> positions;
+    static const unsigned int SIZE = COLS*ROWS;
+    std::vector<glm::vec4> modelCols0;
+    std::vector<glm::vec4> modelCols1;
+    std::vector<glm::vec4> modelCols2;
+    std::vector<glm::vec4> modelCols3;
 
-    positions.reserve(ROWS * COLS);
+    modelCols0.reserve(ROWS * COLS);
+    modelCols1.reserve(ROWS * COLS);
+    modelCols2.reserve(ROWS * COLS);
+    modelCols3.reserve(ROWS * COLS);
 
-    for(unsigned int row = 1; row <= ROWS; row++){
+    for(unsigned int row = 1;     row <= ROWS; row++){
         for(unsigned int col = 1; col <= COLS; col++){
             auto pos = boundTransformation(
                 glm::vec2(col, row),
@@ -4865,18 +4884,35 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
                 glm::vec2(-1.0f),
                 glm::vec2(1.0f)
             );
+            glm::mat4 model(1.0f);
+            model = glm::translate(model, glm::vec3(pos, 0.0f));
+            model = glm::scale(model, glm::vec3(0.1f, 0.1f, 1.0f));
 
-            positions.push_back(pos);
+            modelCols0.push_back(model[0]);
+            modelCols1.push_back(model[1]);
+            modelCols2.push_back(model[2]);
+            modelCols3.push_back(model[3]);
         }
     }
-    unsigned int positionTexture = useTextureDataToCreateTexture(&positions[0], COLS, ROWS, GL_TEXTURE_2D, 0, GL_RG32F, GL_RG, GL_FLOAT);
-    OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture, positionTexture}, true);
+    unsigned int modelsTexture0 = useTextureDataToCreateTexture(&modelCols0[0], COLS, ROWS, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int modelsTexture1 = useTextureDataToCreateTexture(&modelCols1[0], COLS, ROWS, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int modelsTexture2 = useTextureDataToCreateTexture(&modelCols2[0], COLS, ROWS, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int modelsTexture3 = useTextureDataToCreateTexture(&modelCols3[0], COLS, ROWS, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture, 
+        modelsTexture0,
+        modelsTexture1,
+        modelsTexture2,
+        modelsTexture3
+    
+    }, true);
     pngDataSavePng("testSSR.png", borderPngData);
 
     glm::mat4 model(1.0f);
-    lE.object_shader.setUniformF("SCALE", 1/((float)COLS));
-    lE.object_shader.setUniformI("POSITION_TEXTURE", 2);
-    lE.object_shader.setUniformI("ROWS", ROWS);
+    lE.object_shader.setUniformI("MODEL_TEXTURE0", 2);
+    lE.object_shader.setUniformI("MODEL_TEXTURE1", 3);
+    lE.object_shader.setUniformI("MODEL_TEXTURE2", 4);
+    lE.object_shader.setUniformI("MODEL_TEXTURE3", 5);
+    lE.object_shader.setUniformI("SIZE", SIZE);
     lE.object_shader.setUniformI("COLS", COLS);
     
     glm::vec2 pos = glm::vec2(0.0f);
@@ -4884,10 +4920,63 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
     
     while(!glfwWindowShouldClose(mWindow)){
         startDummyMPVLoop(deltaTimer, lE);
-        rectangle.drawBatch(lE.object_shader,  COLS*ROWS);
+        rectangle.drawBatch(lE.object_shader,  SIZE);
         endRenderLoopView2D(mWindow, deltaTimer, pos, zoom);
     } glfwTerminate();
     
     return EXIT_SUCCESS;
     
+}
+
+
+ShapeLayerStorage::ShapeLayerStorage()
+{
+}
+
+void ShapeLayerStorage::push_front(ShapeLayer shapeLayer)
+{
+    for(const auto& shapeBatch : shapeLayer.batches){
+        for(const auto& shape : shapeBatch.shapes){
+            shapeCnt++;
+        }
+        batchCnt++;
+    }
+    shapeLayers.push_front(shapeLayer);
+    layerCnt++;
+}
+
+void ShapeLayerStorage::pop_back()
+{
+    auto shapeLayer = shapeLayers.back();
+    for(const auto& shapeBatch : shapeLayer.batches){
+        for(const auto& shape : shapeBatch.shapes){
+            shapeCnt--;
+        }
+        batchCnt--;
+    }
+    layerCnt--;
+    shapeLayers.pop_back();
+}
+
+std::tuple<unsigned int, unsigned int, unsigned int> transferShapeLayers(std::counting_semaphore<TOTAL_LAYERS>& shapesSemaphore, std::mutex& shapeLock, const unsigned int& requiredLayers, std::deque<ShapeLayer>& shapeLayersBuffer, ShapeLayerStorage& shapeLayersStorage, float currentDestructionTime, float currentPulseMaxTime)
+    {
+    std::tuple<unsigned int, unsigned int, unsigned int> transferCounts = {0,0,0};
+    shapesSemaphore.release(requiredLayers);
+    std::lock_guard guard(shapeLock);
+    while(!shapeLayersBuffer.empty()){
+        auto shapeLayerB = shapeLayersBuffer.back();
+        ShapeLayer shapeLayer = shapeLayerB;
+        for(auto& shapeBatch : shapeLayer.batches){
+            shapeBatch.texture = createPngTexture(shapeBatch.pngData);
+            std::get<2>(transferCounts) += shapeBatch.shapes.size();
+        }
+        std::get<1>(transferCounts) += shapeLayerB.batches.size();
+
+        shapeLayer.destructionTimer.setWaitTime(currentDestructionTime);
+        shapeLayer.pulseTimer.setWaitTime(currentPulseMaxTime);
+        shapeLayersStorage.push_front(shapeLayer);
+        shapeLayersBuffer.pop_back();
+        std::get<0>(transferCounts) += 1;
+    }
+    return transferCounts;
 }

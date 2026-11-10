@@ -17,6 +17,7 @@ const int   maxInt_CONST = 2147483647;
 
 uniform sampler2D borderTexture;
 uniform int borderCase;
+flat in int InstanceID;
 
 
 uniform sampler2D ourTexture;
@@ -35,6 +36,8 @@ uniform vec4 INNER_COLOR;
 uniform vec4 OUTER_COLOR;
 uniform vec2 SL_SCALE;
 uniform bool DISABLE_ALMOST_EVERYTHING;
+uniform sampler2D MODEL_TEXTURE;
+in mat4 matrixOut;
 
 
 
@@ -106,7 +109,8 @@ void main(){
             FragColor = fadeColor*finalTextureColor;
     }
     else{
-        FragColor = INNER_COLOR;
+        //FragColor = INNER_COLOR*textureColor;
+        FragColor = vec4(0.5f*matrixOut[InstanceID % 4].xyz + 0.5f*vec3(1.0f), matrixOut[InstanceID % 4].a*0.5f + 0.5f);
     }
 }
 

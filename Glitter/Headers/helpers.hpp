@@ -44,7 +44,7 @@
 // #Header Macros -------------------------------------------------------------
 
 // Do Test
-#define DO_TEST true
+#define DO_TEST false
 
 // Window Configuration
 #define FULL_SCREEN false
@@ -570,7 +570,32 @@ struct ShapeLayer{
    glm::vec4 outerColor = glm::vec4(1.0f);
 };
 
+
+
 typedef std::deque<ShapeLayer> VisualLayer;
+
+class ShapeLayerStorage{
+    public:
+       ShapeLayerStorage(); 
+       void push_front(ShapeLayer shapeLayer);
+       void pop_back();
+       ShapeLayer& back() { return shapeLayers.back(); }
+       ShapeLayer& front() { return shapeLayers.front(); }
+       VisualLayer::iterator begin() { return shapeLayers.begin(); }
+       VisualLayer::iterator end()   { return shapeLayers.end(); }
+       unsigned int getShapeCnt() { return shapeCnt; }
+       unsigned int getBatchCnt() { return batchCnt; }
+       unsigned int getLayerCnt() { return layerCnt; }
+       unsigned int size() { return getLayerCnt(); }
+       bool empty() { return size() == 0; }
+    private:
+       VisualLayer shapeLayers;
+       unsigned int shapeCnt = 0;
+       unsigned int batchCnt = 0;
+       unsigned int layerCnt = 0;
+
+
+};
 
 
 // #CONSTANTS -------------------------------------------------------------
@@ -625,7 +650,7 @@ int mainDrawInstancedBatch(int argc, char* argv[]);
 /// @param lock 
 /// @param lineAbove 
 /// @param lineBelow 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, std::deque<ShapeLayer>& cubeMatrices, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer);
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer);
 void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
@@ -891,5 +916,6 @@ std::string vec2ToString(glm::vec2 vec2);
 glm::vec2 rotate(const glm::vec2& vec2, const float& radians);
 float getFPS(DeltaTimer deltaTimer);
 
+std::tuple<unsigned int, unsigned int, unsigned int> transferShapeLayers(std::counting_semaphore<TOTAL_LAYERS>& shapesSemaphore, std::mutex& shapeLock, const unsigned int& requiredLayers, std::deque<ShapeLayer>& shapeLayersBuffer, ShapeLayerStorage& shapeLayersStorage, float currentDestructionTime, float currentPulseMaxTime);
 
 #endif
