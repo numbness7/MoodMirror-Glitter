@@ -109,7 +109,7 @@ void main(){
             FragColor = fadeColor*finalTextureColor;
     }
     else{
-        //FragColor = INNER_COLOR*textureColor;
+        //FragColor = INNER_COLOR;
         FragColor = vec4(0.5f*matrixOut[InstanceID % 4].xyz + 0.5f*vec3(1.0f), matrixOut[InstanceID % 4].a*0.5f + 0.5f);
     }
 }

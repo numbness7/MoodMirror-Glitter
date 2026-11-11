@@ -1922,22 +1922,6 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
     return forwardDistance(a.coords) < forwardDistance(b.coords);
 }
 
-struct LayersData{
-    std::vector<glm::vec2> innerColors;
-    std::vector<glm::vec2> outerColors;
-    std::vector<glm::vec2> SL_SCALEs;
-    std::vector<float>     destructionTimes;
-    std::vector<float>     destructionTimePasseds;
-};
-
-struct BatchData{
-    std::vector<float> BORDER_THICKNESS;
-    std::vector<unsigned int> textures;
-};
-
-struct ShapeData{
-    std::vector<glm::mat4> models;
-};
 
 void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer){
     glDepthMask(false);
@@ -1949,23 +1933,21 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
     lightingEnvironment.object_shader.setUniformB("DO_FADE", false); // TAG
     lightingEnvironment.object_shader.setUniformI("borderCase", 2); // TAG
     // Draw cubes
-    LayersData lD;
-    ShapeData sD;
-    BatchData bD;
 
-    sD.models.reserve(shapeLayers.getShapeCnt());
+    glm::mat4* models = (glm::mat4 *) malloc(sizeof(glm::mat4)*shapeLayers.getShapeCnt());
+    unsigned int* textures = (unsigned int *) malloc(sizeof(unsigned int)*shapeLayers.getBatchCnt());
+    float* BORDER_THICKNESS = (float *) malloc(sizeof(float)*shapeLayers.getShapeCnt());
 
-    bD.textures.reserve(shapeLayers.getBatchCnt());
-    bD.BORDER_THICKNESS.reserve(shapeLayers.getBatchCnt());
 
-    lD.innerColors.reserve(shapeLayers.getLayerCnt());
-    lD.outerColors.reserve(shapeLayers.getLayerCnt());
-    lD.destructionTimes.reserve(shapeLayers.getLayerCnt());
-    lD.destructionTimePasseds.reserve(shapeLayers.getLayerCnt());
+    glm::vec4* innerColors = (glm::vec4 *) malloc(sizeof(glm::vec4)*shapeLayers.getLayerCnt());
+    glm::vec4* outerColors = (glm::vec4 *) malloc(sizeof(glm::vec4)*shapeLayers.getLayerCnt());
+    float* destructionTimes = (float *) malloc(sizeof(float)*shapeLayers.getLayerCnt());
+    float* destructionTimePasseds = (float *) malloc(sizeof(float)*shapeLayers.getLayerCnt());
+    glm::vec2* SL_SCALEs = (glm::vec2 *) malloc(sizeof(glm::vec2)*shapeLayers.getLayerCnt());
     
     const float speed = 4.0f;
     for(auto& shapeLayer : shapeLayers){
-        int layer = TOTAL_LAYERS - 1 - layerCount;
+        int layer = shapeLayers.getLayerCnt() - 1 - layerCount;
         if(layer != shapeLayer.previousLayer){
             shapeLayer.previousLayer = layer;
             shapeLayer.destructionTimer.reset();
@@ -2065,24 +2047,55 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
 
 
                     
-                sD.models[shapeCount] = model;
+                models[shapeCount] = model;
                 shapeCount++;
             }
-            bD.BORDER_THICKNESS[batchCount] = shapeBatch.shapes.back().borderThickness;
-            bD.textures[batchCount] = shapeBatch.texture;
+            BORDER_THICKNESS[batchCount] = shapeBatch.shapes.back().borderThickness;
+            textures[batchCount] = shapeBatch.texture;
             batchCount++;
         }
-        lD.innerColors[layer] = innerColor;
-        lD.outerColors[layer] = outerColor;
-        lD.destructionTimes[layerCount] = waitTime;
-        lD.destructionTimePasseds[layerCount] = passedTime;
-        lD.SL_SCALEs[layerCount] = shapeLayer.SL_SCALE;
+        innerColors[layer] = innerColor;
+        outerColors[layer] = outerColor;
+        destructionTimes[layerCount] = waitTime;
+        destructionTimePasseds[layerCount] = passedTime;
+        SL_SCALEs[layerCount] = shapeLayer.SL_SCALE;
         layerCount++;
     }
     static const int modelRows = 4;
-    unsigned int modelsTexture = useTextureDataToCreateTexture(&sD.models[0], TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH*modelRows, 1, GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_FLOAT);
+    //unsigned int modelsTexture = useModelsToCreateTexture2D(models, shapeCount, 1);
+    static const unsigned int ROWS = 50;
+    static const unsigned int COLS = ROWS;
+    static const unsigned int SIZE = COLS*ROWS;
+    glm::mat4* modelsR = (glm::mat4 *) malloc(sizeof(glm::mat4)*SIZE);
 
-    shapes[TRIANGLE]->drawBatch(lightingEnvironment.object_shader, {shapeLayers.back().batches.back().texture, shapes[TRIANGLE]->getTexture(1), modelsTexture}, shapeCount); // TAG
+
+    for(unsigned int row = 1;     row <= ROWS; row++){
+        for(unsigned int col = 1; col <= COLS; col++){
+            auto pos = boundTransformation(
+                glm::vec2(col, row),
+                glm::vec2(0.0f),
+                glm::vec2(COLS+1.0f),
+                glm::vec2(-1.0f),
+                glm::vec2(1.0f)
+            );
+            glm::mat4 model(1.0f);
+            model = glm::translate(model, glm::vec3(pos, 0.0f));
+            model = glm::scale(model, glm::vec3(0.1f, 0.1f, 1.0f));
+            modelsR[(row-1)*COLS + (col-1)] = model;
+        }
+    }
+    unsigned int modelsRTexture = useTextureDataToCreateTexture(modelsR, SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int modelsTexture = useTextureDataToCreateTexture(models, shapeCount*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    shapes[SQUARE]->drawBatch(lightingEnvironment.object_shader, {shapeLayers.back().batches.back().texture, shapes[SQUARE]->getTexture(1), modelsTexture}, SIZE); // TAG
+    free(modelsR);
+    free(models);
+    free(textures);
+    free(BORDER_THICKNESS);
+    free(innerColors);
+    free(outerColors);
+    free(destructionTimes);
+    free(destructionTimePasseds );
+    free(SL_SCALEs);
     glDepthMask(true);
 }
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
@@ -2863,7 +2876,10 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     lightingEnvironment.object_shader.setUniformF("ABOVE_INTERCEPT", interceptAT);
     lightingEnvironment.object_shader.setUniformF("BELOW_SLOPE", slopeBT);
     lightingEnvironment.object_shader.setUniformF("BELOW_INTERCEPT", interceptBT);
-    lightingEnvironment.object_shader.setUniformF("DISABLE_ALMOST_EVERYTHING", false);
+    lightingEnvironment.object_shader.setUniformF("DISABLE_ALMOST_EVERYTHING", true);
+    lightingEnvironment.object_shader.setUniformF("USE_MODEL_ARRAY", true);
+    lightingEnvironment.object_shader.setUniformI("MODEL_TEXTURE", 2);
+    lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", glm::vec4(1.0f,0.0f,1.0f,1.0f));
     
     
 
@@ -2872,7 +2888,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     std::deque<ShapeLayer> shapeLayersBuffer{};
     ShapeLayerStorage shapeLayersStorage{};
     std::deque<ShapeLayer> shapeLayersDraw{};
-    glm::vec4 backgroundColor(1.0f,1.0f,1.0f,1.0f);
+    glm::vec4 backgroundColor(0.5f,0.6f,0.7f,1.0f);
     std::mutex shapeLock{};
     std::mutex timeLock{};
     std::counting_semaphore<TOTAL_LAYERS> shapesSemaphore{0};
@@ -2962,7 +2978,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         glDisable(GL_DEPTH_TEST);
         
         
-        drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer);
+        if(!shapeLayersStorage.empty())
+            drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer);
         glEnable(GL_DEPTH_TEST);
         
         endRenderLoop(mWindow,deltaTimer,camera);
@@ -5064,7 +5081,7 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
     static const unsigned int ROWS = 50;
     static const unsigned int COLS = ROWS;
     static const unsigned int SIZE = COLS*ROWS;
-    std::vector<glm::mat4> models;
+    glm::mat4* models = (glm::mat4 *) malloc(sizeof(glm::mat4)*SIZE);
 
 
     for(unsigned int row = 1;     row <= ROWS; row++){
@@ -5079,11 +5096,10 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
             glm::mat4 model(1.0f);
             model = glm::translate(model, glm::vec3(pos, 0.0f));
             model = glm::scale(model, glm::vec3(0.1f, 0.1f, 1.0f));
-            models.push_back(model);
-
+            models[(row-1)*COLS + (col-1)] = model;
         }
     }
-    unsigned int modelsTexture = useTextureDataToCreateTexture(&models[0], SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int modelsTexture = useTextureDataToCreateTexture(models, SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
     OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture, 
         modelsTexture,
     }, true);
@@ -5216,7 +5232,7 @@ int mainDrawDistances(int argc, char* argv[]){
     //generatePNGDistanceFromBorder(floats, 255, 255, borderVerticesFromShape(shapes::eTriT));
 
     //unsigned int modelsTexture = useTextureDataToCreateTexture(&models[0], SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int floatsTexture = useTextureDataToCreateTexture(&floats[0], width, height, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
+    unsigned int floatsTexture = useFloatsToCreateTexture2D(floats.data(), width, height);
     floatsS.setUniformI("TEXTURE", 0);
     OpenGLShape square(shapes::rectT, {floatsTexture}, true);
 
@@ -5234,5 +5250,18 @@ int mainDrawDistances(int argc, char* argv[]){
     
     return EXIT_SUCCESS;
 
+}
+unsigned int useUCharsToCreateTexture2D(unsigned char* uchars, unsigned int width, unsigned int height){
+    unsigned int ucharsTexture = useTextureDataToCreateTexture(uchars, width, height, GL_TEXTURE_2D, 0, GL_R8UI, GL_RED, GL_UNSIGNED_BYTE);
+    return ucharsTexture;
+}
+
+unsigned int useFloatsToCreateTexture2D(float* floats, unsigned int width, unsigned int height){
+    unsigned int floatsTexture = useTextureDataToCreateTexture(floats, width, height, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
+    return floatsTexture;
+}
+unsigned int useModelsToCreateTexture2D(glm::mat4* models, unsigned int width, unsigned int height){
+    unsigned int modelsTexture = useTextureDataToCreateTexture(models, width*4, height, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    return modelsTexture;
 }
     

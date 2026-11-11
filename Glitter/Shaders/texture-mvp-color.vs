@@ -30,7 +30,8 @@ void main(){
         mat4 matrix = getModel();
         matrixOut = matrix;
 
-        gl_Position = view * matrix * vec4(aPos, 1.0f);
+        //gl_Position =  vec4(aPos, 1.0f);
+        gl_Position = matrix * vec4(aPos, 1.0f);
     }
     else
         gl_Position = view * model * vec4(aPos,1.0f);

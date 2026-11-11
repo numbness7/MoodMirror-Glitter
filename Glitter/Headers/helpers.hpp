@@ -45,7 +45,7 @@
 // #Header Macros -------------------------------------------------------------
 
 // Do Test
-#define DO_TEST true
+#define DO_TEST false
 
 // Window Configuration
 #define FULL_SCREEN false
@@ -66,10 +66,10 @@
 
 // Layer info
 
-#define TOTAL_LAYERS 50
-#define SHAPES_IN_BATCH 5
-#define MID_LAYER 25
-#define TOTAL_EMOTION_LAYERS 12 
+#define TOTAL_LAYERS 10
+#define SHAPES_IN_BATCH 2
+#define MID_LAYER 5
+#define TOTAL_EMOTION_LAYERS 2 
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
 
@@ -228,7 +228,6 @@ float getElapsedTime();
 
 
 // #Simple Math Operations -------------------------------------------------------------
-
 template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable);
 template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
 template <typename CONTAINER> CONTAINER::value_type  maxM(const CONTAINER c);
@@ -931,5 +930,8 @@ std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4
 /// @return 
 float distFromLine(std::tuple<float,float,float> line, glm::vec2 point);
 bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, bool lineSegmentsDefineLines);
+unsigned int useFloatsToCreateTexture2D(float* floats, unsigned int width, unsigned int height);
+unsigned int useUCharsToCreateTexture2D(unsigned char* uchars, unsigned int width, unsigned int height);
+unsigned int useModelsToCreateTexture2D(glm::mat4* models, unsigned int width, unsigned int height);
 
 #endif
