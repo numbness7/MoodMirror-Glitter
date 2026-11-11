@@ -1,0 +1,4 @@
+Create Texture Atlas
+    One Big Beautiful Texture containing textures for multiple different shapes in it.
+    Advantage: don't have to learn more stuff.
+    Maintain List of indexes for the texture, rather than replacing the whole texture each time just overwrite the spot and shift the indexes forward

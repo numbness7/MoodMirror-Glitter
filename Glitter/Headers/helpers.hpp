@@ -45,7 +45,7 @@
 // #Header Macros -------------------------------------------------------------
 
 // Do Test
-#define DO_TEST false
+#define DO_TEST true
 
 // Window Configuration
 #define FULL_SCREEN false
@@ -208,7 +208,7 @@
 #define DEBUG_DISTANCE false
 #define DEBUG_FUN false
 #define DEBUG_IMAGE true
-#define DEBUG_RECURSION_FILL true
+#define DEBUG_RECURSION_FILL false
 #define DEBUG_RECURSION true
 
 
@@ -320,28 +320,32 @@ class PngData{
         /// @param col 
         /// @param channel 
         /// @return 
-        int index(int row, int col, int channel) { return row*width*nrChannels+col*nrChannels+channel; }
+        int index(int row, int col, int channel) const { return row*width*nrChannels+col*nrChannels+channel; }
         /// @brief Returns the index of unsigned char.
         /// @param gridIndex index ignoring nrChannels.
         /// @param channel
         /// @return 
-        int indexFromGrid(const int gridIndex, const int channel) { return gridIndex*nrChannels + channel; }
+        int indexFromGrid(const int gridIndex, const int channel) const { return gridIndex*nrChannels + channel; }
         int size() const { return height*width*nrChannels; }
         /// @brief Size ignoring nrChannels.
         /// @return 
-        int gridSize() { return height*width; }
-        int row(int index) { return floorWrap(index,(width*nrChannels)); }
-        int col(int index) { return floorWrap(index - row(index)*width*nrChannels,nrChannels); }
+        int gridSize() const { return height*width; }
+        int row(int index) const { return floorWrap(index,(width*nrChannels)); }
+        int col(int index)  const{ return floorWrap(index - row(index)*width*nrChannels,nrChannels); }
         int rowFromGrid(const int gridIndex) const { return floorWrap(gridIndex,(width)); }
         int colFromGrid(const int gridIndex) const { return gridIndex - rowFromGrid(gridIndex)*width; }
         int rFG(int gridIndex) const { return rowFromGrid(gridIndex); }
         int cFG(int gridIndex) const { return colFromGrid(gridIndex); }
-        int gridIndex(int row, int col){ return width*row + col; }
+        int gridIndex(int row, int col) const { return width*row + col; }
         int gridIndex(int index){ return floorWrap(index,nrChannels); }
         int channel(int index) { return index - row(index)*width*nrChannels - col(index)*nrChannels; }
+        cdata::ColorRGB  getColorRGB(int row, int col) const;
+        cdata::ColorRGBA getColorRGBA(int row, int col) const;
         void setData(int row, int col, int channel, const unsigned char& byte);
+        unsigned char getData(const int gridIndex, const int channel) const { return data[indexFromGrid(gridIndex,channel)]; }
         void setData(const int gridIndex, const int channel, const unsigned char& byte) { data[indexFromGrid(gridIndex,channel)] = byte; }
         void setData(int index, const unsigned char& byte) { data[index] = byte; }
+        unsigned char getData(int row, int col, int channel) const;
         /// @brief Set the color of a pixel with RGBA channels.
         /// @param gridIndex 
         /// @param color 
@@ -448,6 +452,11 @@ class StraightPath{
         float progress; // Ranges from 0 to 1
 };
 
+struct OpenGLTexture {
+    std::string name;
+    unsigned int address;
+};
+
 /// @brief Contains reference information to an OpenGL shape.
 class OpenGLShape {
     public:
@@ -456,6 +465,7 @@ class OpenGLShape {
         OpenGLShape(const shapes::Shape& shape, unsigned int texture, bool hasTexture);
         void draw(Shader shader);
         void draw(Shader shader, std::vector<unsigned int> textures);
+        void drawBatch(Shader shader, const std::vector<OpenGLTexture>& textures, unsigned int count);
         void drawBatch(Shader shader, const std::vector<unsigned int>& textures, unsigned int count);
         void drawBatch(Shader shader, unsigned int count);
         void setTexture(const unsigned int texture, unsigned const int index=0){ this->textures[index] = texture; }
@@ -933,5 +943,8 @@ bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const s
 unsigned int useFloatsToCreateTexture2D(float* floats, unsigned int width, unsigned int height);
 unsigned int useUCharsToCreateTexture2D(unsigned char* uchars, unsigned int width, unsigned int height);
 unsigned int useModelsToCreateTexture2D(glm::mat4* models, unsigned int width, unsigned int height);
+GLuint createTextures();
+unsigned int getGL_TextureX(unsigned int index);
+void fillSquare(PngData& pngData, const float size, const glm::vec2 position, const cdata::ColorRGBA& color, const int iterations=0);
 
 #endif

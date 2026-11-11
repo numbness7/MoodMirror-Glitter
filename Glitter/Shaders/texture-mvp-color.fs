@@ -15,12 +15,10 @@ const float maxColorToDistRatio_CONST = (maxColor_CONST/maxDistData_CONST);
 const float maxDistNormal_CONST = sqrt(2.0f);
 const int   maxInt_CONST = 2147483647;
 
-uniform sampler2D borderTexture;
 uniform int borderCase;
 flat in int InstanceID;
 
 
-uniform sampler2D ourTexture;
 uniform float destructionTimePassed;
 uniform float destructionTime;
 uniform int layer;
@@ -36,9 +34,17 @@ uniform vec4 INNER_COLOR;
 uniform vec4 OUTER_COLOR;
 uniform vec2 SL_SCALE;
 uniform bool DISABLE_ALMOST_EVERYTHING;
-uniform sampler2D MODEL_TEXTURE;
 in mat4 matrixOut;
 
+
+// TEXTURES
+uniform sampler2D borderTexture;
+uniform sampler2D ourTexture;
+uniform sampler2D MODEL_TEXTURE;
+uniform sampler2D ONE_BIG_BEAUTIFUL_TEXTURE;
+uniform usampler2D BATCH_NUMBER_TEXTURE;
+uniform usampler2D LAYER_NUMBER_TEXTURE;
+uniform int BATCHES_CNT;
 
 
 float getColorDist(float color, float channel);
@@ -57,7 +63,8 @@ float max3(float x[3]);
 float min3(float x[3]);
 vec3 rGBToHSL(vec3 rgb);
 vec3 hSLToRGB(vec3 hsl);
-
+uint getLayer();
+uint getBatch();
 
 
 
@@ -109,8 +116,9 @@ void main(){
             FragColor = fadeColor*finalTextureColor;
     }
     else{
-        //FragColor = INNER_COLOR;
-        FragColor = vec4(0.5f*matrixOut[InstanceID % 4].xyz + 0.5f*vec3(1.0f), matrixOut[InstanceID % 4].a*0.5f + 0.5f);
+        uint batchNumber = getBatch();
+        FragColor = texture(ONE_BIG_BEAUTIFUL_TEXTURE, vec2(ourTexCoord.x/float(BATCHES_CNT) + float(int(batchNumber)%int(BATCHES_CNT))/float(BATCHES_CNT), ourTexCoord.y));
+        //FragColor = vec4(0.5f*matrixOut[InstanceID % 4].xyz + 0.5f*vec3(1.0f), matrixOut[InstanceID % 4].a*0.5f + 0.5f);
     }
 }
 
@@ -255,4 +263,11 @@ vec3 hSLToRGB(vec3 hsl){
     float mn = l - c/2.0f;
     vec3 rgb = rgb1 + vec3(mn);
     return rgb;
+}
+
+uint getLayer(){
+    return uint(texelFetch(LAYER_NUMBER_TEXTURE, ivec2(InstanceID, 0), 0).r);
+}
+uint getBatch(){
+    return uint(texelFetch(BATCH_NUMBER_TEXTURE, ivec2(InstanceID, 0), 0).r);
 }

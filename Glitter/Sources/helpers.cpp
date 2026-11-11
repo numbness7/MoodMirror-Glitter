@@ -876,17 +876,23 @@ unsigned int useTextureDataToCreateTexture(const void* data, GLsizei width, GLsi
     
     switch(format){
         case GL_RGBA:
+        case GL_RGBA_INTEGER:
             stores = 4;
             break;
         case GL_RGB:
+        case GL_RGB_INTEGER:
             stores = 3;
             break;
         case GL_RG:
+        case GL_RG_INTEGER:
             stores = 2;
             break;
         case GL_RED:
+        case GL_RED_INTEGER:
             stores = 1;
             break;
+        default:
+            std::cout << "SOMETHING WENT HORRIBLY WRONG AHHHHHH!!!\n" << std::endl;
     }
     glPixelStorei(GL_UNPACK_ALIGNMENT, stores);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -1934,9 +1940,12 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
     lightingEnvironment.object_shader.setUniformI("borderCase", 2); // TAG
     // Draw cubes
 
-    glm::mat4* models = (glm::mat4 *) malloc(sizeof(glm::mat4)*shapeLayers.getShapeCnt());
     unsigned int* textures = (unsigned int *) malloc(sizeof(unsigned int)*shapeLayers.getBatchCnt());
+
+    glm::mat4* models = (glm::mat4 *) malloc(sizeof(glm::mat4)*shapeLayers.getShapeCnt());
     float* BORDER_THICKNESS = (float *) malloc(sizeof(float)*shapeLayers.getShapeCnt());
+    unsigned int* batchNumbers = (unsigned int *) malloc(sizeof(unsigned int)*shapeLayers.getShapeCnt());
+    unsigned int* layerNumbers = (unsigned int *) malloc(sizeof(unsigned int)*shapeLayers.getShapeCnt());
 
 
     glm::vec4* innerColors = (glm::vec4 *) malloc(sizeof(glm::vec4)*shapeLayers.getLayerCnt());
@@ -2040,14 +2049,9 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
                 }
                 model = transition*rotation*scale;
                 
-                
-
-
-
-
-
-                    
                 models[shapeCount] = model;
+                layerNumbers[shapeCount] = layer;
+                batchNumbers[shapeCount] = batchCount;
                 shapeCount++;
             }
             BORDER_THICKNESS[batchCount] = shapeBatch.shapes.back().borderThickness;
@@ -2061,33 +2065,20 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
         SL_SCALEs[layerCount] = shapeLayer.SL_SCALE;
         layerCount++;
     }
-    static const int modelRows = 4;
-    //unsigned int modelsTexture = useModelsToCreateTexture2D(models, shapeCount, 1);
-    static const unsigned int ROWS = 50;
-    static const unsigned int COLS = ROWS;
-    static const unsigned int SIZE = COLS*ROWS;
-    glm::mat4* modelsR = (glm::mat4 *) malloc(sizeof(glm::mat4)*SIZE);
-
-
-    for(unsigned int row = 1;     row <= ROWS; row++){
-        for(unsigned int col = 1; col <= COLS; col++){
-            auto pos = boundTransformation(
-                glm::vec2(col, row),
-                glm::vec2(0.0f),
-                glm::vec2(COLS+1.0f),
-                glm::vec2(-1.0f),
-                glm::vec2(1.0f)
-            );
-            glm::mat4 model(1.0f);
-            model = glm::translate(model, glm::vec3(pos, 0.0f));
-            model = glm::scale(model, glm::vec3(0.1f, 0.1f, 1.0f));
-            modelsR[(row-1)*COLS + (col-1)] = model;
-        }
-    }
-    unsigned int modelsRTexture = useTextureDataToCreateTexture(modelsR, SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
     unsigned int modelsTexture = useTextureDataToCreateTexture(models, shapeCount*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    shapes[SQUARE]->drawBatch(lightingEnvironment.object_shader, {shapeLayers.back().batches.back().texture, shapes[SQUARE]->getTexture(1), modelsTexture}, SIZE); // TAG
-    free(modelsR);
+    unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers, shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED, GL_UNSIGNED_INT);
+    unsigned int layerNumbersTextrue = useTextureDataToCreateTexture(layerNumbers, shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED, GL_UNSIGNED_INT);
+    std::vector<OpenGLTexture> oGTextures {};
+    oGTextures.push_back({"ourTexture",shapes[SQUARE]->getTexture(0)});
+    oGTextures.push_back({"borderTexture",shapes[SQUARE]->getTexture(1)});
+    oGTextures.push_back({"MODEL_TEXTURE",modelsTexture});
+    oGTextures.push_back({"BEN_TEXTURES_START", textures[0]});
+    for(int i = 1; i < batchCount; i++){
+        oGTextures.push_back({"", textures[i]});
+    }
+    oGTextures.push_back({"BATCH_NUMBER_TEXTURE", batchNumbersTexture});
+    oGTextures.push_back({"LAYER_NUMBER_TEXTURE", layerNumbersTextrue});
+    shapes[SQUARE]->drawBatch(lightingEnvironment.object_shader, oGTextures, shapeCount); // TAG
     free(models);
     free(textures);
     free(BORDER_THICKNESS);
@@ -2673,7 +2664,30 @@ PngData::~PngData()
     freePNGTextureData(this->data);
 }
 
-void PngData::setData(int row, int col, int channel, const unsigned char& byte){
+cdata::ColorRGB PngData::getColorRGB(int row, int col) const
+{
+    unsigned char red = this->getData(row, col, redChannel);
+    unsigned char green = this->getData(row, col, greenChannel);
+    unsigned char blue = this->getData(row, col, blueChannel);
+
+    return cdata::ColorRGB(red, green, blue);
+}
+cdata::ColorRGBA PngData::getColorRGBA(int row, int col) const
+{
+    unsigned char red = this->getData(row, col, redChannel);
+    unsigned char green = this->getData(row, col, greenChannel);
+    unsigned char blue = this->getData(row, col, blueChannel);
+    unsigned char alpha = this->getData(row, col, alphaChannel);
+
+    return cdata::ColorRGBA(red, green, blue, alpha);
+}
+unsigned char PngData::getData(int row, int col, int channel) const
+{
+    return this->data[index(row, col, channel)];
+}
+
+void PngData::setData(int row, int col, int channel, const unsigned char &byte)
+{
     this->data[index(row, col, channel)] = byte;
 }
 DeltaTimer::DeltaTimer(){
@@ -5073,15 +5087,21 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
     lE.object_shader.setUniformB("DO_FADE", false);
     lE.object_shader.setUniformB("USE_MODEL_ARRAY", true);
     DeltaTimer deltaTimer{};
-    PngData blankPngData(255,255);
-    PngData borderPngData(255,255);
+    static const unsigned int WIDTH = 255;
+    static const unsigned int HEIGHT = 255;
+    PngData blankPngData(WIDTH,HEIGHT);
+    PngData borderPngData(WIDTH,HEIGHT);
     unsigned int borderTexture = obtainPNGDistanceFromBorder(borderPngData, borderVerticesFromShape(shapes::rectT));
     unsigned int blankTexture = obtainPNGBlank(blankPngData);
 
-    static const unsigned int ROWS = 50;
+    static const unsigned int ROWS = 15;
+    static const unsigned int TOTAL_BATCHES_TEST = 20;
     static const unsigned int COLS = ROWS;
     static const unsigned int SIZE = COLS*ROWS;
     glm::mat4* models = (glm::mat4 *) malloc(sizeof(glm::mat4)*SIZE);
+    std::vector<unsigned int> batchNumbers;
+    batchNumbers.reserve(SIZE);
+    unsigned int divisor = SIZE/TOTAL_BATCHES_TEST;
 
 
     for(unsigned int row = 1;     row <= ROWS; row++){
@@ -5096,27 +5116,57 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
             glm::mat4 model(1.0f);
             model = glm::translate(model, glm::vec3(pos, 0.0f));
             model = glm::scale(model, glm::vec3(0.1f, 0.1f, 1.0f));
-            models[(row-1)*COLS + (col-1)] = model;
+            unsigned int index = (row-1)*COLS + (col-1);
+            models[index] = model;
+            unsigned int batchNumber = index/divisor;
+            batchNumbers.push_back( batchNumber);
         }
     }
+
+
+
+    std::vector<OpenGLTexture> textures;
+    PngData textureAtlasData(TOTAL_BATCHES_TEST*WIDTH, HEIGHT,3);
+    PngData benTexture(WIDTH, HEIGHT, 3);
+    for(int i = 0; i < TOTAL_BATCHES_TEST; i++){
+            do{
+                benTexture = loadPngTexture(EMOTION_PNG_FILE_PATH);
+                std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+            } while(!benTexture.isValid());
+            for(int col = 0; col < WIDTH; col++){
+
+                for(int row = 0; row < HEIGHT; row++){
+                    cdata::ColorRGB color = benTexture.getColorRGB(row,col);
+                    textureAtlasData.setColor(row, col + i*WIDTH, color);
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    unsigned int textureAtlus = getTextureFromData(textureAtlasData);
+    textures.push_back({"ourTexture",blankTexture});
+    textures.push_back({"borderTexture",borderTexture});
     unsigned int modelsTexture = useTextureDataToCreateTexture(models, SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    textures.push_back({"MODEL_TEXTURE",modelsTexture});
+    unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), SIZE, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
+    textures.push_back({"ONE_BIG_BEAUTIFUL_TEXTURE", textureAtlus});
+    textures.push_back({"BATCH_NUMBER_TEXTURE", batchNumbersTexture});
     OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture, 
         modelsTexture,
     }, true);
-    pngDataSavePng("testSSR.png", borderPngData);
+
 
     glm::mat4 model(1.0f);
-    lE.object_shader.setUniformI("MODEL_TEXTURE", 2);
 
     lE.object_shader.setUniformI("SIZE", SIZE);
     lE.object_shader.setUniformI("COLS", COLS);
+    lE.object_shader.setUniformI("BATCHES_CNT", TOTAL_BATCHES_TEST);
     
     glm::vec2 pos = glm::vec2(0.0f);
     float zoom = 1.0f;
     
     while(!glfwWindowShouldClose(mWindow)){
         startDummyMPVLoop(deltaTimer, lE);
-        rectangle.drawBatch(lE.object_shader,  SIZE);
+        rectangle.drawBatch(lE.object_shader, textures, SIZE);
         endRenderLoopView2D(mWindow, deltaTimer, pos, zoom);
     } glfwTerminate();
     
@@ -5265,3 +5315,17 @@ unsigned int useModelsToCreateTexture2D(glm::mat4* models, unsigned int width, u
     return modelsTexture;
 }
     
+void OpenGLShape::drawBatch(Shader shader, const std::vector<OpenGLTexture>& textures, unsigned int count){
+    shader.use();
+    for(int i = 0; i < textures.size(); i++){
+        unsigned int GL_TEXTUREX = getGL_TextureX(i);
+        glActiveTexture(GL_TEXTUREX);
+        glBindTexture(GL_TEXTURE_2D, textures[i].address);
+        if (textures[i].name != "")
+            shader.setUniformI(textures[i].name, i);
+    }
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glDrawElementsInstanced(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0, count);
+    glBindVertexArray(0);
+}

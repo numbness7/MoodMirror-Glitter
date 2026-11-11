@@ -11,10 +11,10 @@ flat out int InstanceID;
 uniform bool USE_MODEL_ARRAY;
 uniform mat4 model;
 uniform mat4 view;
-uniform int ROWS;
 uniform int COLS;
 uniform int SIZE;
 uniform sampler2D MODEL_TEXTURE;
+
 
 mat4 scaleMatrix(mat4 matrix, vec4 scale);
 mat4 translateMatrix(mat4 matrix, vec4 translation);
