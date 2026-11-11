@@ -118,7 +118,6 @@ void main(){
     else{
         uint batchNumber = getBatch();
         FragColor = texture(ONE_BIG_BEAUTIFUL_TEXTURE, vec2(ourTexCoord.x/float(BATCHES_CNT) + float(int(batchNumber)%int(BATCHES_CNT))/float(BATCHES_CNT), ourTexCoord.y));
-        //FragColor = vec4(0.5f*matrixOut[InstanceID % 4].xyz + 0.5f*vec3(1.0f), matrixOut[InstanceID % 4].a*0.5f + 0.5f);
     }
 }
 

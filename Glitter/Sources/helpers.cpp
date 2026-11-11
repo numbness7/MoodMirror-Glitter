@@ -1929,7 +1929,7 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
 }
 
 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer){
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer, const TextureAtlas& textureAtlas){
     glDepthMask(false);
     unsigned layerCount = 0;
     unsigned batchCount = 0;
@@ -1940,11 +1940,11 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
     lightingEnvironment.object_shader.setUniformI("borderCase", 2); // TAG
     // Draw cubes
 
-    unsigned int* textures = (unsigned int *) malloc(sizeof(unsigned int)*shapeLayers.getBatchCnt());
 
     glm::mat4* models = (glm::mat4 *) malloc(sizeof(glm::mat4)*shapeLayers.getShapeCnt());
     float* BORDER_THICKNESS = (float *) malloc(sizeof(float)*shapeLayers.getShapeCnt());
-    unsigned int* batchNumbers = (unsigned int *) malloc(sizeof(unsigned int)*shapeLayers.getShapeCnt());
+    std::vector<unsigned int> batchNumbers;
+    batchNumbers.reserve(shapeLayers.getShapeCnt());
     unsigned int* layerNumbers = (unsigned int *) malloc(sizeof(unsigned int)*shapeLayers.getShapeCnt());
 
 
@@ -2051,11 +2051,10 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
                 
                 models[shapeCount] = model;
                 layerNumbers[shapeCount] = layer;
-                batchNumbers[shapeCount] = batchCount;
+                batchNumbers.push_back(batchCount);
                 shapeCount++;
             }
             BORDER_THICKNESS[batchCount] = shapeBatch.shapes.back().borderThickness;
-            textures[batchCount] = shapeBatch.texture;
             batchCount++;
         }
         innerColors[layer] = innerColor;
@@ -2066,27 +2065,28 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
         layerCount++;
     }
     unsigned int modelsTexture = useTextureDataToCreateTexture(models, shapeCount*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers, shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED, GL_UNSIGNED_INT);
-    unsigned int layerNumbersTextrue = useTextureDataToCreateTexture(layerNumbers, shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED, GL_UNSIGNED_INT);
+    unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
+    unsigned int layerNumbersTextrue = useTextureDataToCreateTexture(layerNumbers, shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
+    unsigned int textureAtlasTexture = getTextureFromData(textureAtlas.getPngData());
     std::vector<OpenGLTexture> oGTextures {};
     oGTextures.push_back({"ourTexture",shapes[SQUARE]->getTexture(0)});
     oGTextures.push_back({"borderTexture",shapes[SQUARE]->getTexture(1)});
     oGTextures.push_back({"MODEL_TEXTURE",modelsTexture});
-    oGTextures.push_back({"BEN_TEXTURES_START", textures[0]});
-    for(int i = 1; i < batchCount; i++){
-        oGTextures.push_back({"", textures[i]});
-    }
     oGTextures.push_back({"BATCH_NUMBER_TEXTURE", batchNumbersTexture});
     oGTextures.push_back({"LAYER_NUMBER_TEXTURE", layerNumbersTextrue});
+    oGTextures.push_back({"ONE_BIG_BEAUTIFUL_TEXTURE", textureAtlasTexture});
     shapes[SQUARE]->drawBatch(lightingEnvironment.object_shader, oGTextures, shapeCount); // TAG
     free(models);
-    free(textures);
     free(BORDER_THICKNESS);
     free(innerColors);
     free(outerColors);
     free(destructionTimes);
     free(destructionTimePasseds );
     free(SL_SCALEs);
+    glDeleteTextures(1, &modelsTexture);
+    glDeleteTextures(1, &batchNumbersTexture);
+    glDeleteTextures(1, &textureAtlasTexture);
+    glDeleteTextures(1, &layerNumbersTextrue);
     glDepthMask(true);
 }
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
@@ -2269,8 +2269,8 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
     bool alarmSounded;
     Alarm printAlarm{1.0f};
     long int iterations = 0;
-    PngData blankPNGData(255,255, 3);
-    PngData borderPNGData(255,255, 3);
+    PngData blankPNGData(255,255, 4);
+    PngData borderPNGData(255,255, 4);
     generatePNGBorder(borderPNGData, borderPNGData.width, borderPNGData.height, 10, 10, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
     generatePNGBlank(blankPNGData);
     std::deque<EmotionLayer> emotionLayers{};
@@ -2331,7 +2331,7 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
                 alphaScale = clamp(rand_range_normal(AVE_ALPHA, DEV_ALPHA), MIN_ALPHA, MAX_ALPHA);
                 auto const& [count, size] = std::tuple<unsigned int, float>{(unsigned int)1,(float)1.0f};
 
-                ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, 0, pulses};
+                ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, pulses};
 
                 for (int shapeIndex = 0; shapeIndex < SHAPES_IN_BATCH*count; shapeIndex++){
                     auto shape = generateShape2D(transitions, coords, emotionCoords3D, rotAxis, rotScale, emotionRGB, alphaScale, useBenTexture, type, 1.0f, 2, size);
@@ -2780,7 +2780,7 @@ OpenGLShape::OpenGLShape(const shapes::Shape &shape, const std::vector<unsigned 
     setTextures(textures);
     create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, this->vert_cnt, shape.vertices, shape.indices, shape.attributeSizes);
 }
-void OpenGLShape::draw(Shader shader)
+void OpenGLShape::draw(Shader& shader)
 {
     if(hasTextures)
         drawMultipleTexturedShape(VAO, EBO, shader, ind_cnt, textures);
@@ -2788,7 +2788,7 @@ void OpenGLShape::draw(Shader shader)
         drawShape(VAO, EBO, shader, ind_cnt);
 }
 
-void OpenGLShape::draw(Shader shader, std::vector<unsigned int> textures)
+void OpenGLShape::draw(Shader& shader, std::vector<unsigned int> textures)
 {
     drawMultipleTexturedShape(VAO, EBO, shader, ind_cnt, textures);
 }
@@ -2805,12 +2805,12 @@ void drawMultipleTexturedShapeBatch(unsigned int &VAO, unsigned int &EBO, Shader
     glDrawElementsInstanced(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0, count);
     glBindVertexArray(0);
 }
-void OpenGLShape::drawBatch(Shader shader, const std::vector<unsigned int> &textures, unsigned int count)
+void OpenGLShape::drawBatch(Shader& shader, const std::vector<unsigned int> &textures, unsigned int count)
 {
     drawMultipleTexturedShapeBatch(VAO, EBO, shader, ind_cnt, textures, count);
 }
 
-void OpenGLShape::drawBatch(Shader shader, unsigned int count)
+void OpenGLShape::drawBatch(Shader& shader, unsigned int count)
 {
     drawMultipleTexturedShapeBatch(VAO, EBO, shader, ind_cnt, textures, count);
 }
@@ -2894,6 +2894,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     lightingEnvironment.object_shader.setUniformF("USE_MODEL_ARRAY", true);
     lightingEnvironment.object_shader.setUniformI("MODEL_TEXTURE", 2);
     lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", glm::vec4(1.0f,0.0f,1.0f,1.0f));
+    lightingEnvironment.object_shader.setUniformI("BATCHES_CNT", TOTAL_LAYERS*TOTAL_EMOTION_LAYERS);
     
     
 
@@ -2934,6 +2935,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
 
     PngData pd(255,255,3);
+    TextureAtlas textureAtlas(COLOR_WIDTH, COLOR_HEIGHT, 3, TOTAL_LAYERS*TOTAL_EMOTION_LAYERS);
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -2941,9 +2943,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
         requiredLayersFloat += deltaTimer.getDeltaTime()/currentDestructionTime;
         unsigned int requiredLayers = (unsigned int) floorWrap(requiredLayersFloat);
+        bool shapesChanged = false;
 
         if(requiredLayers > 0)
         {
+            shapesChanged = true;
             requiredLayersFloat -= (float) requiredLayers;
             transferShapeLayers(shapesSemaphore, shapeLock, requiredLayers, shapeLayersBuffer, shapeLayersStorage, currentDestructionTime, currentPulseMaxTime);
         }
@@ -2954,10 +2958,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         // Delete cubes
         while (shapeLayersStorage.size() > TOTAL_LAYERS){
             auto const shapeLayer = shapeLayersStorage.back();
-            for(auto const& shapeBatch : shapeLayer.batches){
-                if(shapeBatch.texture != blankTexture)
-                    glDeleteTextures(1, &shapeBatch.texture);
-            }
             shapeDeleted = true;
             shapeLayersStorage.pop_back();
         }
@@ -2988,12 +2988,21 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             }
             std::cout << "Shapes loaded!" << std::endl;
         }
+        if(shapesChanged){
+            unsigned int batchCount = 0;
+            for( auto const& shapeLayer : shapeLayersStorage){
+                for ( auto const& shapeBatch : shapeLayer.batches){
+                    textureAtlas.replaceTexture(shapeBatch.pngData, batchCount);
+                    batchCount++;
+                }
+            }
+        }
         // Draw cubes
         glDisable(GL_DEPTH_TEST);
         
         
         if(!shapeLayersStorage.empty())
-            drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer);
+            drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer, textureAtlas);
         glEnable(GL_DEPTH_TEST);
         
         endRenderLoop(mWindow,deltaTimer,camera);
@@ -5087,8 +5096,8 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
     lE.object_shader.setUniformB("DO_FADE", false);
     lE.object_shader.setUniformB("USE_MODEL_ARRAY", true);
     DeltaTimer deltaTimer{};
-    static const unsigned int WIDTH = 255;
-    static const unsigned int HEIGHT = 255;
+    static const unsigned int WIDTH = COLOR_WIDTH;
+    static const unsigned int HEIGHT = COLOR_HEIGHT;
     PngData blankPngData(WIDTH,HEIGHT);
     PngData borderPngData(WIDTH,HEIGHT);
     unsigned int borderTexture = obtainPNGDistanceFromBorder(borderPngData, borderVerticesFromShape(shapes::rectT));
@@ -5126,23 +5135,17 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
 
 
     std::vector<OpenGLTexture> textures;
-    PngData textureAtlasData(TOTAL_BATCHES_TEST*WIDTH, HEIGHT,3);
+    TextureAtlas textureAtlasData(WIDTH, HEIGHT, 3, TOTAL_BATCHES_TEST);
     PngData benTexture(WIDTH, HEIGHT, 3);
     for(int i = 0; i < TOTAL_BATCHES_TEST; i++){
             do{
                 benTexture = loadPngTexture(EMOTION_PNG_FILE_PATH);
                 std::this_thread::sleep_for(std::chrono::nanoseconds(1));
             } while(!benTexture.isValid());
-            for(int col = 0; col < WIDTH; col++){
-
-                for(int row = 0; row < HEIGHT; row++){
-                    cdata::ColorRGB color = benTexture.getColorRGB(row,col);
-                    textureAtlasData.setColor(row, col + i*WIDTH, color);
-                }
-            }
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            textureAtlasData.replaceTexture(benTexture, i);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    unsigned int textureAtlus = getTextureFromData(textureAtlasData);
+    unsigned int textureAtlus = getTextureFromData(textureAtlasData.getPngData());
     textures.push_back({"ourTexture",blankTexture});
     textures.push_back({"borderTexture",borderTexture});
     unsigned int modelsTexture = useTextureDataToCreateTexture(models, SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
@@ -5213,7 +5216,6 @@ std::tuple<unsigned int, unsigned int, unsigned int> transferShapeLayers(std::co
         auto shapeLayerB = shapeLayersBuffer.back();
         ShapeLayer shapeLayer = shapeLayerB;
         for(auto& shapeBatch : shapeLayer.batches){
-            shapeBatch.texture = createPngTexture(shapeBatch.pngData);
             std::get<2>(transferCounts) += shapeBatch.shapes.size();
         }
         std::get<1>(transferCounts) += shapeLayerB.batches.size();
@@ -5315,7 +5317,7 @@ unsigned int useModelsToCreateTexture2D(glm::mat4* models, unsigned int width, u
     return modelsTexture;
 }
     
-void OpenGLShape::drawBatch(Shader shader, const std::vector<OpenGLTexture>& textures, unsigned int count){
+void OpenGLShape::drawBatch(Shader& shader, const std::vector<OpenGLTexture>& textures, unsigned int count){
     shader.use();
     for(int i = 0; i < textures.size(); i++){
         unsigned int GL_TEXTUREX = getGL_TextureX(i);
@@ -5328,4 +5330,18 @@ void OpenGLShape::drawBatch(Shader shader, const std::vector<OpenGLTexture>& tex
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glDrawElementsInstanced(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0, count);
     glBindVertexArray(0);
+}
+
+TextureAtlas::TextureAtlas(unsigned int width, unsigned int height, unsigned int nrChannels, unsigned int textureCnt) : textureWidth{width}, textureHeight{height}, nrChannels{nrChannels}, textureCnt{textureCnt}, pngData{PngData(textureCnt*width,height,nrChannels)}
+{
+}
+
+void TextureAtlas::replaceTexture(const PngData &newPngData, unsigned int index)
+{
+    assert(newPngData.isValid() && newPngData.width == textureWidth && newPngData.height == textureHeight && newPngData.nrChannels == nrChannels);
+    for(int col = 0; col < newPngData.width; col++){
+        for(int row = 0; row < pngData.height; row++){
+            pngData.setColor(row, col + index*textureWidth, newPngData.getColorRGB(row, col));
+        }
+    }
 }

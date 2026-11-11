@@ -45,7 +45,7 @@
 // #Header Macros -------------------------------------------------------------
 
 // Do Test
-#define DO_TEST true
+#define DO_TEST false
 
 // Window Configuration
 #define FULL_SCREEN false
@@ -66,10 +66,10 @@
 
 // Layer info
 
-#define TOTAL_LAYERS 10
-#define SHAPES_IN_BATCH 2
+#define TOTAL_LAYERS 15
+#define SHAPES_IN_BATCH 1
 #define MID_LAYER 5
-#define TOTAL_EMOTION_LAYERS 2 
+#define TOTAL_EMOTION_LAYERS 4 
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
 
@@ -79,8 +79,8 @@
 
 // Spawn Times
 
-#define SHAPE_INITIAL_SPAWN_TIME 0.1f
-#define DESTRUCTION_TIME         0.5f
+#define SHAPE_INITIAL_SPAWN_TIME 1.5f
+#define DESTRUCTION_TIME         1.5f
 #define UPDATE_ITERATIONS 10.0f
 
 // Pulse
@@ -320,31 +320,31 @@ class PngData{
         /// @param col 
         /// @param channel 
         /// @return 
-        int index(int row, int col, int channel) const { return row*width*nrChannels+col*nrChannels+channel; }
+        int index(int row, int col, int channel) const { assert(row >= 0 && row < height && col >= 0 && col < width && channel >= 0 && channel < nrChannels); return row*width*nrChannels+col*nrChannels+channel; }
         /// @brief Returns the index of unsigned char.
         /// @param gridIndex index ignoring nrChannels.
         /// @param channel
         /// @return 
-        int indexFromGrid(const int gridIndex, const int channel) const { return gridIndex*nrChannels + channel; }
+        int indexFromGrid(const int gridIndex, const int channel) const { assert(gridIndex >= 0 && gridIndex < gridSize() && channel >= 0 && channel < nrChannels);  return gridIndex*nrChannels + channel; }
         int size() const { return height*width*nrChannels; }
         /// @brief Size ignoring nrChannels.
         /// @return 
         int gridSize() const { return height*width; }
-        int row(int index) const { return floorWrap(index,(width*nrChannels)); }
+        int row(int index) const { assert(index >= 0 && index < size()); return floorWrap(index,(width*nrChannels)); }
         int col(int index)  const{ return floorWrap(index - row(index)*width*nrChannels,nrChannels); }
-        int rowFromGrid(const int gridIndex) const { return floorWrap(gridIndex,(width)); }
+        int rowFromGrid(const int gridIndex) const { assert(gridIndex >= 0 && gridIndex < gridSize()); return floorWrap(gridIndex,(width)); }
         int colFromGrid(const int gridIndex) const { return gridIndex - rowFromGrid(gridIndex)*width; }
         int rFG(int gridIndex) const { return rowFromGrid(gridIndex); }
         int cFG(int gridIndex) const { return colFromGrid(gridIndex); }
-        int gridIndex(int row, int col) const { return width*row + col; }
-        int gridIndex(int index){ return floorWrap(index,nrChannels); }
-        int channel(int index) { return index - row(index)*width*nrChannels - col(index)*nrChannels; }
+        int gridIndex(int row, int col) const { assert(row >= 0 && row < height && col >= 0 && col < width); return width*row + col; }
+        int gridIndex(int index){ assert(index >= 0 && index < size()); return floorWrap(index,nrChannels); }
+        int channel(int index) { assert(index >= 0 && index < size()); return index - row(index)*width*nrChannels - col(index)*nrChannels; }
         cdata::ColorRGB  getColorRGB(int row, int col) const;
         cdata::ColorRGBA getColorRGBA(int row, int col) const;
         void setData(int row, int col, int channel, const unsigned char& byte);
         unsigned char getData(const int gridIndex, const int channel) const { return data[indexFromGrid(gridIndex,channel)]; }
         void setData(const int gridIndex, const int channel, const unsigned char& byte) { data[indexFromGrid(gridIndex,channel)] = byte; }
-        void setData(int index, const unsigned char& byte) { data[index] = byte; }
+        void setData(int index, const unsigned char& byte) { assert(index >= 0 && index < size()); data[index] = byte; }
         unsigned char getData(int row, int col, int channel) const;
         /// @brief Set the color of a pixel with RGBA channels.
         /// @param gridIndex 
@@ -377,9 +377,10 @@ class PngData{
         void setColor(int row, int col, cdata::ColorRGB color){
             setColor(gridIndex(row,col), color);
         }
+        bool isCompatable(const PngData& pngData) const { return (this->width == pngData.width && this->height == pngData.height && this->nrChannels == pngData.nrChannels); }
         /// @brief The result of a previous = operation.
         /// @return True if this objects width,height, and nrChannels parameters equaled the other objects respective parameters; false otherwise.
-        bool isValid(){
+        bool isValid() const{
             return valid;
         }
         const unsigned char* getData () const { return data; }
@@ -387,7 +388,7 @@ class PngData{
         /// @param pngData 
         /// @return this object.
         PngData& operator=(const PngData& pngData) noexcept {
-            valid = (this->width == pngData.width && this->height == pngData.height && this->nrChannels == pngData.nrChannels);
+            valid = isCompatable(pngData);
             if(valid)
                 doCopy(this->data, pngData.getData(), this->size(), pngData.size());
             return *this;
@@ -406,6 +407,27 @@ class PngData{
         unsigned char* data;
         bool valid = true;
 };
+
+class TextureAtlas{
+    public:
+        TextureAtlas(unsigned int width, unsigned int height, unsigned int nrChannels, unsigned int textureCnt);
+        const unsigned char* getData  () const { return pngData.getData(); }
+        unsigned int getTextureWidth  () const { return textureWidth;  }
+        unsigned int getTextureHeight () const { return textureHeight; }
+        unsigned int getNrChannels    () const { return nrChannels;    }
+        unsigned int getTextureCnt    () const { return textureCnt;    }
+        void replaceTexture(const PngData& newPngData, unsigned int index);
+        const PngData& getPngData() const { return pngData; }
+
+
+    private:
+        const unsigned int textureWidth;
+        const unsigned int textureHeight;
+        const unsigned int nrChannels;
+        const unsigned int textureCnt;
+        PngData pngData;
+};
+
 
 
 /// @brief Returns the time passed since the last time it has been updated. Useful for making sure the speed of objects aren't dependent on the frame rate.
@@ -463,11 +485,11 @@ class OpenGLShape {
         OpenGLShape(unsigned int vert_cnt, unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture);
         OpenGLShape(const shapes::Shape &shape, const std::vector<unsigned int> &textures, const bool hasMultipleTextures);
         OpenGLShape(const shapes::Shape& shape, unsigned int texture, bool hasTexture);
-        void draw(Shader shader);
-        void draw(Shader shader, std::vector<unsigned int> textures);
-        void drawBatch(Shader shader, const std::vector<OpenGLTexture>& textures, unsigned int count);
-        void drawBatch(Shader shader, const std::vector<unsigned int>& textures, unsigned int count);
-        void drawBatch(Shader shader, unsigned int count);
+        void draw(Shader& shader);
+        void draw(Shader& shader, std::vector<unsigned int> textures);
+        void drawBatch(Shader& shader, const std::vector<OpenGLTexture>& textures, unsigned int count);
+        void drawBatch(Shader& shader, const std::vector<unsigned int>& textures, unsigned int count);
+        void drawBatch(Shader& shader, unsigned int count);
         void setTexture(const unsigned int texture, unsigned const int index=0){ this->textures[index] = texture; }
         void swapTexture(const unsigned int indexA, unsigned const int indexB){ mySwap(textures[indexA], textures[indexB]); }
         void pushTexture(const unsigned int texture){ textures.push_back(texture); }
@@ -559,7 +581,6 @@ struct LightingEnvironment {
 struct ShapeBatch{
     std::deque<ShapeProperties2D> shapes;
     PngData pngData;
-    unsigned int texture;
     std::map<PULSES, bool> pulses;
 };
 
@@ -666,7 +687,7 @@ int mainDrawInstancedBatch(int argc, char* argv[]);
 /// @param lock 
 /// @param lineAbove 
 /// @param lineBelow 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer);
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer, const TextureAtlas& textureAtlas);
 void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
