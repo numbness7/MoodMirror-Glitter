@@ -123,8 +123,6 @@ void main(){
         if(index < 0)
             index = BATCHES_CNT + index;
 
-        //FragColor = vec4(0.5f*matrixOut[InstanceID % 3].rg + 0.5f*vec2(1.0f), matrixOut[InstanceID % 3].b*0.5f + 0.5f, 1.0f);
-        //FragColor = vec4(1.0f);
         FragColor = texture(ONE_BIG_BEAUTIFUL_TEXTURE, vec2(ourTexCoord.x/float(BATCHES_CNT) + float(int(index)%int(BATCHES_CNT))/float(BATCHES_CNT), ourTexCoord.y));
     }
 }

@@ -877,7 +877,7 @@ unsigned int useTextureDataToCreateTexture(const void* data, GLsizei width, GLsi
     glGenTextures(1, &texture);
     
     
-    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindTexture(target, texture);
     // CHATGPT START
     int stores = 0;
     
@@ -900,12 +900,13 @@ unsigned int useTextureDataToCreateTexture(const void* data, GLsizei width, GLsi
             break;
         default:
             std::cout << "SOMETHING WENT HORRIBLY WRONG AHHHHHH!!!\n" << std::endl;
+            assert(false);
     }
     glPixelStorei(GL_UNPACK_ALIGNMENT, stores);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     // CHATGPT END
     
     glTexImage2D(target, level, internalFormat, width, height, 0 /* border (must be zero smh) */ , format, type, data);
@@ -2081,14 +2082,13 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
     unsigned int modelsTexture = useTextureDataToCreateTexture(models, shapeCount*3, 1, GL_TEXTURE_2D, 0, GL_RGB32F, GL_RGB, GL_FLOAT);
     unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
     unsigned int layerNumbersTextrue = useTextureDataToCreateTexture(layerNumbers, shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
-    unsigned int textureAtlasTexture = getTextureFromData(textureAtlas.getPngData());
     std::vector<OpenGLTexture> oGTextures {};
     oGTextures.push_back({"ourTexture",shapes[SQUARE]->getTexture(0)});
     oGTextures.push_back({"borderTexture",shapes[SQUARE]->getTexture(1)});
     oGTextures.push_back({"MODEL_TEXTURE",modelsTexture});
     oGTextures.push_back({"BATCH_NUMBER_TEXTURE", batchNumbersTexture});
     oGTextures.push_back({"LAYER_NUMBER_TEXTURE", layerNumbersTextrue});
-    oGTextures.push_back({"ONE_BIG_BEAUTIFUL_TEXTURE", textureAtlasTexture});
+    oGTextures.push_back({"ONE_BIG_BEAUTIFUL_TEXTURE", textureAtlas.getTexture()});
     shapes[SQUARE]->drawBatch(lightingEnvironment.object_shader, oGTextures, shapeCount); // TAG
     free(models);
     free(BORDER_THICKNESS);
@@ -2099,7 +2099,6 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
     free(SL_SCALEs);
     glDeleteTextures(1, &modelsTexture);
     glDeleteTextures(1, &batchNumbersTexture);
-    glDeleteTextures(1, &textureAtlasTexture);
     glDeleteTextures(1, &layerNumbersTextrue);
     glDepthMask(true);
 }
@@ -2949,7 +2948,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
 
     PngData pd(COLOR_WIDTH,COLOR_HEIGHT,3);
-    TextureAtlas textureAtlas(COLOR_WIDTH, COLOR_HEIGHT, 3, TOTAL_LAYERS*TOTAL_EMOTION_LAYERS);
+    TextureAtlas textureAtlas(defaults::options, TOTAL_EMOTION_LAYERS*TOTAL_LAYERS);
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -2957,21 +2956,18 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
         requiredLayersFloat += deltaTimer.getDeltaTime()/currentDestructionTime;
         unsigned int requiredLayers = (unsigned int) floorWrap(requiredLayersFloat);
-        bool shapesChanged = false;
         std::tuple<unsigned int, unsigned int, unsigned int> transfers;
         std::deque<PngData> pngDataDeque;
 
         if(requiredLayers > 0)
         {
-            shapesChanged = true;
             requiredLayersFloat -= (float) requiredLayers;
             transfers = transferShapeLayers(shapesSemaphore, shapeLock, requiredLayers, shapeLayersBuffer, shapeLayersStorage, currentDestructionTime, currentPulseMaxTime,pngDataDeque);
         }
         
-        auto [layersTransCnt, batchesTransCnt, shapesTransCnt] = transfers;
 
         while(!pngDataDeque.empty()){
-            textureAtlas.replaceTexture(pngDataDeque.back());
+            textureAtlas.replaceTexture(pngDataDeque.back().getData());
             pngDataDeque.pop_back();
         }
 
@@ -5148,17 +5144,17 @@ int mainDrawBatch(int argc, char* argv[]){
 
 
     std::vector<OpenGLTexture> textures;
-    TextureAtlas textureAtlasData(WIDTH, HEIGHT, 3, TOTAL_BATCHES_TEST);
+    TextureAtlas textureAtlasData(defaults::options, TOTAL_BATCHES_TEST);
     PngData benTexture(WIDTH, HEIGHT, 3);
     for(int i = 0; i < TOTAL_BATCHES_TEST; i++){
             do{
                 benTexture = loadPngTexture(EMOTION_PNG_FILE_PATH);
                 std::this_thread::sleep_for(std::chrono::nanoseconds(1));
             } while(!benTexture.isValid());
-            textureAtlasData.replaceTexture(benTexture);
+            textureAtlasData.replaceTexture(benTexture.getData());
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    unsigned int textureAtlus = getTextureFromData(textureAtlasData.getPngData());
+    unsigned int textureAtlus = textureAtlasData.getTexture();
     textures.push_back({"ourTexture",blankTexture});
     textures.push_back({"borderTexture",borderTexture});
     unsigned int modelsTexture = useTextureDataToCreateTexture(models, SIZE*3, 1, GL_TEXTURE_2D, 0, GL_RGB32F, GL_RGB, GL_FLOAT);
@@ -5347,19 +5343,36 @@ void OpenGLShape::drawBatch(Shader& shader, const std::vector<OpenGLTexture>& te
     glBindVertexArray(0);
 }
 
-TextureAtlas::TextureAtlas(unsigned int width, unsigned int height, unsigned int nrChannels, unsigned int textureCnt) : textureWidth{width}, textureHeight{height}, nrChannels{nrChannels}, textureCnt{textureCnt}, pngData{PngData(textureCnt*width,height,nrChannels)}, backIndex{textureCnt-1}
+
+TextureAtlas::TextureAtlas(const OpenGLTextureOptions options, unsigned int textureCnt) : options{options}, textureCnt{textureCnt}, backIndex{textureCnt - 1}
 {
+    texture = useTextureDataToCreateTexture(nullptr, textureCnt*options.width, options.height, 
+            options.target, options.level, options.internalFormat, 
+            options.format, options.type);
 }
 
-void TextureAtlas::replaceTexture(const PngData &newPngData)
+void TextureAtlas::replaceTexture(const void* data)
 {
-    assert(newPngData.isValid() && newPngData.width == textureWidth && newPngData.height == textureHeight && newPngData.nrChannels == nrChannels);
-    for(int col = 0; col < newPngData.width; col++){
-        for(int row = 0; row < pngData.height; row++){
-            pngData.setColor(row, col + backIndex*textureWidth, newPngData.getColorRGB(row, col));
-        }
-    }
-    backIndex = (backIndex == 0) ? textureCnt - 1 : backIndex - 1;
+    glBindTexture(options.target, texture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+
+    glTexSubImage2D(
+        options.target,
+        options.level,
+        backIndex * options.width,
+        0,
+        options.width,
+        options.height,
+        options.format,
+        options.type,
+        data
+    );
+    glGenerateMipmap(options.target);
+    if(backIndex == 0)
+        backIndex = textureCnt - 1;
+    else
+        backIndex -= 1;
 }
 
 glm::mat3 glm::rotate(glm::mat3 mat3, float angle)
@@ -5416,44 +5429,25 @@ int mainDrawSubTextures(int argc, char* argv[]){
     const int HEIGHT = WIDTH;
     const int CHANNELS = 3;
     const int BATCHES = 4;
-    TextureAtlas textureAtlas(WIDTH,HEIGHT, CHANNELS, BATCHES);
+    OpenGLTextureOptions options = defaults::options;
+    options.width = WIDTH;
+    options.height = HEIGHT;
+
+    TextureAtlas textureAtlas(options, BATCHES);
     PngData benTexture(WIDTH,HEIGHT,CHANNELS);
     generatePNGBlank(benTexture);
     for(int i = 0; i < BATCHES; i++){
-        textureAtlas.replaceTexture(benTexture);
+        textureAtlas.replaceTexture(benTexture.getData());
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    unsigned int texture = getTextureFromData(textureAtlas.getPngData());
-    for(int i = 0; i < BATCHES; i++){
 
-        glBindTexture(GL_TEXTURE_2D, texture);
-
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-
-        for (int i = 0; i < BATCHES; i++) {
-            loadPngTexture("../background.png", benTexture);
-            assert(benTexture.width == WIDTH);
-            assert(benTexture.height == HEIGHT);
-            assert(i * WIDTH + WIDTH <= WIDTH * BATCHES);
-            glTexSubImage2D(
-                GL_TEXTURE_2D,
-                0,
-                i * WIDTH,
-                0,
-                WIDTH,
-                HEIGHT,
-                GL_RGB,
-                GL_UNSIGNED_BYTE,
-                benTexture.getData()
-            );
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        }
-        glGenerateMipmap(GL_TEXTURE_2D);
+    for (int i = 0; i < BATCHES; i++) {
+        loadPngTexture("../background.png", benTexture);
+        textureAtlas.replaceTexture(benTexture.getData());
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    OpenGLShape rectangle(shapes::rectT, texture, true);
+    OpenGLShape rectangle(shapes::rectT, textureAtlas.getTexture(), true);
     Shader texS("Glitter/Shaders/texture");
-
 
     
     while(!glfwWindowShouldClose(mWindow)){

@@ -45,7 +45,7 @@
 // #Header Macros -------------------------------------------------------------
 
 // Do Test
-#define DO_TEST true
+#define DO_TEST false
 
 // Window Configuration
 #define FULL_SCREEN false
@@ -67,10 +67,10 @@
 // Layer info
 
 #define MAXIMUM_IMAGE_POWER 32
-#define TOTAL_LAYERS 16
-#define SHAPES_IN_BATCH 64
-#define MID_LAYER 8
-#define TOTAL_EMOTION_LAYERS 4 
+#define TOTAL_LAYERS 6
+#define SHAPES_IN_BATCH 3
+#define MID_LAYER 4
+#define TOTAL_EMOTION_LAYERS 3 
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
 
@@ -80,8 +80,8 @@
 
 // Spawn Times
 
-#define SHAPE_INITIAL_SPAWN_TIME 0.25f
-#define DESTRUCTION_TIME         0.25f
+#define SHAPE_INITIAL_SPAWN_TIME 1.25f
+#define DESTRUCTION_TIME         1.25f
 #define UPDATE_ITERATIONS 10.0f
 
 // Pulse
@@ -174,10 +174,10 @@
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define MAX_SCALE 0.10f
-#define MIN_SCALE 0.025f
-#define AVE_SCALE 0.10f
-#define DEV_SCALE 0.10f
+#define MAX_SCALE 3.10f
+#define MIN_SCALE 0.925f
+#define AVE_SCALE 1.10f
+#define DEV_SCALE 1.10f
 
 // Random Alpha Differences Between Shapes in Same Batch
 
@@ -281,6 +281,22 @@ template <typename T> T* copyInitialize(const T arrayCopyFrom[], const unsigned 
     doCopy(aCopy, arrayCopyFrom, size, size);  
     return aCopy;
 }
+
+struct OpenGLTextureOptions{
+    GLsizei width  = 256;
+    GLsizei height = 256;
+    /* border is always 0 so I don't bother adding it */
+    GLenum internalFormat = GL_RGB8;
+    GLenum format = GL_RGB;
+    GLenum type = GL_UNSIGNED_BYTE;
+    GLenum target = GL_TEXTURE_2D;
+    GLint level = 0;
+};
+
+namespace defaults{
+    const OpenGLTextureOptions options{};
+};
+        
 
 // #Classes -------------------------------------------------------------
 
@@ -411,24 +427,19 @@ class PngData{
 
 class TextureAtlas{
     public:
-        TextureAtlas(unsigned int width, unsigned int height, unsigned int nrChannels, unsigned int textureCnt);
-        const unsigned char* getData  () const { return pngData.getData(); }
-        unsigned int getTextureWidth  () const { return textureWidth;  }
-        unsigned int getTextureHeight () const { return textureHeight; }
-        unsigned int getNrChannels    () const { return nrChannels;    }
+        TextureAtlas(const OpenGLTextureOptions textureOptions, unsigned int textureCnt);
         unsigned int getTextureCnt    () const { return textureCnt;    }
         unsigned int getBackIndex     () const { return backIndex;      }
-        void replaceTexture(const PngData& newPngData);
-        const PngData& getPngData() const { return pngData; }
+        unsigned int getTexture       () const { return texture; }
+        OpenGLTextureOptions getTextureOptions() const { return options; }
+        void replaceTexture(const void* data);
 
 
     private:
-        const unsigned int textureWidth;
-        const unsigned int textureHeight;
-        const unsigned int nrChannels;
+        const OpenGLTextureOptions options;
         const unsigned int textureCnt;
-        PngData pngData;
         unsigned int backIndex;
+        unsigned int texture;
 };
 
 
