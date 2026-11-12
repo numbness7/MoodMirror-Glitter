@@ -584,7 +584,7 @@ bool isInSquare(glm::vec2 point, glm::vec2 center,  float length){
     return isInSquare(point.x, point.y, center.x, center.y, length);
 }
 
-void generatePNGDistanceFromBorder(std::vector<float>& distances, int width, int height, const std::vector<glm::vec2>& borderVertices){
+void generateDistancesFromBorder(std::vector<float>& distances, int width, int height, const std::vector<glm::vec2>& borderVertices){
         std::vector<std::tuple<float,float,float>> borderLines{}; 
         glm::vec2 prevVertex  = borderVertices[borderVertices.size()-1];
         std::vector<glm::vec2> borderVerticesN{};
@@ -2074,14 +2074,19 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
         }
         innerColors[layer] = innerColor;
         outerColors[layer] = outerColor;
-        destructionTimes[layerCount] = waitTime;
-        destructionTimePasseds[layerCount] = passedTime;
-        SL_SCALEs[layerCount] = shapeLayer.SL_SCALE;
+        destructionTimes[layer] = waitTime;
+        destructionTimePasseds[layer] = passedTime;
+        SL_SCALEs[layer] = shapeLayer.SL_SCALE;
         layerCount++;
     }
     unsigned int modelsTexture = useTextureDataToCreateTexture(models, shapeCount*3, 1, GL_TEXTURE_2D, 0, GL_RGB32F, GL_RGB, GL_FLOAT);
     unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
     unsigned int layerNumbersTextrue = useTextureDataToCreateTexture(layerNumbers, shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
+    unsigned int innerColorsTexture = useTextureDataToCreateTexture(innerColors, layerCount, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int outerColorsTexture = useTextureDataToCreateTexture(outerColors, layerCount, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int slScalesTexture = useTextureDataToCreateTexture(SL_SCALEs, layerCount, 1, GL_TEXTURE_2D, 0, GL_RG32F, GL_RG, GL_FLOAT);
+    unsigned int destructionTimesTexture = useTextureDataToCreateTexture(destructionTimes, layerCount, 1, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
+    unsigned int destructionTimesPassedTexture = useTextureDataToCreateTexture(destructionTimePasseds, layerCount, 1, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
     std::vector<OpenGLTexture> oGTextures {};
     oGTextures.push_back({"ourTexture",shapes[SQUARE]->getTexture(0)});
     oGTextures.push_back({"borderTexture",shapes[SQUARE]->getTexture(1)});
@@ -2089,6 +2094,11 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
     oGTextures.push_back({"BATCH_NUMBER_TEXTURE", batchNumbersTexture});
     oGTextures.push_back({"LAYER_NUMBER_TEXTURE", layerNumbersTextrue});
     oGTextures.push_back({"ONE_BIG_BEAUTIFUL_TEXTURE", textureAtlas.getTexture()});
+    oGTextures.push_back({"INNER_COLORS_TEXTURE", innerColorsTexture});
+    oGTextures.push_back({"OUTER_COLORS_TEXTURE", outerColorsTexture});
+    oGTextures.push_back({"SL_SCALES_TEXTURE", slScalesTexture});
+    oGTextures.push_back({"DESTRUCTION_TIMES_TEXTURE", destructionTimesTexture});
+    oGTextures.push_back({"DESTRUCTION_TIME_PASSEDS_TEXTURE", destructionTimesPassedTexture});
     shapes[SQUARE]->drawBatch(lightingEnvironment.object_shader, oGTextures, shapeCount); // TAG
     free(models);
     free(BORDER_THICKNESS);
@@ -2845,29 +2855,22 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     PngData blankPNGData(COLOR_WIDTH,COLOR_HEIGHT, 3);
     const unsigned int blankTexture = obtainPNGBlank(blankPNGData);
 
-    std::cout << "Generate triangle" << std::endl;
-    PngData pngDataTriangle(COLOR_WIDTH, COLOR_HEIGHT);
-    std::vector<glm::vec2> triangleBorder = borderVerticesFromShape(shapes::eTriT);
-    unsigned int triangleBorderTexture = obtainPNGDistanceFromBorder(pngDataTriangle, triangleBorder);
-    OpenGLShape triangle(shapes::eTriT, {blankTexture,triangleBorderTexture}, true);
-    
-    
 
     std::cout << "Generate square" << std::endl;
     PngData pngDataSquare(COLOR_WIDTH, COLOR_HEIGHT);
     std::vector<glm::vec2> squareBorder = borderVerticesFromShape(shapes::rectT);
-    unsigned int squareBorderTexture = obtainPNGDistanceFromBorder(pngDataSquare, squareBorder);
+    std::vector<float> distances; 
+    distances.reserve(COLOR_HEIGHT*COLOR_WIDTH);
+    generateDistancesFromBorder(distances, COLOR_WIDTH, COLOR_HEIGHT, squareBorder);
+    unsigned int squareBorderTexture = useFloatsToCreateTexture2D(distances.data(), COLOR_WIDTH, COLOR_HEIGHT);
+
     OpenGLShape square(shapes::rectT, {blankTexture,squareBorderTexture}, true);
     
 
     
 
-    std::cout << "Generate circle" << std::endl;
-    PngData pngDataCircle(COLOR_WIDTH, COLOR_HEIGHT);
-    OpenGLShape circle = create_circle(16, pngDataCircle);
-    circle.setTextures({blankTexture, circle.getTexture(0)});
     
-    std::map<SHAPE_TYPE_2D, OpenGLShape*> shapeTypes{{SQUARE , &square}, {TRIANGLE, &triangle}, {CIRCLE, &circle}};
+    std::map<SHAPE_TYPE_2D, OpenGLShape*> shapeTypes{{SQUARE , &square}};
     
     
     
@@ -2887,7 +2890,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     lightingEnvironment.object_shader.use();
     lightingEnvironment.object_shader.setUniformI("ourTexture", 0);
     lightingEnvironment.object_shader.setUniformI("borderTexture", 1);
-    lightingEnvironment.object_shader.setUniformI("borderCase", 4);
+    lightingEnvironment.object_shader.setUniformI("borderCase", 2);
     float destructionTime = DESTRUCTION_TIME;
     float totalLayers = TOTAL_LAYERS;
     float midLayer = MID_LAYER;
@@ -2903,10 +2906,9 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     lightingEnvironment.object_shader.setUniformF("ABOVE_INTERCEPT", interceptAT);
     lightingEnvironment.object_shader.setUniformF("BELOW_SLOPE", slopeBT);
     lightingEnvironment.object_shader.setUniformF("BELOW_INTERCEPT", interceptBT);
-    lightingEnvironment.object_shader.setUniformF("DISABLE_ALMOST_EVERYTHING", true);
+    lightingEnvironment.object_shader.setUniformF("DISABLE_ALMOST_EVERYTHING", false);
     lightingEnvironment.object_shader.setUniformF("USE_MODEL_ARRAY", true);
     lightingEnvironment.object_shader.setUniformI("MODEL_TEXTURE", 2);
-    lightingEnvironment.object_shader.setUniformV4("INNER_COLOR", glm::vec4(1.0f,0.0f,1.0f,1.0f));
     lightingEnvironment.object_shader.setUniformI("BATCHES_CNT", TOTAL_LAYERS*TOTAL_EMOTION_LAYERS);
     
     
@@ -5291,7 +5293,7 @@ int mainDrawDistances(int argc, char* argv[]){
     static const int height = 255;
 
     floats.reserve(width*height);
-    generatePNGDistanceFromBorder(floats, width, height, circleBorder);
+    generateDistancesFromBorder(floats, width, height, circleBorder);
     //generatePNGDistanceFromBorder(floats, 255, 255, borderVerticesFromShape(shapes::eTriT));
 
     //unsigned int modelsTexture = useTextureDataToCreateTexture(&models[0], SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);

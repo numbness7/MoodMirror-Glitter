@@ -3,25 +3,11 @@ precision mediump float;
 in vec2 ourTexCoord;
 out vec4 FragColor;
 
-const float SCALE_CONST = 1.0f;
-const float redChannel_CONST = 0.0f;
-const float greenChannel_CONST = 1.0f;
-const float blueChannel_CONST = 2.0f;
-const float alphaChannel_CONST = 3.0f;
-const float nrChannels_CONST = 4.0f;
-const float maxColor_CONST = pow(2.0f,8.0f) - 1.0f;
-const float maxDistData_CONST = pow(2.0f,8.0f*4.0f)-1.0f;
-const float maxColorToDistRatio_CONST = (maxColor_CONST/maxDistData_CONST);
-const float maxDistNormal_CONST = sqrt(2.0f);
-const int   maxInt_CONST = 2147483647;
 
 uniform int borderCase;
 flat in int InstanceID;
 
 
-uniform float destructionTimePassed;
-uniform float destructionTime;
-uniform int layer;
 uniform int maxLayer;
 uniform float ABOVE_SLOPE;
 uniform float BELOW_SLOPE;
@@ -29,10 +15,7 @@ uniform float ABOVE_INTERCEPT;
 uniform float BELOW_INTERCEPT;
 uniform int MID_LAYER;
 uniform bool DO_FADE;
-uniform float BORDER_THICKNESS;
-uniform vec4 INNER_COLOR;
-uniform vec4 OUTER_COLOR;
-uniform vec2 SL_SCALE;
+const float BORDER_THICKNESS = 0.5f;
 uniform bool DISABLE_ALMOST_EVERYTHING;
 uniform int  ATLAS_BACK_INDEX;
 in mat3 matrixOut;
@@ -43,22 +26,25 @@ uniform sampler2D borderTexture;
 uniform sampler2D ourTexture;
 uniform sampler2D MODEL_TEXTURE;
 uniform sampler2D ONE_BIG_BEAUTIFUL_TEXTURE;
-uniform usampler2D BATCH_NUMBER_TEXTURE;
-uniform usampler2D LAYER_NUMBER_TEXTURE;
+uniform isampler2D BATCH_NUMBER_TEXTURE;
+uniform isampler2D LAYER_NUMBER_TEXTURE;
+uniform sampler2D INNER_COLORS_TEXTURE;
+uniform sampler2D OUTER_COLORS_TEXTURE;
+uniform sampler2D SL_SCALES_TEXTURE;
+uniform sampler2D DESTRUCTION_TIMES_TEXTURE;
+uniform sampler2D DESTRUCTION_TIME_PASSEDS_TEXTURE;
+
 uniform int BATCHES_CNT;
 
 
-float getColorDist(float color, float channel);
 float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer);
 float distFromCenter(float dist);
 bool isOuter(float dist, float thickness);
-float getDist(vec4 textureColor);
+float getDist();
 bool isInner(float dist, float thickness);
 float distFromCenter(float dist);
 bool isOuter(float dist, float thickness);
 bool isInner(float dist, float thickness);
-int normalFloatToInt(float nF);
-float intToNormalFloat(int i);
 int absInt(int x);
 float max3(float x[3]);
 float min3(float x[3]);
@@ -66,18 +52,42 @@ vec3 rGBToHSL(vec3 rgb);
 vec3 hSLToRGB(vec3 hsl);
 uint getLayer();
 uint getBatch();
-
-
+float getFloatInterpolatedFromTexture(sampler2D floatTexture, vec2 coords);
+float getDistFromTexture(sampler2D distTexture, vec2 coords);
+ivec2 getTexelCoord(int index);
+vec4 getTexel(sampler2D texture, int index);
+ivec4 getTexel(isampler2D texture, int index);
+uvec4 getTexel(usampler2D texture, int index);
 
 
 void main(){
     
-    vec4 textureColor = texture(ourTexture, ourTexCoord);
+    vec4 finalFragColor = vec4(1.0f);
+    int batchNumber = int(getBatch());
+    int shiftLeft = int(BATCHES_CNT) - int(ATLAS_BACK_INDEX) - 1;
+    int index = batchNumber - shiftLeft;
+    if(index < 0)
+        index = BATCHES_CNT + index;
+    vec4 BenTextureColor = texture(ONE_BIG_BEAUTIFUL_TEXTURE, vec2(ourTexCoord.x/float(BATCHES_CNT) + float(int(index)%int(BATCHES_CNT))/float(BATCHES_CNT), ourTexCoord.y));
+    finalFragColor = BenTextureColor;
+
     if(!DISABLE_ALMOST_EVERYTHING){
         vec4 borderTextureColor = texture(borderTexture, ourTexCoord);
+        int layer = int(getLayer()); 
+        int batch = int(getBatch());
+        vec4 INNER_COLOR = getTexel(INNER_COLORS_TEXTURE, layer);
+        vec4 OUTER_COLOR = getTexel(OUTER_COLORS_TEXTURE, layer);
+        vec2 SL_SCALE = getTexel(SL_SCALES_TEXTURE, layer).rg;
+        float destructionTime = getTexel(DESTRUCTION_TIMES_TEXTURE, layer).r;
+        float destructionTimePassed = getTexel(DESTRUCTION_TIME_PASSEDS_TEXTURE, layer).r;
         
-        float dist = getDist(borderTextureColor);
-        float AMOUNT_INNER = dist/BORDER_THICKNESS;
+        float dist = getDist();
+        float AMOUNT_INNER = 0.0f;
+        if(dist < 0.0f)
+            AMOUNT_INNER = 0.0f;
+        else
+            AMOUNT_INNER = dist/BORDER_THICKNESS;
+        
         vec4 borderColor;
 
         switch (borderCase){
@@ -96,46 +106,51 @@ void main(){
             default:
                 borderColor = INNER_COLOR;
         }
+        finalFragColor = BenTextureColor*borderColor;
 
 
-        float fade = 0.0f;
-        vec4 fadeColor = borderColor;
-        if(DO_FADE){
-            fade = calcFade(destructionTimePassed, destructionTime, maxLayer, MID_LAYER, layer);
-            fadeColor.a = (1.0f - fade)*fadeColor.a;
-        }
-        
-        vec3 textureColorRGB = textureColor.xyz;
+        vec3 textureColorRGB = BenTextureColor.xyz;
         vec3 textureColorHSL = rGBToHSL(textureColorRGB);
         vec3 textureColorHSLScaled = vec3(textureColorHSL.x, textureColorHSL.yz*SL_SCALE);
         vec3 textureColorRGBScaled = hSLToRGB(textureColorHSLScaled);
-        vec4 finalTextureColor = vec4(textureColorRGBScaled, textureColor.a);
-
-        if(borderCase == 0 && isOuter(dist, BORDER_THICKNESS))
-            FragColor = fadeColor;
-        else
-            FragColor = fadeColor*finalTextureColor;
+        vec4 finalTextureColor = vec4(textureColorRGBScaled, BenTextureColor.a);
+        finalFragColor = finalTextureColor*borderColor;
     }
-    else{
-        int batchNumber = int(getBatch());
-        int shiftLeft = int(BATCHES_CNT) - int(ATLAS_BACK_INDEX) - 1;
-        int index = batchNumber - shiftLeft;
-        if(index < 0)
-            index = BATCHES_CNT + index;
-
-        FragColor = texture(ONE_BIG_BEAUTIFUL_TEXTURE, vec2(ourTexCoord.x/float(BATCHES_CNT) + float(int(index)%int(BATCHES_CNT))/float(BATCHES_CNT), ourTexCoord.y));
-    }
+    FragColor = finalFragColor;
 }
 
-float getDist(vec4 textureColor){
-        float dist = getColorDist(textureColor.x,redChannel_CONST)+getColorDist(textureColor.y,greenChannel_CONST)+getColorDist(textureColor.z,blueChannel_CONST)+getColorDist(textureColor.a,alphaChannel_CONST);
-        float distNormalized = dist*maxDistNormal_CONST;
-        return distNormalized;
+ivec2 getTexelCoord(int index){
+    return ivec2(index,0);
 }
 
-float getColorDist(float color, float channel){
-   return color*maxColorToDistRatio_CONST*pow(2.0f,(nrChannels_CONST-channel-1.0f)*8.0f); 
+
+
+vec4 getTexel(sampler2D texture, int index){
+    ivec2 texelCoord = getTexelCoord(index);
+    return texelFetch(texture, texelCoord, 0);
 }
+ivec4 getTexel(isampler2D texture, int index){
+    ivec2 texelCoord = getTexelCoord(index);
+    return texelFetch(texture, texelCoord, 0);
+}
+uvec4 getTexel(usampler2D texture, int index){
+    ivec2 texelCoord = getTexelCoord(index);
+    return texelFetch(texture, texelCoord, 0);
+}
+
+
+float getFloatInterpolatedFromTexture(sampler2D floatTexture, vec2 coords){
+    float f = texture(floatTexture, coords).r;
+    return f;
+}
+float getDistFromTexture(sampler2D distTexture, vec2 coords){
+    return getFloatInterpolatedFromTexture(distTexture, coords);
+}
+
+float getDist(){
+    return getDistFromTexture(borderTexture, ourTexCoord);
+}
+
 float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer){
     float fade = 0.0f;
 	float timePassed;
@@ -167,15 +182,6 @@ bool isInner(float dist, float thickness){
     return !isOuter(dist,thickness);
 }
 
-int normalFloatToInt(float nF){
-    int i = int(nF*float(maxInt_CONST));
-    return i;
-}
-
-float intToNormalFloat(int i){
-    float nF = float(i)/float(maxInt_CONST);
-    return nF;
-}
 
 int absInt(int x){
     if (x >= 0)
