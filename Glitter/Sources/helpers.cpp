@@ -527,6 +527,13 @@ unsigned int obtainPNGDistanceFromBorder(int width, int height, std::vector<glm:
     unsigned int texture = getTextureFromData(pngData);
     return texture;
 }
+void loadPngTexture(std::string texture_filepath, PngData& pD)
+{
+    do{
+        pD = loadPngTexture(texture_filepath);
+        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+    } while((!pD.isValid()));
+}
 
 PngData loadPngTexture(std::string texture_filepath)
 {
@@ -908,22 +915,23 @@ unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width,
     unsigned int texture;
     glGenTextures(1, &texture);
     
+    glBindTexture(GL_TEXTURE_2D, texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
-    glBindTexture(GL_TEXTURE_2D, texture);
     
     if (data){
         if(filetype == "png"){
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 5);
         }
         else if (filetype == "pngNA"){
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
             
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 3);
         }
         else {
             throw std::runtime_error("Bad file type: " + filetype);
@@ -5084,7 +5092,7 @@ std::tuple<unsigned int, unsigned int, unsigned int, unsigned int> modelsToTextu
 
 
 
-int mainDrawInstancedBatch(int argc, char* argv[]){
+int mainDrawBatch(int argc, char* argv[]){
     int return_status;
     GLFWwindow*  mWindow; 
     if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
@@ -5112,7 +5120,7 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
     static const unsigned int TOTAL_BATCHES_TEST = 20;
     static const unsigned int COLS = ROWS;
     static const unsigned int SIZE = COLS*ROWS;
-    glm::mat4* models = (glm::mat4 *) malloc(sizeof(glm::mat4)*SIZE);
+    glm::mat3* models = (glm::mat3 *) malloc(sizeof(glm::mat3)*SIZE);
     std::vector<unsigned int> batchNumbers;
     batchNumbers.reserve(SIZE);
     unsigned int divisor = SIZE/TOTAL_BATCHES_TEST;
@@ -5127,9 +5135,9 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
                 glm::vec2(-1.0f),
                 glm::vec2(1.0f)
             );
-            glm::mat4 model(1.0f);
-            model = glm::translate(model, glm::vec3(pos, 0.0f));
-            model = glm::scale(model, glm::vec3(0.1f, 0.1f, 1.0f));
+            glm::mat3 model(1.0f);
+            model = glm::translate(model,pos);
+            model = glm::scale(model, glm::vec2(0.1f, 0.1f));
             unsigned int index = (row-1)*COLS + (col-1);
             models[index] = model;
             unsigned int batchNumber = index/divisor;
@@ -5153,7 +5161,7 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
     unsigned int textureAtlus = getTextureFromData(textureAtlasData.getPngData());
     textures.push_back({"ourTexture",blankTexture});
     textures.push_back({"borderTexture",borderTexture});
-    unsigned int modelsTexture = useTextureDataToCreateTexture(models, SIZE*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int modelsTexture = useTextureDataToCreateTexture(models, SIZE*3, 1, GL_TEXTURE_2D, 0, GL_RGB32F, GL_RGB, GL_FLOAT);
     textures.push_back({"MODEL_TEXTURE",modelsTexture});
     unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), SIZE, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
     textures.push_back({"ONE_BIG_BEAUTIFUL_TEXTURE", textureAtlus});
@@ -5397,4 +5405,63 @@ glm::vec2 glm::operator*(glm::mat3 mat3, glm::vec2 vec2)
         }
     }
     return newVec;
+}
+
+int mainDrawSubTextures(int argc, char* argv[]){
+    int return_status;
+    GLFWwindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    DeltaTimer deltaTimer{};
+    const int WIDTH = 256;
+    const int HEIGHT = WIDTH;
+    const int CHANNELS = 3;
+    const int BATCHES = 4;
+    TextureAtlas textureAtlas(WIDTH,HEIGHT, CHANNELS, BATCHES);
+    PngData benTexture(WIDTH,HEIGHT,CHANNELS);
+    generatePNGBlank(benTexture);
+    for(int i = 0; i < BATCHES; i++){
+        textureAtlas.replaceTexture(benTexture);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    unsigned int texture = getTextureFromData(textureAtlas.getPngData());
+    for(int i = 0; i < BATCHES; i++){
+
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+
+        for (int i = 0; i < BATCHES; i++) {
+            loadPngTexture("../background.png", benTexture);
+            assert(benTexture.width == WIDTH);
+            assert(benTexture.height == HEIGHT);
+            assert(i * WIDTH + WIDTH <= WIDTH * BATCHES);
+            glTexSubImage2D(
+                GL_TEXTURE_2D,
+                0,
+                i * WIDTH,
+                0,
+                WIDTH,
+                HEIGHT,
+                GL_RGB,
+                GL_UNSIGNED_BYTE,
+                benTexture.getData()
+            );
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    OpenGLShape rectangle(shapes::rectT, texture, true);
+    Shader texS("Glitter/Shaders/texture");
+
+
+    
+    while(!glfwWindowShouldClose(mWindow)){
+        minimumStartRenderLoop(deltaTimer);
+        rectangle.draw(texS);
+        endRenderLoopStatic(mWindow);
+    } glfwTerminate();
+    
+    return EXIT_SUCCESS;
+    
 }

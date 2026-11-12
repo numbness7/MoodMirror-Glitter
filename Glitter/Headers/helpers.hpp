@@ -45,7 +45,7 @@
 // #Header Macros -------------------------------------------------------------
 
 // Do Test
-#define DO_TEST false
+#define DO_TEST true
 
 // Window Configuration
 #define FULL_SCREEN false
@@ -664,6 +664,7 @@ int mainDrawFloats(int argc, char* argv[]);
 int mainDrawRectangle(int argc, char* argv[]);
 int mainDrawCircle(int argc, char* argv[]);
 int mainDrawDistances(int argc, char* argv[]);
+int mainDrawBatch(int argc, char* argv[]);
 int mainCoords(int argc, char * argv[]);
 int mainCoordsBasic(int argc, char * argv[]);
 int mainCoordsBasicStream(int argc, char * argv[]);
@@ -676,7 +677,7 @@ int mainPathCube(int argc, char * argv[]);
 int mainPathRectangle(int argc, char * argv[]);
 int mainSolve(int argc, char * argv[]);
 int mainRecursion(int argc, char * argv[]);
-int mainDrawInstancedBatch(int argc, char* argv[]);
+int mainDrawSubTextures(int argc, char* argv[]);
 
 
 // #Draw -------------------------------------------------------------
