@@ -1,4 +1,13 @@
 Create Texture Atlas
     One Big Beautiful Texture containing textures for multiple different shapes in it.
     Advantage: don't have to learn more stuff.
-    Maintain List of indexes for the texture, rather than replacing the whole texture each time just overwrite the spot and shift the indexes forward
+Texture Atlas Improvements
+    V - Maintain List of indexes for the texture, rather than replacing the whole texture each time just overwrite the spot and shift the indexes forward
+    Only send part of texture of the textureAtlas that has been changed.
+Models Texture Improvements
+    Do a similar thing as the texture Atlas Improvements
+    Store a separate texture for the changes made to the whole batch of shapes, only update that each frame
+    Store a separate texture for the changes made to the whole layer of shapes, only update that each frame
+2D improvements
+    Find things that can be removed since I'm dealing with a 2D display rather than a 3D display.
+

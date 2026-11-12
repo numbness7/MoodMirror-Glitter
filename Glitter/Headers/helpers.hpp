@@ -66,9 +66,10 @@
 
 // Layer info
 
-#define TOTAL_LAYERS 15
-#define SHAPES_IN_BATCH 1
-#define MID_LAYER 5
+#define MAXIMUM_IMAGE_POWER 32
+#define TOTAL_LAYERS 16
+#define SHAPES_IN_BATCH 64
+#define MID_LAYER 8
 #define TOTAL_EMOTION_LAYERS 4 
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
@@ -79,8 +80,8 @@
 
 // Spawn Times
 
-#define SHAPE_INITIAL_SPAWN_TIME 1.5f
-#define DESTRUCTION_TIME         1.5f
+#define SHAPE_INITIAL_SPAWN_TIME 0.25f
+#define DESTRUCTION_TIME         0.25f
 #define UPDATE_ITERATIONS 10.0f
 
 // Pulse
@@ -101,8 +102,8 @@
 #define COLOR_PROGRAM "python Gener3.py"
 #define COLOR_START false
 #define COLOR_FREQUENCY 0.015f
-#define COLOR_WIDTH 255
-#define COLOR_HEIGHT 255
+#define COLOR_WIDTH 256
+#define COLOR_HEIGHT 256
 #define COLOR_DISPLAY false
 
 #define USE_BEN_CHANCE 1.0f
@@ -173,10 +174,10 @@
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define MAX_SCALE 8.0f
-#define MIN_SCALE 0.55f
-#define AVE_SCALE 0.750f
-#define DEV_SCALE 0.750f
+#define MAX_SCALE 0.10f
+#define MIN_SCALE 0.025f
+#define AVE_SCALE 0.10f
+#define DEV_SCALE 0.10f
 
 // Random Alpha Differences Between Shapes in Same Batch
 
@@ -416,7 +417,8 @@ class TextureAtlas{
         unsigned int getTextureHeight () const { return textureHeight; }
         unsigned int getNrChannels    () const { return nrChannels;    }
         unsigned int getTextureCnt    () const { return textureCnt;    }
-        void replaceTexture(const PngData& newPngData, unsigned int index);
+        unsigned int getBackIndex     () const { return backIndex;      }
+        void replaceTexture(const PngData& newPngData);
         const PngData& getPngData() const { return pngData; }
 
 
@@ -426,6 +428,7 @@ class TextureAtlas{
         const unsigned int nrChannels;
         const unsigned int textureCnt;
         PngData pngData;
+        unsigned int backIndex;
 };
 
 
@@ -547,23 +550,23 @@ struct ShapeProperties {
 
 /// @brief Various information to modify how a shape is drawn.
 struct ShapeProperties2D {
-    glm::mat4 model;
+    glm::mat3 model;
     glm::vec4 innerColor;
     glm::vec4 outerColor;
     SHAPE_TYPE_2D type;
-    glm::vec3 coords;
+    glm::vec2 coords;
     float rotation;
-    glm::vec3 scale;
+    glm::vec2 scale;
     float borderThickness;
     std::map<TRANSITIONS,bool> transitions;
     int borderCase;
     unsigned int texture;
     bool useBenTexture;
-    glm::mat4 transition;
-    glm::mat4 rotationMatrix;
-    glm::mat4 scaleMatrix;
-    glm::vec3 direction;
-    glm::vec3 rotatedCoords;
+    glm::mat3 transition;
+    glm::mat3 rotationMatrix;
+    glm::mat3 scaleMatrix;
+    glm::vec2 direction;
+    glm::vec2 rotatedCoords;
     glm::vec2 rumbleCoords = glm::vec2(0.0f);
     float spin = 0.0f;
 };
@@ -953,7 +956,7 @@ std::string vec2ToString(glm::vec2 vec2);
 glm::vec2 rotate(const glm::vec2& vec2, const float& radians);
 float getFPS(DeltaTimer deltaTimer);
 
-std::tuple<unsigned int, unsigned int, unsigned int> transferShapeLayers(std::counting_semaphore<TOTAL_LAYERS>& shapesSemaphore, std::mutex& shapeLock, const unsigned int& requiredLayers, std::deque<ShapeLayer>& shapeLayersBuffer, ShapeLayerStorage& shapeLayersStorage, float currentDestructionTime, float currentPulseMaxTime);
+std::tuple<unsigned int, unsigned int, unsigned int> transferShapeLayers(std::counting_semaphore<TOTAL_LAYERS>& shapesSemaphore, std::mutex& shapeLock, const unsigned int& requiredLayers, std::deque<ShapeLayer>& shapeLayersBuffer, ShapeLayerStorage& shapeLayersStorage, float currentDestructionTime, float currentPulseMaxTime, std::deque<PngData>& pngDataDeque);
 std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>> modelsToCols(std::vector<glm::mat4> models);
 /// @brief Returns distance from point to line
 /// @param line a line defined by Ax + By + C = 0. A B and C are passed as a tuple.
@@ -967,5 +970,13 @@ unsigned int useModelsToCreateTexture2D(glm::mat4* models, unsigned int width, u
 GLuint createTextures();
 unsigned int getGL_TextureX(unsigned int index);
 void fillSquare(PngData& pngData, const float size, const glm::vec2 position, const cdata::ColorRGBA& color, const int iterations=0);
+
+namespace glm{
+    glm::mat3 rotate(glm::mat3 mat3, float angle);
+    glm::mat3 scale(glm::mat3 mat3, glm::vec2 vec2);
+    glm::mat3 translate(glm::mat3 mat3, glm::vec2 vec2);
+    glm::vec2 operator*(glm::mat3 mat3, glm::vec2 vec2);
+    glm::vec2 vec3ToVec2(glm::vec3 vec3);
+};
 
 #endif

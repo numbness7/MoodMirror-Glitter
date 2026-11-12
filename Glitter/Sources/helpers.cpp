@@ -916,11 +916,14 @@ unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width,
     glBindTexture(GL_TEXTURE_2D, texture);
     
     if (data){
-        if(filetype == "png")
+        if(filetype == "png"){
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 5);
+        }
         else if (filetype == "pngNA"){
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
             
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 3);
         }
         else {
             throw std::runtime_error("Bad file type: " + filetype);
@@ -1938,10 +1941,11 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
     lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS); // TAG
     lightingEnvironment.object_shader.setUniformB("DO_FADE", false); // TAG
     lightingEnvironment.object_shader.setUniformI("borderCase", 2); // TAG
+    lightingEnvironment.object_shader.setUniformI("ATLAS_BACK_INDEX", textureAtlas.getBackIndex()); // TAG
     // Draw cubes
 
 
-    glm::mat4* models = (glm::mat4 *) malloc(sizeof(glm::mat4)*shapeLayers.getShapeCnt());
+    glm::mat3* models = (glm::mat3 *) malloc(sizeof(glm::mat3)*shapeLayers.getShapeCnt());
     float* BORDER_THICKNESS = (float *) malloc(sizeof(float)*shapeLayers.getShapeCnt());
     std::vector<unsigned int> batchNumbers;
     batchNumbers.reserve(shapeLayers.getShapeCnt());
@@ -2003,16 +2007,16 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
                 if (!LAYER_PULSES)
                     pulses = shapeBatch.pulses;
 
-                glm::mat4 translationRotation(1.0f);
+                glm::mat3 translationRotation(1.0f);
                 if(pulses[SPINL_P]){
                     static const float spinScale = 0.5f;
                     shape.spin -= deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
-                    translationRotation = glm::rotate(translationRotation, shape.spin, dir::FORWARD);
+                    translationRotation = glm::rotate(translationRotation, shape.spin);
                 }
-                glm::mat4 model(1.0f);
-                glm::mat4 transition(translationRotation*shape.transition);
-                glm::mat4 rotation(shape.rotationMatrix);
-                glm::mat4 scale(shape.scaleMatrix);
+                glm::mat3 model(1.0f);
+                glm::mat3 transition(translationRotation*shape.transition);
+                glm::mat3 rotation(shape.rotationMatrix);
+                glm::mat3 scale(shape.scaleMatrix);
                 
 
 
@@ -2020,7 +2024,7 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
                 float inverse = (transitions[BACK_OUT_T]) ? -1.0f : 1.0f;
 
                 if(transitions[BACK_OUT_T] || transitions[MOVE_FORWARD_T]){
-                    transition = glm::mat4(1.0f);
+                    transition = glm::mat3(1.0f);
                     transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
                     transition = glm::translate(transition, inverse*speed*dX*shape.direction);
                 }
@@ -2045,9 +2049,11 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
                 if(pulses[SPINR_P]){
                     static const float spinScale = 0.5f;
                     shape.spin += deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
-                    rotation = glm::rotate(rotation, shape.spin, dir::FORWARD);
+                    rotation = glm::rotate(rotation, shape.spin);
                 }
                 model = transition*rotation*scale;
+                //model = transition;
+                //model = glm::mat3(1.0f);
                 
                 models[shapeCount] = model;
                 layerNumbers[shapeCount] = layer;
@@ -2064,7 +2070,7 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
         SL_SCALEs[layerCount] = shapeLayer.SL_SCALE;
         layerCount++;
     }
-    unsigned int modelsTexture = useTextureDataToCreateTexture(models, shapeCount*4, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int modelsTexture = useTextureDataToCreateTexture(models, shapeCount*3, 1, GL_TEXTURE_2D, 0, GL_RGB32F, GL_RGB, GL_FLOAT);
     unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
     unsigned int layerNumbersTextrue = useTextureDataToCreateTexture(layerNumbers, shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
     unsigned int textureAtlasTexture = getTextureFromData(textureAtlas.getPngData());
@@ -2269,8 +2275,8 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
     bool alarmSounded;
     Alarm printAlarm{1.0f};
     long int iterations = 0;
-    PngData blankPNGData(255,255, 4);
-    PngData borderPNGData(255,255, 4);
+    PngData blankPNGData(COLOR_WIDTH,COLOR_HEIGHT, 4);
+    PngData borderPNGData(COLOR_WIDTH,COLOR_HEIGHT, 4);
     generatePNGBorder(borderPNGData, borderPNGData.width, borderPNGData.height, 10, 10, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
     generatePNGBlank(blankPNGData);
     std::deque<EmotionLayer> emotionLayers{};
@@ -2279,7 +2285,7 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
 
     std::string filepath = "../background.png";
 
-    PngData pD(255,255,3);
+    PngData pD(COLOR_WIDTH,COLOR_HEIGHT,3);
     ShapeLayer shapeLayer{};
     while(*notDone){
         bool printAlarmSounded = printAlarm.checkAndUpdate();
@@ -2829,11 +2835,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     bool shapesFull = false;
     
 
-    PngData blankPNGData(255,255, 3);
+    PngData blankPNGData(COLOR_WIDTH,COLOR_HEIGHT, 3);
     const unsigned int blankTexture = obtainPNGBlank(blankPNGData);
 
     std::cout << "Generate triangle" << std::endl;
-    PngData pngDataTriangle(255, 255);
+    PngData pngDataTriangle(COLOR_WIDTH, COLOR_HEIGHT);
     std::vector<glm::vec2> triangleBorder = borderVerticesFromShape(shapes::eTriT);
     unsigned int triangleBorderTexture = obtainPNGDistanceFromBorder(pngDataTriangle, triangleBorder);
     OpenGLShape triangle(shapes::eTriT, {blankTexture,triangleBorderTexture}, true);
@@ -2841,7 +2847,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     
 
     std::cout << "Generate square" << std::endl;
-    PngData pngDataSquare(255, 255);
+    PngData pngDataSquare(COLOR_WIDTH, COLOR_HEIGHT);
     std::vector<glm::vec2> squareBorder = borderVerticesFromShape(shapes::rectT);
     unsigned int squareBorderTexture = obtainPNGDistanceFromBorder(pngDataSquare, squareBorder);
     OpenGLShape square(shapes::rectT, {blankTexture,squareBorderTexture}, true);
@@ -2850,7 +2856,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     
 
     std::cout << "Generate circle" << std::endl;
-    PngData pngDataCircle(255, 255);
+    PngData pngDataCircle(COLOR_WIDTH, COLOR_HEIGHT);
     OpenGLShape circle = create_circle(16, pngDataCircle);
     circle.setTextures({blankTexture, circle.getTexture(0)});
     
@@ -2934,7 +2940,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     debug::StopWatch stopWatch{};
 
 
-    PngData pd(255,255,3);
+    PngData pd(COLOR_WIDTH,COLOR_HEIGHT,3);
     TextureAtlas textureAtlas(COLOR_WIDTH, COLOR_HEIGHT, 3, TOTAL_LAYERS*TOTAL_EMOTION_LAYERS);
     
     // #Render 2D Loop
@@ -2944,14 +2950,22 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         requiredLayersFloat += deltaTimer.getDeltaTime()/currentDestructionTime;
         unsigned int requiredLayers = (unsigned int) floorWrap(requiredLayersFloat);
         bool shapesChanged = false;
+        std::tuple<unsigned int, unsigned int, unsigned int> transfers;
+        std::deque<PngData> pngDataDeque;
 
         if(requiredLayers > 0)
         {
             shapesChanged = true;
             requiredLayersFloat -= (float) requiredLayers;
-            transferShapeLayers(shapesSemaphore, shapeLock, requiredLayers, shapeLayersBuffer, shapeLayersStorage, currentDestructionTime, currentPulseMaxTime);
+            transfers = transferShapeLayers(shapesSemaphore, shapeLock, requiredLayers, shapeLayersBuffer, shapeLayersStorage, currentDestructionTime, currentPulseMaxTime,pngDataDeque);
         }
+        
+        auto [layersTransCnt, batchesTransCnt, shapesTransCnt] = transfers;
 
+        while(!pngDataDeque.empty()){
+            textureAtlas.replaceTexture(pngDataDeque.back());
+            pngDataDeque.pop_back();
+        }
 
 
         bool shapeDeleted = false;
@@ -2987,15 +3001,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                 layerCount++;
             }
             std::cout << "Shapes loaded!" << std::endl;
-        }
-        if(shapesChanged){
-            unsigned int batchCount = 0;
-            for( auto const& shapeLayer : shapeLayersStorage){
-                for ( auto const& shapeBatch : shapeLayer.batches){
-                    textureAtlas.replaceTexture(shapeBatch.pngData, batchCount);
-                    batchCount++;
-                }
-            }
         }
         // Draw cubes
         glDisable(GL_DEPTH_TEST);
@@ -4645,11 +4650,11 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
         invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
     }
     ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
-    shape.scaleMatrix = glm::scale(glm::mat4(1.0f), shape.scale);
-    shape.rotationMatrix = glm::rotate(glm::mat4(1.0f), shape.rotation, glm::vec3(0.0f,0.0f,-1.0f));
-    shape.transition = glm::translate(glm::mat4(1.0f), shape.coords);
+    shape.scaleMatrix = glm::scale(glm::mat3(1.0f), shape.scale);
+    shape.rotationMatrix = glm::rotate(glm::mat3(1.0f), shape.rotation);
+    shape.transition = glm::translate(glm::mat3(1.0f), shape.coords);
     shape.direction = dir::UP;
-    shape.direction  = glm::mat3(shape.rotationMatrix) * shape.direction;
+    shape.direction  = shape.rotationMatrix * shape.direction;
     shape.direction = glm::normalize(shape.direction);
     shape.rotatedCoords = glm::mat3(shape.rotationMatrix) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
     return shape;
@@ -5142,7 +5147,7 @@ int mainDrawInstancedBatch(int argc, char* argv[]){
                 benTexture = loadPngTexture(EMOTION_PNG_FILE_PATH);
                 std::this_thread::sleep_for(std::chrono::nanoseconds(1));
             } while(!benTexture.isValid());
-            textureAtlasData.replaceTexture(benTexture, i);
+            textureAtlasData.replaceTexture(benTexture);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     unsigned int textureAtlus = getTextureFromData(textureAtlasData.getPngData());
@@ -5207,26 +5212,28 @@ void ShapeLayerStorage::pop_back()
     shapeLayers.pop_back();
 }
 
-std::tuple<unsigned int, unsigned int, unsigned int> transferShapeLayers(std::counting_semaphore<TOTAL_LAYERS>& shapesSemaphore, std::mutex& shapeLock, const unsigned int& requiredLayers, std::deque<ShapeLayer>& shapeLayersBuffer, ShapeLayerStorage& shapeLayersStorage, float currentDestructionTime, float currentPulseMaxTime)
+std::tuple<unsigned int, unsigned int, unsigned int> transferShapeLayers(std::counting_semaphore<TOTAL_LAYERS>& shapesSemaphore, std::mutex& shapeLock, const unsigned int& requiredLayers, std::deque<ShapeLayer>& shapeLayersBuffer, ShapeLayerStorage& shapeLayersStorage, float currentDestructionTime, float currentPulseMaxTime, std::deque<PngData>& pngDataDeque)
     {
-    std::tuple<unsigned int, unsigned int, unsigned int> transferCounts = {0,0,0};
+    std::tuple<unsigned int, unsigned int, unsigned int> transfers{0,0,0};
     shapesSemaphore.release(requiredLayers);
     std::lock_guard guard(shapeLock);
     while(!shapeLayersBuffer.empty()){
         auto shapeLayerB = shapeLayersBuffer.back();
         ShapeLayer shapeLayer = shapeLayerB;
         for(auto& shapeBatch : shapeLayer.batches){
-            std::get<2>(transferCounts) += shapeBatch.shapes.size();
+            for(auto& shape : shapeBatch.shapes)
+                std::get<2>(transfers)++;
+            std::get<1>(transfers)++;
+            pngDataDeque.push_front(shapeBatch.pngData);
         }
-        std::get<1>(transferCounts) += shapeLayerB.batches.size();
 
         shapeLayer.destructionTimer.setWaitTime(currentDestructionTime);
         shapeLayer.pulseTimer.setWaitTime(currentPulseMaxTime);
         shapeLayersStorage.push_front(shapeLayer);
         shapeLayersBuffer.pop_back();
-        std::get<0>(transferCounts) += 1;
+        std::get<0>(transfers)++;
     }
-    return transferCounts;
+    return transfers;
 }
 
 int mainDrawFloats(int argc, char* argv[]){
@@ -5332,16 +5339,62 @@ void OpenGLShape::drawBatch(Shader& shader, const std::vector<OpenGLTexture>& te
     glBindVertexArray(0);
 }
 
-TextureAtlas::TextureAtlas(unsigned int width, unsigned int height, unsigned int nrChannels, unsigned int textureCnt) : textureWidth{width}, textureHeight{height}, nrChannels{nrChannels}, textureCnt{textureCnt}, pngData{PngData(textureCnt*width,height,nrChannels)}
+TextureAtlas::TextureAtlas(unsigned int width, unsigned int height, unsigned int nrChannels, unsigned int textureCnt) : textureWidth{width}, textureHeight{height}, nrChannels{nrChannels}, textureCnt{textureCnt}, pngData{PngData(textureCnt*width,height,nrChannels)}, backIndex{textureCnt-1}
 {
 }
 
-void TextureAtlas::replaceTexture(const PngData &newPngData, unsigned int index)
+void TextureAtlas::replaceTexture(const PngData &newPngData)
 {
     assert(newPngData.isValid() && newPngData.width == textureWidth && newPngData.height == textureHeight && newPngData.nrChannels == nrChannels);
     for(int col = 0; col < newPngData.width; col++){
         for(int row = 0; row < pngData.height; row++){
-            pngData.setColor(row, col + index*textureWidth, newPngData.getColorRGB(row, col));
+            pngData.setColor(row, col + backIndex*textureWidth, newPngData.getColorRGB(row, col));
         }
     }
+    backIndex = (backIndex == 0) ? textureCnt - 1 : backIndex - 1;
+}
+
+glm::mat3 glm::rotate(glm::mat3 mat3, float angle)
+{
+    glm::mat3 rotMat3(0.0f);
+    rotMat3[0][0] = glm::cos(angle);
+    rotMat3[1][0] = -glm::sin(angle);
+    rotMat3[0][1] = glm::sin(angle);
+    rotMat3[1][1] = glm::cos(angle);
+    rotMat3[2][2] = 1;
+    return rotMat3 * mat3;
+}
+
+glm::mat3 glm::scale(glm::mat3 mat3, glm::vec2 vec2)
+{
+    for(int i = 0; i < 2; i++){
+        mat3[i][i] *= vec2[i];
+    }
+    return mat3;
+}
+
+glm::mat3 glm::translate(glm::mat3 mat3, glm::vec2 vec2)
+{
+    for(int i = 0; i < 2; i++){
+        mat3[2][i] = vec2[i];
+    }
+    return mat3;
+}
+
+glm::vec2 glm::vec3ToVec2(glm::vec3 vec3)
+{
+    return glm::vec2(vec3.x,vec3.y);
+}
+
+
+glm::vec2 glm::operator*(glm::mat3 mat3, glm::vec2 vec2)
+{
+    glm::vec3 vec3(vec2, 1.0f);
+    glm::vec2 newVec(0.0f);
+    for(int row = 0; row < 2; row++){
+        for(int col = 1; col < 3; col++){
+            newVec[row] += mat3[col][row]*vec3[col];
+        }
+    }
+    return newVec;
 }

@@ -34,7 +34,8 @@ uniform vec4 INNER_COLOR;
 uniform vec4 OUTER_COLOR;
 uniform vec2 SL_SCALE;
 uniform bool DISABLE_ALMOST_EVERYTHING;
-in mat4 matrixOut;
+uniform int  ATLAS_BACK_INDEX;
+in mat3 matrixOut;
 
 
 // TEXTURES
@@ -116,8 +117,15 @@ void main(){
             FragColor = fadeColor*finalTextureColor;
     }
     else{
-        uint batchNumber = getBatch();
-        FragColor = texture(ONE_BIG_BEAUTIFUL_TEXTURE, vec2(ourTexCoord.x/float(BATCHES_CNT) + float(int(batchNumber)%int(BATCHES_CNT))/float(BATCHES_CNT), ourTexCoord.y));
+        int batchNumber = int(getBatch());
+        int shiftLeft = int(BATCHES_CNT) - int(ATLAS_BACK_INDEX) - 1;
+        int index = batchNumber - shiftLeft;
+        if(index < 0)
+            index = BATCHES_CNT + index;
+
+        //FragColor = vec4(0.5f*matrixOut[InstanceID % 3].rg + 0.5f*vec2(1.0f), matrixOut[InstanceID % 3].b*0.5f + 0.5f, 1.0f);
+        //FragColor = vec4(1.0f);
+        FragColor = texture(ONE_BIG_BEAUTIFUL_TEXTURE, vec2(ourTexCoord.x/float(BATCHES_CNT) + float(int(index)%int(BATCHES_CNT))/float(BATCHES_CNT), ourTexCoord.y));
     }
 }
 

@@ -3,7 +3,7 @@ layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
 
 out vec2 ourTexCoord;
-out mat4 matrixOut;
+out mat3 matrixOut;
 
 flat out int InstanceID;
 
@@ -23,29 +23,57 @@ float boundTransformation(float x, float mini, float maxi, float miniT, float ma
 vec2 getPosition(sampler2D position_texture);
 mat4 getModel();
 vec2 getPosition(int id, sampler2D position_texture);
+mat3 getMat3Model(sampler2D mat3ModelTexture, int iD);
+vec2 matrixMultiply(mat3 matrix, vec2 pos);
+mat4 mat3ToMat4(mat3 matrix3);
 
 void main(){
     if(USE_MODEL_ARRAY){
         int id = gl_InstanceID;
-        mat4 matrix = getModel();
+        mat3 matrix = getMat3Model(MODEL_TEXTURE, id);
         matrixOut = matrix;
-
-        //gl_Position =  vec4(aPos, 1.0f);
-        gl_Position = matrix * vec4(aPos, 1.0f);
+        vec2 newPos = matrixMultiply(matrix, aPos.xy);
+        //gl_Position = vec4(newPos, 0.0f, 1.0f);
+        gl_Position = vec4(newPos, 0.0f, 1.0f);
     }
-    else
+    else{
         gl_Position = view * model * vec4(aPos,1.0f);
+    }
     
     ourTexCoord = aTexCoord;
     InstanceID = gl_InstanceID;
 }
 
-mat4 getModel(){
+vec2 matrixMultiply(mat3 matrix, vec2 pos){
+    vec3 v3 = vec3(pos,1.0f);
+    vec2 nV2 = vec2(0.0f);
+    for(int row = 0; row < 2; row++){
+        for(int col = 0; col < 3; col++){
+            nV2[row] += matrix[col][row] * v3[col];
+        }
+    }
+    return nV2;
+}
+
+mat3 getMat3Model(sampler2D mat3ModelTexture, int iD){
     // CHATGPT START
-    vec4 col0 = texelFetch( MODEL_TEXTURE, ivec2(4*gl_InstanceID,0), 0);
-    vec4 col1 = texelFetch( MODEL_TEXTURE, ivec2(4*gl_InstanceID+1,0), 0);
-    vec4 col2 = texelFetch( MODEL_TEXTURE, ivec2(4*gl_InstanceID+2,0), 0);
-    vec4 col3 = texelFetch( MODEL_TEXTURE, ivec2(4*gl_InstanceID+3,0), 0);
+    vec3 col0 = texelFetch( mat3ModelTexture, ivec2(3*iD,0), 0).rgb;
+    vec3 col1 = texelFetch( mat3ModelTexture, ivec2(3*iD+1,0), 0).rgb;
+    vec3 col2 = texelFetch( mat3ModelTexture, ivec2(3*iD+2,0), 0).rgb;
+    mat3 model = mat3(1.0f);
+    model[0] = col0;
+    model[1] = col1;
+    model[2] = col2;
+    // CHATGPT END
+    return model;
+}
+
+mat4 getMat4Model(sampler2D mat4ModelTexture, int iD){
+    // CHATGPT START
+    vec4 col0 = texelFetch( mat4ModelTexture, ivec2(4*iD,0), 0);
+    vec4 col1 = texelFetch( mat4ModelTexture, ivec2(4*iD+1,0), 0);
+    vec4 col2 = texelFetch( mat4ModelTexture, ivec2(4*iD+2,0), 0);
+    vec4 col3 = texelFetch( mat4ModelTexture, ivec2(4*iD+3,0), 0);
     mat4 model = mat4(1.0f);
     model[0] = col0;
     model[1] = col1;
@@ -91,4 +119,14 @@ vec2 getPosition(int id, sampler2D position_texture){
     ).rg;
     // CHATGPT END
     return position;
+}
+mat4 mat3ToMat4(mat3 matrix3){
+    mat4 matrix4 = mat4(1.0f);
+    for(int row = 0; row < 3; row++){
+        for(int col = 0; col < 3; col++){
+            matrix4[col][row] = matrix3[col][row];
+        }
+    }
+    return matrix4;
+
 }

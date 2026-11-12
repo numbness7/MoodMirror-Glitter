@@ -6,3 +6,19 @@ unsigned int floatsTexture = useTextureDataToCreateTexture(&floats[0], 255, 255,
 Explanation from stack exchange: https://stackoverflow.com/questions/41396731/in-opengl-whats-the-difference-between-the-gl-red-and-gl-r-color-formats
 The is no GL_R color format, hence one cannot describe its differences to GL_RED.
 The GL_R enum is totally invalid for any use as a color format, and does not mean "red". This enum is part of the four enums GL_S, GL_T, GL_R, GL_Q, which are the symbolic names for the four-dimensional texture coordinates in the GL. Note that this enum was used to specify the old fixed-function texture coordinate generation (see for example glTexGen()), which is deprecated nowadays. As a result, the GL_R enum does not even exist in modern OpenGL at all (so you find it in the legacy gl.h, but for example not in glcorearb.h).
+
+
+I've added a textureAtlas for textures.
+I used this information to find the maximum size of textures: 2^27 bytes.
+This is the equation: channels*width*height*bytesPerChannel*emotionLayers*layers = bytesInTexture.
+I set the following
+    channels = 3
+    bytesPerChannel = 1
+    width = 256 = 2^8
+    height = 256 = 2^8
+    emotionLayers = 4 = 2^2
+layers was variable.
+If layers exceeds 16 = 2^4 the texture fails to load
+So the maximum images size should be: 3*2^8*2^8*2^2*2^4 = 3*2^(8+8+2+4) = 3*2^(20)
+This has the following unproven assumption:
+    The only relevant parameter that would cause the texture to fail to load is the number of bytes in the texture
