@@ -2037,16 +2037,16 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
         bool doFade = ALWAYS_FADE_T || transitions[FADE_T];
         glm::vec4 innerColor = shapeLayer.innerColor;    
         glm::vec4 outerColor = shapeLayer.outerColor;    
-        //if(doFade){
-        //    float fade = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
-        //    innerColor.a *= (1.0f - fade);
-        //    outerColor.a *= (1.0f - fade);
-        //}
-        //if(pulses[FADE_P]){
-        //    float fade = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, PULSE_FADE_MIN, PULSE_FADE_MAX, false);                    
-        //    innerColor.a *= (1.0f - fade);
-        //    outerColor.a *= (1.0f - fade);
-        //}
+        if(doFade){
+            float fade = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
+            innerColor.a *= (1.0f - fade);
+            outerColor.a *= (1.0f - fade);
+        }
+        if(pulses[FADE_P]){
+            float fade = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, PULSE_FADE_MIN, PULSE_FADE_MAX, false);                    
+            innerColor.a *= (1.0f - fade);
+            outerColor.a *= (1.0f - fade);
+        }
         float scaleDown = 0.0f;
         if(transitions[SCALE_T]){
             scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
@@ -2127,14 +2127,14 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
         SL_SCALEs[layer] = shapeLayer.SL_SCALE;
         layerCount++;
     }
-    unsigned int modelsTexture =                    useTextureDataToCreateTexture(models,shapeCount,1);
-    unsigned int batchNumbersTexture =              useTextureDataToCreateTexture(batchNumbers,shapeCount,1);
-    unsigned int layerNumbersTextrue =              useTextureDataToCreateTexture(layerNumbers,shapeCount,1);
-    unsigned int innerColorsTexture =               useTextureDataToCreateTexture(innerColors,layerCount,1);
-    unsigned int outerColorsTexture =               useTextureDataToCreateTexture(outerColors,layerCount,1);
-    unsigned int slScalesTexture =                  useTextureDataToCreateTexture(SL_SCALEs,layerCount,1);
-    unsigned int destructionTimesTexture =          useTextureDataToCreateTexture(destructionTimes,layerCount,1);
-    unsigned int destructionTimesPassedTexture =    useTextureDataToCreateTexture(destructionTimePasseds,layerCount,1);
+    auto modelsTexture =                    useTextureDataToCreateTexture(models,shapeCount,1);
+    auto batchNumbersTexture =              useTextureDataToCreateTexture(batchNumbers,shapeCount,1);
+    auto layerNumbersTextrue =              useTextureDataToCreateTexture(layerNumbers,shapeCount,1);
+    auto innerColorsTexture =               useTextureDataToCreateTexture(innerColors,layerCount,1);
+    auto outerColorsTexture =               useTextureDataToCreateTexture(outerColors,layerCount,1);
+    auto slScalesTexture =                  useTextureDataToCreateTexture(SL_SCALEs,layerCount,1);
+    auto destructionTimesTexture =          useTextureDataToCreateTexture(destructionTimes,layerCount,1);
+    auto destructionTimesPassedTexture =    useTextureDataToCreateTexture(destructionTimePasseds,layerCount,1);
     std::vector<OpenGLTexture> oGTextures {};
     oGTextures.push_back({"ourTexture",openGLShape.getTexture(0)});
     oGTextures.push_back({"borderTexture",openGLShape.getTexture(1)});
