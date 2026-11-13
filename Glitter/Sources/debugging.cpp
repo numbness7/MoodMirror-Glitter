@@ -4,24 +4,33 @@ namespace debug{
     {
         bool tempTerminate = false;
         float tempWaitTime;
+        float pauseTime = 0.0f;
+        bool queuedItems = false;
         while(!tempTerminate){
-
+            std::this_thread::sleep_for(std::chrono::milliseconds((unsigned int)(1000.0f*pauseTime)));
+            std::this_thread::sleep_for(std::chrono::milliseconds((unsigned int)(1000.0f*tempWaitTime)));
             {
                 std::lock_guard<std::mutex>(printInfo->lock);
                 tempTerminate = printInfo->terminate;
                 tempWaitTime = printInfo->waitTime;
+                queuedItems = !printInfo->printQueue.empty();
             }
-            std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(1000000000.0f*tempWaitTime)));
+            while(queuedItems){
+                std::lock_guard<std::mutex>(printInfo->lock);
+                if(printInfo->pauseTime > 0.0f)
+                    break;
+                if(printInfo->output == OUTPUT::TERMINAL)
+                    std::cout << printInfo->printQueue.front();
+                else{
+                    writeToFile(printInfo->logPath, getWorldTime() + ": " + printInfo->printQueue.front(), true);
+                }
+                printInfo->printQueue.pop();
+                queuedItems = !printInfo->printQueue.empty();
+            }
             {
                 std::lock_guard<std::mutex>(printInfo->lock);
-                while(!printInfo->printQueue.empty()){
-                    if(printInfo->output == OUTPUT::TERMINAL)
-                        std::cout << printInfo->printQueue.front();
-                    else{
-                        writeToFile(printInfo->logPath, getWorldTime() + ": " + printInfo->printQueue.front(), true);
-                    }
-                    printInfo->printQueue.pop();
-                }
+                pauseTime = printInfo->pauseTime;
+                printInfo->pauseTime = 0.0f;
             }
         }
     }
@@ -46,12 +55,17 @@ namespace debug{
         printInfo.output = OUTPUT::FILE;
         printInfo.logPath = logPath;
         startPrinterThread();
-        
-    }
+        }
 
     RunawayPrinter::~RunawayPrinter()
     {
         end();
+    }
+
+    void RunawayPrinter::pause(float pauseTime)
+    {
+        std::lock_guard<std::mutex> guard(this->printInfo.lock);
+        printInfo.pauseTime = pauseTime;
     }
 
     void RunawayPrinter::reset()

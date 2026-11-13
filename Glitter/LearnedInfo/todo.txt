@@ -8,6 +8,9 @@ Models Texture Improvements
     Do a similar thing as the texture Atlas Improvements
     Store a separate texture for the changes made to the whole batch of shapes, only update that each frame
     Store a separate texture for the changes made to the whole layer of shapes, only update that each frame
+    Use multiple atlas textures for the same pieces of information to increase the amount of information that can be sent
 2D improvements
     Find things that can be removed since I'm dealing with a 2D display rather than a 3D display.
+Shader
+    Fix the broken vertex shader
 

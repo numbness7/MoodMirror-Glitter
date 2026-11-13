@@ -1993,31 +1993,65 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
     return forwardDistance(a.coords) < forwardDistance(b.coords);
 }
 
-
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, OpenGLShape& openGLShape,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer, const TextureAtlas& textureAtlas){
+InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
     glDepthMask(false);
     unsigned layerCount = 0;
     unsigned batchCount = 0;
     unsigned shapeCount = 0;
-    lightingEnvironment.object_shader.use(); // TAG
-    lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS); // TAG
-    lightingEnvironment.object_shader.setUniformB("DO_FADE", false); // TAG
-    lightingEnvironment.object_shader.setUniformI("borderCase", 2); // TAG
-    lightingEnvironment.object_shader.setUniformI("ATLAS_BACK_INDEX", textureAtlas.getBackIndex()); // TAG
-    // Draw cubes
-
-
-    auto models = getFilledVector<glm::mat3>(shapeLayers.getShapeCnt(), glm::mat3());
+    auto translationMatrices = getFilledVector<glm::mat3>(shapeLayers.getShapeCnt(), glm::mat3());
+    auto rotationMatrices = getFilledVector<glm::mat3>(shapeLayers.getShapeCnt(), glm::mat3());
+    auto scaleMatrices = getFilledVector<glm::mat3>(shapeLayers.getShapeCnt(), glm::mat3());
     auto BORDER_THICKNESS = getFilledVector<float>(shapeLayers.getBatchCnt(), 0.0f);
     auto batchNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(), 0u);
     auto layerNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(),0u);
+    
+    for(auto& shapeLayer : shapeLayers){
+        int layer = shapeLayers.getLayerCnt() - 1 - layerCount;
+        auto transitions = shapeLayer.transitions;
+        auto pulses = shapeLayer.pulses;
+        for(auto& shapeBatch : shapeLayer.batches){
+            for(auto& shape : shapeBatch.shapes){
+                glm::mat3 translationRotation(1.0f);
+                glm::mat3 transition(translationRotation*shape.transition);
+                glm::mat3 rotation(shape.rotationMatrix);
+                glm::mat3 scale(shape.scaleMatrix);
+                assert(layer < TOTAL_LAYERS);
+                translationMatrices[shapeCount] = transition;
+                rotationMatrices[shapeCount] = rotation;
+                scaleMatrices[shapeCount] = scale;
+                layerNumbers[shapeCount] = layer;
+                batchNumbers[shapeCount] = batchCount;
+                shapeCount++;
+            }
+            BORDER_THICKNESS[batchCount] = shapeBatch.shapes.back().borderThickness;
+            batchCount++;
+        }
+        layerCount++;
+    }
+    InitialShapeFeatures2D isf;
+    isf.layerNumbers = layerNumbers;
+    isf.batchNumbers = batchNumbers;
+    isf.borderThickness = BORDER_THICKNESS;
+    isf.translationMatrices = translationMatrices;
+    isf.rotationMatrices = rotationMatrices;
+    isf.scaleMatrices = scaleMatrices;
+    return isf;
+}
+
+ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
+    glDepthMask(false);
+    unsigned layerCount = 0;
+
+
+    auto translationMatrices = getFilledVector<glm::mat3>(shapeLayers.getLayerCnt(), glm::mat3());
+    auto rotationMatrices = getFilledVector<glm::mat3>(shapeLayers.getLayerCnt(), glm::mat3());
+    auto scaleMatrices = getFilledVector<glm::mat3>(shapeLayers.getLayerCnt(), glm::mat3());
     auto innerColors = getFilledVector<glm::vec4>(shapeLayers.getLayerCnt(), glm::vec4());
     auto outerColors = getFilledVector<glm::vec4>(shapeLayers.getLayerCnt(), glm::vec4());
     auto destructionTimes = getFilledVector<float>(shapeLayers.getLayerCnt(), 0.0f);
     auto destructionTimePasseds = getFilledVector<float>(shapeLayers.getLayerCnt(), 0.0f);
     auto SL_SCALEs = getFilledVector<glm::vec2>(shapeLayers.getLayerCnt(), glm::vec2());
     
-    const float speed = 4.0f;
     for(auto& shapeLayer : shapeLayers){
         int layer = shapeLayers.getLayerCnt() - 1 - layerCount;
         if(layer != shapeLayer.previousLayer){
@@ -2059,67 +2093,9 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
         if(pulses[SCALE_P]){
             scaleDownPulse = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, PULSE_FADE_SCALE_MIN, PULSE_FADE_SCALE_MAX, false);                    
         }
-        for(auto& shapeBatch : shapeLayer.batches){
-            for(auto& shape : shapeBatch.shapes){
-                if (!LAYER_TRANSITIONS)
-                    transitions = shape.transitions;
-                if (!LAYER_PULSES)
-                    pulses = shapeBatch.pulses;
-
-                glm::mat3 translationRotation(1.0f);
-                if(pulses[SPINL_P]){
-                    static const float spinScale = 0.5f;
-                    shape.spin -= deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
-                    translationRotation = glm::rotate(translationRotation, shape.spin);
-                }
-                glm::mat3 model(1.0f);
-                glm::mat3 transition(translationRotation*shape.transition);
-                glm::mat3 rotation(shape.rotationMatrix);
-                glm::mat3 scale(shape.scaleMatrix);
-                
-
-
-
-                float inverse = (transitions[BACK_OUT_T]) ? -1.0f : 1.0f;
-
-                if(transitions[BACK_OUT_T] || transitions[MOVE_FORWARD_T]){
-                    transition = glm::mat3(1.0f);
-                    transition = glm::translate(transition, 2.0f*shape.direction - shape.rotatedCoords);
-                    transition = glm::translate(transition, inverse*speed*dX*shape.direction);
-                }
-                
-                if(transitions[SCALE_T]){
-                    scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDown),1.0f));
-                }
-                
-                
-                assert(layer < TOTAL_LAYERS);
-                
-                
-
-                if(pulses[SCALE_P]){
-                    scale = glm::scale(scale, glm::vec3(glm::vec2(1.0f - scaleDownPulse),1.0f));
-                }
-                if(pulses[RUMBLE_P]){
-                    static const float rumbleScale = 3.0f;
-                    shape.rumbleCoords +=  deltaTimer.getDeltaTime()*rumbleScale*randCoords2D()/pulseMaxTime;
-                    transition = glm::translate(transition, glm::vec3(shape.rumbleCoords,0.0f));
-                }
-                if(pulses[SPINR_P]){
-                    static const float spinScale = 0.5f;
-                    shape.spin += deltaTimer.getDeltaTime()*spinScale/pulseMaxTime;
-                    rotation = glm::rotate(rotation, shape.spin);
-                }
-                model = transition*rotation*scale;
-                
-                models[shapeCount] = model;
-                layerNumbers[shapeCount] = layer;
-                batchNumbers[shapeCount] = batchCount;
-                shapeCount++;
-            }
-            BORDER_THICKNESS[batchCount] = shapeBatch.shapes.back().borderThickness;
-            batchCount++;
-        }
+        translationMatrices[layer] = dX*glm::mat3(1.0f);
+        rotationMatrices[layer] = glm::mat3(1.0f);
+        scaleMatrices[layer] = glm::scale(glm::mat3(1.0f),glm::vec2((1.0f - scaleDown)));
         innerColors[layer] = innerColor;
         outerColors[layer] = outerColor;
         destructionTimes[layer] = waitTime;
@@ -2127,30 +2103,21 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
         SL_SCALEs[layer] = shapeLayer.SL_SCALE;
         layerCount++;
     }
-    auto modelsTexture =                    useTextureDataToCreateTexture(models,shapeCount,1);
-    auto batchNumbersTexture =              useTextureDataToCreateTexture(batchNumbers,shapeCount,1);
-    auto layerNumbersTextrue =              useTextureDataToCreateTexture(layerNumbers,shapeCount,1);
-    auto innerColorsTexture =               useTextureDataToCreateTexture(innerColors,layerCount,1);
-    auto outerColorsTexture =               useTextureDataToCreateTexture(outerColors,layerCount,1);
-    auto slScalesTexture =                  useTextureDataToCreateTexture(SL_SCALEs,layerCount,1);
-    auto destructionTimesTexture =          useTextureDataToCreateTexture(destructionTimes,layerCount,1);
-    auto destructionTimesPassedTexture =    useTextureDataToCreateTexture(destructionTimePasseds,layerCount,1);
-    std::vector<OpenGLTexture> oGTextures {};
-    oGTextures.push_back({"ourTexture",openGLShape.getTexture(0)});
-    oGTextures.push_back({"borderTexture",openGLShape.getTexture(1)});
-    oGTextures.push_back({"MODEL_TEXTURE",modelsTexture});
-    oGTextures.push_back({"BATCH_NUMBER_TEXTURE", batchNumbersTexture});
-    oGTextures.push_back({"LAYER_NUMBER_TEXTURE", layerNumbersTextrue});
-    oGTextures.push_back({"ONE_BIG_BEAUTIFUL_TEXTURE", textureAtlas.getTexture()});
-    oGTextures.push_back({"INNER_COLORS_TEXTURE", innerColorsTexture});
-    oGTextures.push_back({"OUTER_COLORS_TEXTURE", outerColorsTexture});
-    oGTextures.push_back({"SL_SCALES_TEXTURE", slScalesTexture});
-    oGTextures.push_back({"DESTRUCTION_TIMES_TEXTURE", destructionTimesTexture});
-    oGTextures.push_back({"DESTRUCTION_TIME_PASSEDS_TEXTURE", destructionTimesPassedTexture});
-    openGLShape.drawBatch(lightingEnvironment.object_shader, oGTextures, shapeCount); // TAG
-    glDeleteTextures(1, &modelsTexture);
-    glDeleteTextures(1, &batchNumbersTexture);
-    glDeleteTextures(1, &layerNumbersTextrue);
+    ShapeLayerFeatures2D slf;
+    slf.destructionTimePasseds = destructionTimePasseds;
+    slf.destructionTimes  = destructionTimes;
+    slf.innerColors = innerColors;
+    slf.outerColors = outerColors;
+    slf.rotationMatrices = rotationMatrices;
+    slf.translationMatrices = translationMatrices;
+    slf.scaleMatrices = scaleMatrices;
+    slf.sLSCALEs = SL_SCALEs;
+    return slf;
+}
+
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, OpenGLShape& openGLShape,  std::vector<OpenGLTexture>& openGLTextures, int shapeCount){
+    glDepthMask(false);
+    openGLShape.drawBatch(lightingEnvironment.object_shader, openGLTextures, shapeCount); // TAG
     glDepthMask(true);
 }
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
@@ -2938,7 +2905,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     lightingEnvironment.object_shader.setUniformF("BELOW_INTERCEPT", interceptBT);
     lightingEnvironment.object_shader.setUniformF("DISABLE_ALMOST_EVERYTHING", false);
     lightingEnvironment.object_shader.setUniformF("USE_MODEL_ARRAY", true);
-    lightingEnvironment.object_shader.setUniformI("MODEL_TEXTURE", 2);
     lightingEnvironment.object_shader.setUniformI("BATCHES_CNT", TOTAL_LAYERS*TOTAL_EMOTION_LAYERS);
     
     
@@ -2975,12 +2941,14 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     Alarm printAlarm(PRINT_TIME);
 
     debug::RunawayPrinter runawayPrinter{1.3f};
-    debug::RunawayPrinter runawayLogger{1.3f, "log.txt"};
+    //debug::RunawayPrinter runawayLogger{1.3f, "log.txt"};
     debug::StopWatch stopWatch{};
 
 
     PngData pd(COLOR_WIDTH,COLOR_HEIGHT,3);
-    TextureAtlas textureAtlas(defaults::options, TOTAL_EMOTION_LAYERS*TOTAL_LAYERS);
+    OpenGLTextureOptions options = ttm::png3Map(COLOR_WIDTH, COLOR_HEIGHT);
+    TextureAtlas textureAtlas(options, TOTAL_EMOTION_LAYERS*TOTAL_LAYERS, "ONE_BIG_BEAUTIFUL_TEXTURE");
+    runawayPrinter.pause(3.0f);
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -3040,11 +3008,35 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         }
         // Draw cubes
         glDisable(GL_DEPTH_TEST);
-        
+        auto isf = loadShapes2D(shapeLayersStorage);
+        auto slf = loadShapeLayer2Ds(shapeLayersStorage, lineAbove, lineBelow);
+        std::vector<OpenGLTexture> openGLTextures{
+            {"ourTexture",blankTexture},
+            {"borderTexture",squareBorderTexture},
+            {"TRANS_L_TEXTURE",useTextureDataToCreateTexture(slf.translationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
+            {"ROTATE_L_TEXTURE",useTextureDataToCreateTexture(slf.rotationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
+            {"SCALE_L_TEXTURE",useTextureDataToCreateTexture(slf.scaleMatrices, shapeLayersStorage.getLayerCnt(), 1)},
+            {"INNER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.innerColors, shapeLayersStorage.getLayerCnt(), 1)},
+            {"OUTER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.outerColors, shapeLayersStorage.getLayerCnt(), 1)},
+            {"SL_SCALES_TEXTURE",useTextureDataToCreateTexture(slf.sLSCALEs, shapeLayersStorage.getLayerCnt(), 1)},
+            textureAtlas.getTexture(),
+            {"TRANS_S_TEXTURE",useTextureDataToCreateTexture(isf.translationMatrices, shapeLayersStorage.getShapeCnt(), 1)},
+            {"ROTATE_S_TEXTURE",useTextureDataToCreateTexture(isf.rotationMatrices, shapeLayersStorage.getShapeCnt(), 1)},
+            {"SCALE_S_TEXTURE",useTextureDataToCreateTexture(isf.scaleMatrices, shapeLayersStorage.getShapeCnt(), 1)},
+            {"BATCH_NUMBER_TEXTURE",useTextureDataToCreateTexture(isf.batchNumbers, shapeLayersStorage.getShapeCnt(), 1)},
+            {"LAYER_NUMBER_TEXTURE",useTextureDataToCreateTexture(isf.layerNumbers, shapeLayersStorage.getShapeCnt(), 1)},
+            {"BORDER_THICKNESS_TEXTURE",useTextureDataToCreateTexture(isf.borderThickness, shapeLayersStorage.getShapeCnt(), 1)},
+        };
+
+        lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS); // TAG
+        lightingEnvironment.object_shader.setUniformB("DO_FADE", false); // TAG
+        lightingEnvironment.object_shader.setUniformI("borderCase", 2); // TAG
+        lightingEnvironment.object_shader.setUniformI("ATLAS_SHIFT_LEFT", textureAtlas.getShiftLeft()); // TAG
         
         if(!shapeLayersStorage.empty())
-            drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, square, lineAbove, lineBelow, deltaTimer, textureAtlas);
+            drawShapeLayers2D(lightingEnvironment, square, openGLTextures, shapeLayersStorage.getShapeCnt());
         glEnable(GL_DEPTH_TEST);
+        
         
         endRenderLoop(mWindow,deltaTimer,camera);
 
@@ -5176,7 +5168,7 @@ int mainDrawBatch(int argc, char* argv[]){
 
 
     std::vector<OpenGLTexture> textures;
-    TextureAtlas textureAtlasData(defaults::options, TOTAL_BATCHES_TEST);
+    TextureAtlas textureAtlasData(defaults::options, TOTAL_BATCHES_TEST, "ONE_BIG_BEAUTIFUL_TEXTURE");
     PngData benTexture(WIDTH, HEIGHT, 3);
     for(int i = 0; i < TOTAL_BATCHES_TEST; i++){
             do{
@@ -5186,7 +5178,7 @@ int mainDrawBatch(int argc, char* argv[]){
             textureAtlasData.replaceTexture(benTexture.getData());
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    unsigned int textureAtlus = textureAtlasData.getTexture();
+    unsigned int textureAtlus = textureAtlasData.getTexture().address;
     textures.push_back({"ourTexture",blankTexture});
     textures.push_back({"borderTexture",borderTexture});
     unsigned int modelsTexture = useTextureDataToCreateTexture(models, SIZE*3, 1, GL_TEXTURE_2D, 0, GL_RGB32F, GL_RGB, GL_FLOAT);
@@ -5375,17 +5367,22 @@ void OpenGLShape::drawBatch(Shader& shader, const std::vector<OpenGLTexture>& te
     glBindVertexArray(0);
 }
 
-
-TextureAtlas::TextureAtlas(const OpenGLTextureOptions options, unsigned int textureCnt) : options{options}, textureCnt{textureCnt}, backIndex{textureCnt - 1}
+OpenGLShape::OpenGLShape(const shapes::Shape &shape)
 {
-    texture = useTextureDataToCreateTexture(nullptr, textureCnt*options.width, options.height, 
-            options.target, options.level, options.internalFormat, 
-            options.format, options.type);
+    this->ind_cnt = shape.indCnt;
+    this->vert_cnt = shape.vertCnt;
+    create_a_shape(this->VAO, this->VBO, this->EBO, this->ind_cnt, this->vert_cnt, shape.vertices, shape.indices, shape.attributeSizes);
 }
 
-void TextureAtlas::replaceTexture(const void* data)
+
+TextureAtlas::TextureAtlas(const OpenGLTextureOptions options, const unsigned int textureCnt, const std::string name) : options{options}, textureCnt{textureCnt}, backIndex{textureCnt - 1} 
 {
-    glBindTexture(options.target, texture);
+    this->texture = {name, useTextureDataToCreateTexture(nullptr, ttm::diffDimensions(this->options.width*textureCnt,this->options.height,options))};
+}
+
+void TextureAtlas::replaceTexture(const void *data)
+{
+    glBindTexture(options.target, texture.address);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
@@ -5465,7 +5462,7 @@ int mainDrawSubTextures(int argc, char* argv[]){
     options.width = WIDTH;
     options.height = HEIGHT;
 
-    TextureAtlas textureAtlas(options, BATCHES);
+    TextureAtlas textureAtlas(options, BATCHES, "ONE_BIG_BEAUTIFUL_TEXTURE");
     PngData benTexture(WIDTH,HEIGHT,CHANNELS);
     generatePNGBlank(benTexture);
     for(int i = 0; i < BATCHES; i++){
@@ -5478,7 +5475,7 @@ int mainDrawSubTextures(int argc, char* argv[]){
         textureAtlas.replaceTexture(benTexture.getData());
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    OpenGLShape rectangle(shapes::rectT, textureAtlas.getTexture(), true);
+    OpenGLShape rectangle(shapes::rectT, textureAtlas.getTexture().address, true);
     Shader texS("Glitter/Shaders/texture");
 
     
@@ -5490,4 +5487,27 @@ int mainDrawSubTextures(int argc, char* argv[]){
     
     return EXIT_SUCCESS;
     
+}
+bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2){
+    if(o1.format != o2.format)
+        return false;
+    if(o1.height != o2.height)
+        return false;
+    if(o1.internalFormat != o2.internalFormat)
+        return false;
+    if(o1.level != o2.level)
+        return false;
+    if(o1.target != o2.target)
+        return false;
+    if(o1.type != o2.type)
+        return false;
+    if(o1.width != o2.width)
+        return false;
+    return true;
+}
+template <typename T> void TextureAtlas::replaceTexture(const std::vector<T> vec, GLsizei width, GLsizei height){
+    assert(vec.size() >= width*height);
+    const OpenGLTextureOptions vecOptions = ttm::map(vec, width*textureCnt, height);
+    assert(vecOptions == options);
+    replaceTexture(vec.data());
 }

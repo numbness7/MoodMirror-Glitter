@@ -30,6 +30,7 @@ namespace debug{
         float waitTime;
         std::thread printThread;
         bool terminate;
+        float pauseTime;
         std::string logPath;
         OUTPUT output;
     };
@@ -41,6 +42,7 @@ namespace debug{
             RunawayPrinter(float waitTime);
             RunawayPrinter(float waitTime, std::string logPath);
             ~RunawayPrinter();
+            void pause(float pauseTime);
             void reset();
             void reset(float waitTime);
             void reset(float waitTime, std::string logPath);

@@ -68,8 +68,8 @@
 
 #define MAXIMUM_IMAGE_POWER 32
 #define TOTAL_LAYERS 16
-#define SHAPES_IN_BATCH 5
-#define MID_LAYER 8
+#define SHAPES_IN_BATCH 3
+#define MID_LAYER 3
 #define TOTAL_EMOTION_LAYERS 4 
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
@@ -174,10 +174,11 @@
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define MAX_SCALE 3.10f
-#define MIN_SCALE 0.925f
-#define AVE_SCALE 1.10f
-#define DEV_SCALE 1.10f
+#define SCALE_MULTIPLIER 3.0f
+#define MAX_SCALE 1.10f*SCALE_MULTIPLIER
+#define MIN_SCALE 0.100f*SCALE_MULTIPLIER
+#define AVE_SCALE 0.10f*SCALE_MULTIPLIER
+#define DEV_SCALE 0.10f*SCALE_MULTIPLIER
 
 // Random Alpha Differences Between Shapes in Same Batch
 
@@ -291,6 +292,10 @@ template <typename T> T* copyInitialize(const T arrayCopyFrom[], const unsigned 
     return aCopy;
 }
 
+struct OpenGLTexture {
+    std::string name;
+    unsigned int address;
+};
 struct OpenGLTextureOptions{
     GLsizei width  = 256;
     GLsizei height = 256;
@@ -319,6 +324,7 @@ namespace textureTypeMappings{
     //unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), SIZE, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
     inline OpenGLTextureOptions png4Map    (const GLsizei width, const GLsizei height){  return {width,     height, GL_RGBA8,      GL_RGBA, GL_UNSIGNED_BYTE,  GL_TEXTURE_2D, 0}; };
     inline OpenGLTextureOptions png3Map    (const GLsizei width, const GLsizei height){  return {width,     height, GL_RGB8,       GL_RGB,  GL_UNSIGNED_BYTE,  GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions diffDimensions(const GLsizei width, const GLsizei height, const OpenGLTextureOptions options) { OpenGLTextureOptions optionsDiff{options}; optionsDiff.width = width; optionsDiff.height = height; return optionsDiff; };
 };
 
 namespace ttm = textureTypeMappings;
@@ -454,19 +460,22 @@ class PngData{
 
 class TextureAtlas{
     public:
-        TextureAtlas(const OpenGLTextureOptions textureOptions, unsigned int textureCnt);
+        TextureAtlas(const OpenGLTextureOptions options, const unsigned int textureCnt, const std::string name);
         unsigned int getTextureCnt    () const { return textureCnt;    }
         unsigned int getBackIndex     () const { return backIndex;      }
-        unsigned int getTexture       () const { return texture; }
+        unsigned int getShiftLeft     () const { return (textureCnt - 1) - backIndex;      }
+        unsigned int getTextureAddress       () const { return texture.address; }
+        OpenGLTexture getTexture       () const { return texture; }
         OpenGLTextureOptions getTextureOptions() const { return options; }
         void replaceTexture(const void* data);
+        template <typename T> void replaceTexture(const std::vector<T> data, GLsizei width, GLsizei height);
 
 
     private:
         const OpenGLTextureOptions options;
         const unsigned int textureCnt;
         unsigned int backIndex;
-        unsigned int texture;
+        OpenGLTexture texture;
 };
 
 
@@ -515,28 +524,39 @@ class StraightPath{
         float progress; // Ranges from 0 to 1
 };
 
-struct OpenGLTexture {
-    std::string name;
-    unsigned int address;
-};
 
 /// @brief Contains reference information to an OpenGL shape.
 class OpenGLShape {
     public:
-        OpenGLShape(unsigned int vert_cnt, unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture);
-        OpenGLShape(const shapes::Shape &shape, const std::vector<unsigned int> &textures, const bool hasMultipleTextures);
-        OpenGLShape(const shapes::Shape& shape, unsigned int texture, bool hasTexture);
         void draw(Shader& shader);
-        void draw(Shader& shader, std::vector<unsigned int> textures);
-        void drawBatch(Shader& shader, const std::vector<OpenGLTexture>& textures, unsigned int count);
-        void drawBatch(Shader& shader, const std::vector<unsigned int>& textures, unsigned int count);
         void drawBatch(Shader& shader, unsigned int count);
+        void drawBatch(Shader& shader, const std::vector<OpenGLTexture>& textures, unsigned int count);
+        OpenGLShape(const shapes::Shape& shape);
+
+
+        // Deprecate this
+        OpenGLShape(unsigned int vert_cnt, unsigned int ind_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes, unsigned int texture, bool hasTexture);
+        // Deprecate this
+        OpenGLShape(const shapes::Shape &shape, const std::vector<unsigned int> &textures, const bool hasMultipleTextures);
+        // Deprecate this
+        OpenGLShape(const shapes::Shape& shape, unsigned int texture, bool hasTexture);
+        // Deprecate this
+        void draw(Shader& shader, std::vector<unsigned int> textures);
+        // Deprecate this
+        void drawBatch(Shader& shader, const std::vector<unsigned int>& textures, unsigned int count);
+        // Deprecate this
         void setTexture(const unsigned int texture, unsigned const int index=0){ this->textures[index] = texture; }
+        // Deprecate this
         void swapTexture(const unsigned int indexA, unsigned const int indexB){ mySwap(textures[indexA], textures[indexB]); }
+        // Deprecate this
         void pushTexture(const unsigned int texture){ textures.push_back(texture); }
+        // Deprecate this
         void padTextures(unsigned int padding) { for(int i = 0; i < padding; i++) textures.push_back(0); }
+        // Deprecate this
         void clearTextures() { textures.clear(); }
+        // Deprecate this
         void setTextures(const std::vector<unsigned int> textures) { clearTextures(); for(const auto texture : textures) this->textures.push_back(texture); }
+        // Deprecate this
         unsigned int getTexture(const unsigned index) { return textures[index]; }
     private:
         bool hasTextures;
@@ -545,6 +565,7 @@ class OpenGLShape {
         unsigned int EBO;
         unsigned int ind_cnt;
         unsigned int vert_cnt;
+        // Deprecate this
         std::vector<unsigned int> textures;
 };
 
@@ -608,6 +629,28 @@ struct ShapeProperties2D {
     glm::vec2 rumbleCoords = glm::vec2(0.0f);
     float spin = 0.0f;
 };
+
+struct InitialShapeFeatures2D {
+    std::vector<unsigned int> layerNumbers;
+    std::vector<unsigned int> batchNumbers;
+    std::vector<float> borderThickness;
+    std::vector<glm::mat3> translationMatrices;
+    std::vector<glm::mat3> rotationMatrices;
+    std::vector<glm::mat3> scaleMatrices;
+};
+
+struct ShapeLayerFeatures2D {
+    std::vector<glm::mat3> translationMatrices;
+    std::vector<glm::mat3> rotationMatrices;
+    std::vector<glm::mat3> scaleMatrices;
+    std::vector<glm::vec2> sLSCALEs;
+    std::vector<glm::vec4> innerColors;
+    std::vector<glm::vec4> outerColors;
+    std::vector<float> destructionTimes;
+    std::vector<float> destructionTimePasseds;
+};
+
+
 
 /// @brief The shader information for drawing shapes.
 struct LightingEnvironment {
@@ -729,7 +772,7 @@ int mainDrawSubTextures(int argc, char* argv[]);
 /// @param lock 
 /// @param lineAbove 
 /// @param lineBelow 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, OpenGLShape& openGLShape,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer, const TextureAtlas& textureAtlas);
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, OpenGLShape& openGLShape,  std::vector<OpenGLTexture>& openGLTextures, int shapeCount);
 void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
@@ -1017,5 +1060,9 @@ namespace glm{
     glm::vec2 operator*(glm::mat3 mat3, glm::vec2 vec2);
     glm::vec2 vec3ToVec2(glm::vec3 vec3);
 };
+InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers);
+ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow);
+bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2);
 
 #endif
+

@@ -17,14 +17,13 @@ uniform int MID_LAYER;
 uniform bool DO_FADE;
 const float BORDER_THICKNESS = 0.5f;
 uniform bool DISABLE_ALMOST_EVERYTHING;
-uniform int  ATLAS_BACK_INDEX;
+uniform int  ATLAS_SHIFT_LEFT;
 in mat3 matrixOut;
 
 
 // TEXTURES
 uniform sampler2D borderTexture;
 uniform sampler2D ourTexture;
-uniform sampler2D MODEL_TEXTURE;
 uniform sampler2D ONE_BIG_BEAUTIFUL_TEXTURE;
 uniform isampler2D BATCH_NUMBER_TEXTURE;
 uniform isampler2D LAYER_NUMBER_TEXTURE;
@@ -37,7 +36,6 @@ uniform sampler2D DESTRUCTION_TIME_PASSEDS_TEXTURE;
 uniform int BATCHES_CNT;
 
 
-float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer);
 float distFromCenter(float dist);
 bool isOuter(float dist, float thickness);
 float getDist();
@@ -64,8 +62,7 @@ void main(){
     
     vec4 finalFragColor = vec4(1.0f);
     int batchNumber = int(getBatch());
-    int shiftLeft = int(BATCHES_CNT) - int(ATLAS_BACK_INDEX) - 1;
-    int index = batchNumber - shiftLeft;
+    int index = batchNumber - ATLAS_SHIFT_LEFT;
     if(index < 0)
         index = BATCHES_CNT + index;
     vec4 BenTextureColor = texture(ONE_BIG_BEAUTIFUL_TEXTURE, vec2(ourTexCoord.x/float(BATCHES_CNT) + float(int(index)%int(BATCHES_CNT))/float(BATCHES_CNT), ourTexCoord.y));
@@ -151,25 +148,6 @@ float getDist(){
     return getDistFromTexture(borderTexture, ourTexCoord);
 }
 
-float calcFade(float destructionTimePassed, float destructionTime, int totalLayers, int midLayer, int layer){
-    float fade = 0.0f;
-	float timePassed;
-	float b;
-	float slope;
-	if(layer > midLayer){
-		timePassed = destructionTimePassed + destructionTime*float(totalLayers - 1 - layer);
-		b = ABOVE_INTERCEPT;
-		slope = ABOVE_SLOPE;
-
-	}
-	else{
-		timePassed = destructionTimePassed + destructionTime*float(midLayer - layer);
-		b = BELOW_INTERCEPT;
-		slope = BELOW_SLOPE;
-	}
-    fade = b + slope*timePassed;
-    return fade;
-}
 float distFromCenter(float dist){
     return 1.0f - dist;
 }
