@@ -68,7 +68,7 @@
 
 #define MAXIMUM_IMAGE_POWER 32
 #define TOTAL_LAYERS 16
-#define SHAPES_IN_BATCH 64
+#define SHAPES_IN_BATCH 5
 #define MID_LAYER 8
 #define TOTAL_EMOTION_LAYERS 4 
 #define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
@@ -80,7 +80,7 @@
 
 // Spawn Times
 
-#define SHAPE_INITIAL_SPAWN_TIME 1.25f
+#define SHAPE_INITIAL_SPAWN_TIME 0.25f
 #define DESTRUCTION_TIME         1.25f
 #define UPDATE_ITERATIONS 10.0f
 
@@ -305,7 +305,25 @@ struct OpenGLTextureOptions{
 namespace defaults{
     const OpenGLTextureOptions options{};
 };
+
+namespace textureTypeMappings{                                                                                                  
+    inline OpenGLTextureOptions map   (const std::vector<float>&,         const GLsizei width,  const GLsizei height){  return {width,     height, GL_R32F,       GL_RED,  GL_FLOAT,          GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions map   (const std::vector<glm::vec2>&,     const GLsizei width,  const GLsizei height){  return {width,     height, GL_RG32F,      GL_RG,   GL_FLOAT,          GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions map   (const std::vector<glm::vec3>&,     const GLsizei width,  const GLsizei height){  return {width,     height, GL_RGB32F,     GL_RGB,  GL_FLOAT,          GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions map   (const std::vector<glm::vec4>&,     const GLsizei width,  const GLsizei height){  return {width,     height, GL_RGBA32F,    GL_RGBA, GL_FLOAT,          GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions map   (const std::vector<glm::mat2>&,     const GLsizei width,  const GLsizei height){  return {width * 2, height, GL_RG32F,      GL_RG,   GL_FLOAT,          GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions map   (const std::vector<glm::mat3>&,     const GLsizei width,  const GLsizei height){  return {width * 3, height, GL_RGB32F,     GL_RGB,  GL_FLOAT,          GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions map   (const std::vector<glm::mat4>&,     const GLsizei width,  const GLsizei height){  return {width * 4, height, GL_RGBA32F,    GL_RGBA, GL_FLOAT,          GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions map   (const std::vector<int>&,           const GLsizei width,  const GLsizei height){  return {width,     height, GL_R32I,       GL_RED_INTEGER,  GL_INT,            GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions map   (const std::vector<unsigned int>&,  const GLsizei width,  const GLsizei height){  return {width,     height, GL_R32UI,      GL_RED_INTEGER,  GL_UNSIGNED_INT,   GL_TEXTURE_2D, 0}; };
+    //unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), SIZE, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
+    inline OpenGLTextureOptions png4Map    (const GLsizei width, const GLsizei height){  return {width,     height, GL_RGBA8,      GL_RGBA, GL_UNSIGNED_BYTE,  GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions png3Map    (const GLsizei width, const GLsizei height){  return {width,     height, GL_RGB8,       GL_RGB,  GL_UNSIGNED_BYTE,  GL_TEXTURE_2D, 0}; };
+};
+
+namespace ttm = textureTypeMappings;
         
+template <typename T> unsigned int useTextureDataToCreateTexture(std::vector<T> data, GLsizei width, GLsizei height);
 
 // #Classes -------------------------------------------------------------
 

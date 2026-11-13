@@ -882,6 +882,49 @@ void generatePNGData(unsigned char *data, int width, int height, int nrChannels)
     }
     std::cout << "O: " << other << std::endl;
 }
+
+template <typename T> unsigned int useTextureDataToCreateTexture(std::vector<T> data, GLsizei width, GLsizei height){
+    return useTextureDataToCreateTexture(data.data(), ttm::map(data, width, height));
+}
+unsigned int useTextureDataToCreateTexture(const void* data, OpenGLTextureOptions options){
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glBindTexture(options.target, texture);
+    // CHATGPT START
+    int stores = 0;
+    
+    switch(options.format){
+        case GL_RGBA:
+        case GL_RGBA_INTEGER:
+            stores = 4;
+            break;
+        case GL_RGB:
+        case GL_RGB_INTEGER:
+            stores = 3;
+            break;
+        case GL_RG:
+        case GL_RG_INTEGER:
+            stores = 2;
+            break;
+        case GL_RED:
+        case GL_RED_INTEGER:
+            stores = 1;
+            break;
+        default:
+            std::cout << "SOMETHING WENT HORRIBLY WRONG AHHHHHH!!!\n" << std::endl;
+            assert(false);
+    }
+    glPixelStorei(GL_UNPACK_ALIGNMENT, stores);
+    glTexParameteri(options.target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(options.target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(options.target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(options.target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // CHATGPT END
+    
+    glTexImage2D(options.target, options.level, options.internalFormat, options.width, options.height, 0 /* border (must be zero smh) */ , options.format, options.type, data);
+    return texture;
+}
+
 unsigned int useTextureDataToCreateTexture(const void* data, GLsizei width, GLsizei height, GLenum target = GL_TEXTURE_2D, GLint level = 0, GLint internalFormat = GL_RGBA,  GLenum format = GL_RGBA, GLenum type = GL_UNSIGNED_BYTE){
     unsigned int texture;
     glGenTextures(1, &texture);
@@ -1966,7 +2009,7 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
 
     auto models = getFilledVector<glm::mat3>(shapeLayers.getShapeCnt(), glm::mat3());
     auto BORDER_THICKNESS = getFilledVector<float>(shapeLayers.getBatchCnt(), 0.0f);
-    std::vector<unsigned int> batchNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(), 0u);
+    auto batchNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(), 0u);
     auto layerNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(),0u);
     auto innerColors = getFilledVector<glm::vec4>(shapeLayers.getLayerCnt(), glm::vec4());
     auto outerColors = getFilledVector<glm::vec4>(shapeLayers.getLayerCnt(), glm::vec4());
@@ -1994,16 +2037,16 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
         bool doFade = ALWAYS_FADE_T || transitions[FADE_T];
         glm::vec4 innerColor = shapeLayer.innerColor;    
         glm::vec4 outerColor = shapeLayer.outerColor;    
-        if(doFade){
-            float fade = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
-            innerColor.a *= (1.0f - fade);
-            outerColor.a *= (1.0f - fade);
-        }
-        if(pulses[FADE_P]){
-            float fade = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, PULSE_FADE_MIN, PULSE_FADE_MAX, false);                    
-            innerColor.a *= (1.0f - fade);
-            outerColor.a *= (1.0f - fade);
-        }
+        //if(doFade){
+        //    float fade = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
+        //    innerColor.a *= (1.0f - fade);
+        //    outerColor.a *= (1.0f - fade);
+        //}
+        //if(pulses[FADE_P]){
+        //    float fade = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, PULSE_FADE_MIN, PULSE_FADE_MAX, false);                    
+        //    innerColor.a *= (1.0f - fade);
+        //    outerColor.a *= (1.0f - fade);
+        //}
         float scaleDown = 0.0f;
         if(transitions[SCALE_T]){
             scaleDown = calcFade(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
@@ -2068,12 +2111,10 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
                     rotation = glm::rotate(rotation, shape.spin);
                 }
                 model = transition*rotation*scale;
-                //model = transition;
-                //model = glm::mat3(1.0f);
                 
                 models[shapeCount] = model;
                 layerNumbers[shapeCount] = layer;
-                batchNumbers[batchCount];
+                batchNumbers[shapeCount] = batchCount;
                 shapeCount++;
             }
             BORDER_THICKNESS[batchCount] = shapeBatch.shapes.back().borderThickness;
@@ -2086,14 +2127,14 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
         SL_SCALEs[layer] = shapeLayer.SL_SCALE;
         layerCount++;
     }
-    unsigned int modelsTexture = useTextureDataToCreateTexture(models.data(), shapeCount*3, 1, GL_TEXTURE_2D, 0, GL_RGB32F, GL_RGB, GL_FLOAT);
-    unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
-    unsigned int layerNumbersTextrue = useTextureDataToCreateTexture(layerNumbers.data(), shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
-    unsigned int innerColorsTexture = useTextureDataToCreateTexture(innerColors.data(), layerCount, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int outerColorsTexture = useTextureDataToCreateTexture(outerColors.data(), layerCount, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int slScalesTexture = useTextureDataToCreateTexture(SL_SCALEs.data(), layerCount, 1, GL_TEXTURE_2D, 0, GL_RG32F, GL_RG, GL_FLOAT);
-    unsigned int destructionTimesTexture = useTextureDataToCreateTexture(destructionTimes.data(), layerCount, 1, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
-    unsigned int destructionTimesPassedTexture = useTextureDataToCreateTexture(destructionTimePasseds.data(), layerCount, 1, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
+    unsigned int modelsTexture =                    useTextureDataToCreateTexture(models,shapeCount,1);
+    unsigned int batchNumbersTexture =              useTextureDataToCreateTexture(batchNumbers,shapeCount,1);
+    unsigned int layerNumbersTextrue =              useTextureDataToCreateTexture(layerNumbers,shapeCount,1);
+    unsigned int innerColorsTexture =               useTextureDataToCreateTexture(innerColors,layerCount,1);
+    unsigned int outerColorsTexture =               useTextureDataToCreateTexture(outerColors,layerCount,1);
+    unsigned int slScalesTexture =                  useTextureDataToCreateTexture(SL_SCALEs,layerCount,1);
+    unsigned int destructionTimesTexture =          useTextureDataToCreateTexture(destructionTimes,layerCount,1);
+    unsigned int destructionTimesPassedTexture =    useTextureDataToCreateTexture(destructionTimePasseds,layerCount,1);
     std::vector<OpenGLTexture> oGTextures {};
     oGTextures.push_back({"ourTexture",openGLShape.getTexture(0)});
     oGTextures.push_back({"borderTexture",openGLShape.getTexture(1)});
