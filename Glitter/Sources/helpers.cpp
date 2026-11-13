@@ -120,6 +120,16 @@ template <typename V> std::vector<V> average(std::vector<std::vector<V>> vec){
 }
 
 template <typename T>
+std::vector<T> getFilledVector(unsigned int size, T element)
+{
+    std::vector<T> vec;
+    vec.reserve(size);
+    for(unsigned int i = 0; i < size; i++)
+        vec.push_back(element);
+    return vec;
+}
+
+template <typename T>
 std::string vec2str(T vec, unsigned int size)
 {
     std::string s = "(";
@@ -1941,7 +1951,7 @@ bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties
 }
 
 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer, const TextureAtlas& textureAtlas){
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, OpenGLShape& openGLShape,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer, const TextureAtlas& textureAtlas){
     glDepthMask(false);
     unsigned layerCount = 0;
     unsigned batchCount = 0;
@@ -1954,18 +1964,15 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
     // Draw cubes
 
 
-    glm::mat3* models = (glm::mat3 *) malloc(sizeof(glm::mat3)*shapeLayers.getShapeCnt());
-    float* BORDER_THICKNESS = (float *) malloc(sizeof(float)*shapeLayers.getShapeCnt());
-    std::vector<unsigned int> batchNumbers;
-    batchNumbers.reserve(shapeLayers.getShapeCnt());
-    unsigned int* layerNumbers = (unsigned int *) malloc(sizeof(unsigned int)*shapeLayers.getShapeCnt());
-
-
-    glm::vec4* innerColors = (glm::vec4 *) malloc(sizeof(glm::vec4)*shapeLayers.getLayerCnt());
-    glm::vec4* outerColors = (glm::vec4 *) malloc(sizeof(glm::vec4)*shapeLayers.getLayerCnt());
-    float* destructionTimes = (float *) malloc(sizeof(float)*shapeLayers.getLayerCnt());
-    float* destructionTimePasseds = (float *) malloc(sizeof(float)*shapeLayers.getLayerCnt());
-    glm::vec2* SL_SCALEs = (glm::vec2 *) malloc(sizeof(glm::vec2)*shapeLayers.getLayerCnt());
+    auto models = getFilledVector<glm::mat3>(shapeLayers.getShapeCnt(), glm::mat3());
+    auto BORDER_THICKNESS = getFilledVector<float>(shapeLayers.getBatchCnt(), 0.0f);
+    std::vector<unsigned int> batchNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(), 0u);
+    auto layerNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(),0u);
+    auto innerColors = getFilledVector<glm::vec4>(shapeLayers.getLayerCnt(), glm::vec4());
+    auto outerColors = getFilledVector<glm::vec4>(shapeLayers.getLayerCnt(), glm::vec4());
+    auto destructionTimes = getFilledVector<float>(shapeLayers.getLayerCnt(), 0.0f);
+    auto destructionTimePasseds = getFilledVector<float>(shapeLayers.getLayerCnt(), 0.0f);
+    auto SL_SCALEs = getFilledVector<glm::vec2>(shapeLayers.getLayerCnt(), glm::vec2());
     
     const float speed = 4.0f;
     for(auto& shapeLayer : shapeLayers){
@@ -2066,7 +2073,7 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
                 
                 models[shapeCount] = model;
                 layerNumbers[shapeCount] = layer;
-                batchNumbers.push_back(batchCount);
+                batchNumbers[batchCount];
                 shapeCount++;
             }
             BORDER_THICKNESS[batchCount] = shapeBatch.shapes.back().borderThickness;
@@ -2079,17 +2086,17 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
         SL_SCALEs[layer] = shapeLayer.SL_SCALE;
         layerCount++;
     }
-    unsigned int modelsTexture = useTextureDataToCreateTexture(models, shapeCount*3, 1, GL_TEXTURE_2D, 0, GL_RGB32F, GL_RGB, GL_FLOAT);
+    unsigned int modelsTexture = useTextureDataToCreateTexture(models.data(), shapeCount*3, 1, GL_TEXTURE_2D, 0, GL_RGB32F, GL_RGB, GL_FLOAT);
     unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
-    unsigned int layerNumbersTextrue = useTextureDataToCreateTexture(layerNumbers, shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
-    unsigned int innerColorsTexture = useTextureDataToCreateTexture(innerColors, layerCount, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int outerColorsTexture = useTextureDataToCreateTexture(outerColors, layerCount, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int slScalesTexture = useTextureDataToCreateTexture(SL_SCALEs, layerCount, 1, GL_TEXTURE_2D, 0, GL_RG32F, GL_RG, GL_FLOAT);
-    unsigned int destructionTimesTexture = useTextureDataToCreateTexture(destructionTimes, layerCount, 1, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
-    unsigned int destructionTimesPassedTexture = useTextureDataToCreateTexture(destructionTimePasseds, layerCount, 1, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
+    unsigned int layerNumbersTextrue = useTextureDataToCreateTexture(layerNumbers.data(), shapeCount, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
+    unsigned int innerColorsTexture = useTextureDataToCreateTexture(innerColors.data(), layerCount, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int outerColorsTexture = useTextureDataToCreateTexture(outerColors.data(), layerCount, 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    unsigned int slScalesTexture = useTextureDataToCreateTexture(SL_SCALEs.data(), layerCount, 1, GL_TEXTURE_2D, 0, GL_RG32F, GL_RG, GL_FLOAT);
+    unsigned int destructionTimesTexture = useTextureDataToCreateTexture(destructionTimes.data(), layerCount, 1, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
+    unsigned int destructionTimesPassedTexture = useTextureDataToCreateTexture(destructionTimePasseds.data(), layerCount, 1, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
     std::vector<OpenGLTexture> oGTextures {};
-    oGTextures.push_back({"ourTexture",shapes[SQUARE]->getTexture(0)});
-    oGTextures.push_back({"borderTexture",shapes[SQUARE]->getTexture(1)});
+    oGTextures.push_back({"ourTexture",openGLShape.getTexture(0)});
+    oGTextures.push_back({"borderTexture",openGLShape.getTexture(1)});
     oGTextures.push_back({"MODEL_TEXTURE",modelsTexture});
     oGTextures.push_back({"BATCH_NUMBER_TEXTURE", batchNumbersTexture});
     oGTextures.push_back({"LAYER_NUMBER_TEXTURE", layerNumbersTextrue});
@@ -2099,14 +2106,7 @@ void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStora
     oGTextures.push_back({"SL_SCALES_TEXTURE", slScalesTexture});
     oGTextures.push_back({"DESTRUCTION_TIMES_TEXTURE", destructionTimesTexture});
     oGTextures.push_back({"DESTRUCTION_TIME_PASSEDS_TEXTURE", destructionTimesPassedTexture});
-    shapes[SQUARE]->drawBatch(lightingEnvironment.object_shader, oGTextures, shapeCount); // TAG
-    free(models);
-    free(BORDER_THICKNESS);
-    free(innerColors);
-    free(outerColors);
-    free(destructionTimes);
-    free(destructionTimePasseds );
-    free(SL_SCALEs);
+    openGLShape.drawBatch(lightingEnvironment.object_shader, oGTextures, shapeCount); // TAG
     glDeleteTextures(1, &modelsTexture);
     glDeleteTextures(1, &batchNumbersTexture);
     glDeleteTextures(1, &layerNumbersTextrue);
@@ -2845,32 +2845,21 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     int return_status;
     GLFWwindow*  mWindow; 
     if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
-    
     DeltaTimer deltaTimer{};
     Alarm creationAlarm(SHAPE_INITIAL_SPAWN_TIME);
     float currentDestructionTime = creationAlarm.getWaitTime();
     bool shapesFull = false;
-    
-
     PngData blankPNGData(COLOR_WIDTH,COLOR_HEIGHT, 3);
     const unsigned int blankTexture = obtainPNGBlank(blankPNGData);
-
-
-    std::cout << "Generate square" << std::endl;
     PngData pngDataSquare(COLOR_WIDTH, COLOR_HEIGHT);
     std::vector<glm::vec2> squareBorder = borderVerticesFromShape(shapes::rectT);
     std::vector<float> distances; 
     distances.reserve(COLOR_HEIGHT*COLOR_WIDTH);
     generateDistancesFromBorder(distances, COLOR_WIDTH, COLOR_HEIGHT, squareBorder);
     unsigned int squareBorderTexture = useFloatsToCreateTexture2D(distances.data(), COLOR_WIDTH, COLOR_HEIGHT);
-
     OpenGLShape square(shapes::rectT, {blankTexture,squareBorderTexture}, true);
     
 
-    
-
-    
-    std::map<SHAPE_TYPE_2D, OpenGLShape*> shapeTypes{{SQUARE , &square}};
     
     
     
@@ -3013,7 +3002,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         
         
         if(!shapeLayersStorage.empty())
-            drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, shapeTypes, lineAbove, lineBelow, deltaTimer, textureAtlas);
+            drawShapeLayers2D(lightingEnvironment, shapeLayersStorage, square, lineAbove, lineBelow, deltaTimer, textureAtlas);
         glEnable(GL_DEPTH_TEST);
         
         endRenderLoop(mWindow,deltaTimer,camera);

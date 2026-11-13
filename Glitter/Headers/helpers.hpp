@@ -257,6 +257,15 @@ template <typename T> void mySwap(T& t1, T& t2){
 /// @return The average of each individual column.
 template <typename V> std::vector<V> average(std::vector<std::vector<V>> vec);
 
+/// @brief Get a vector of the given size for which every entry is initialized to the given element
+/// 
+/// Don't use push_back when adding items with the expectation it will add items before the filling
+/// @tparam T 
+/// @param size given size
+/// @param element given size
+/// @return the vector
+template <typename T> std::vector<T> getFilledVector(unsigned int size, T element);
+
 
 /// @brief 
 /// @tparam T 
@@ -702,7 +711,7 @@ int mainDrawSubTextures(int argc, char* argv[]);
 /// @param lock 
 /// @param lineAbove 
 /// @param lineBelow 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, std::map<SHAPE_TYPE_2D, OpenGLShape*> shapes,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer, const TextureAtlas& textureAtlas);
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, ShapeLayerStorage& shapeLayers, OpenGLShape& openGLShape,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer, const TextureAtlas& textureAtlas);
 void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
