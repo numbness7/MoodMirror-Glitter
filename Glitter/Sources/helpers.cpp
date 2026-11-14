@@ -2947,7 +2947,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
     PngData pd(COLOR_WIDTH,COLOR_HEIGHT,3);
     OpenGLTextureOptions options = ttm::png3Map(COLOR_WIDTH, COLOR_HEIGHT);
-    TextureAtlas textureAtlas(options, TOTAL_EMOTION_LAYERS*TOTAL_LAYERS, "ONE_BIG_BEAUTIFUL_TEXTURE");
+    TextureAtlas textureAtlas(options, NUMBER_OF_BATCHES,  NUMBER_OF_ATLAS_TEXTURES, "ATLAS_TEXTURES");
     runawayPrinter.pause(3.0f);
     
     // #Render 2D Loop
@@ -3019,7 +3019,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             {"INNER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.innerColors, shapeLayersStorage.getLayerCnt(), 1)},
             {"OUTER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.outerColors, shapeLayersStorage.getLayerCnt(), 1)},
             {"SL_SCALES_TEXTURE",useTextureDataToCreateTexture(slf.sLSCALEs, shapeLayersStorage.getLayerCnt(), 1)},
-            textureAtlas.getTexture(),
             {"TRANS_S_TEXTURE",useTextureDataToCreateTexture(isf.translationMatrices, shapeLayersStorage.getShapeCnt(), 1)},
             {"ROTATE_S_TEXTURE",useTextureDataToCreateTexture(isf.rotationMatrices, shapeLayersStorage.getShapeCnt(), 1)},
             {"SCALE_S_TEXTURE",useTextureDataToCreateTexture(isf.scaleMatrices, shapeLayersStorage.getShapeCnt(), 1)},
@@ -3027,11 +3026,18 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             {"LAYER_NUMBER_TEXTURE",useTextureDataToCreateTexture(isf.layerNumbers, shapeLayersStorage.getShapeCnt(), 1)},
             {"BORDER_THICKNESS_TEXTURE",useTextureDataToCreateTexture(isf.borderThickness, shapeLayersStorage.getShapeCnt(), 1)},
         };
+        for(const auto& texture : textureAtlas.getTextures())
+            openGLTextures.push_back(texture);
+
+        //PngData pngData(COLOR_WIDTH,COLOR_HEIGHT,3);
+        //loadPngTexture(EMOTION_PNG_FILE_PATH,pngData);
+        //openGLTextures.push_back({"ATLAS_TEXTURES[0]", useTextureDataToCreateTexture(pngData.getData(), ttm::png3Map(COLOR_WIDTH,COLOR_HEIGHT))});
 
         lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS); // TAG
         lightingEnvironment.object_shader.setUniformB("DO_FADE", false); // TAG
         lightingEnvironment.object_shader.setUniformI("borderCase", 2); // TAG
         lightingEnvironment.object_shader.setUniformI("ATLAS_SHIFT_LEFT", textureAtlas.getShiftLeft()); // TAG
+        lightingEnvironment.object_shader.setUniformI("BATCHES_PER_ATLAS_TEXTURE", textureAtlas.getTexturesPerAtlas()); // TAG
         
         if(!shapeLayersStorage.empty())
             drawShapeLayers2D(lightingEnvironment, square, openGLTextures, shapeLayersStorage.getShapeCnt());
@@ -5168,7 +5174,7 @@ int mainDrawBatch(int argc, char* argv[]){
 
 
     std::vector<OpenGLTexture> textures;
-    TextureAtlas textureAtlasData(defaults::options, TOTAL_BATCHES_TEST, "ONE_BIG_BEAUTIFUL_TEXTURE");
+    TextureAtlas textureAtlasData(defaults::options, TOTAL_BATCHES_TEST, 1, "ATLAS_TEXTURES");
     PngData benTexture(WIDTH, HEIGHT, 3);
     for(int i = 0; i < TOTAL_BATCHES_TEST; i++){
             do{
@@ -5375,21 +5381,29 @@ OpenGLShape::OpenGLShape(const shapes::Shape &shape)
 }
 
 
-TextureAtlas::TextureAtlas(const OpenGLTextureOptions options, const unsigned int textureCnt, const std::string name) : options{options}, textureCnt{textureCnt}, backIndex{textureCnt - 1} 
+TextureAtlas::TextureAtlas(const OpenGLTextureOptions options, const unsigned int textureCnt, const unsigned int atlasCnt, const std::string name) : options{options}, textureCnt{textureCnt}, backIndex{textureCnt - 1}, atlasCnt{atlasCnt}, texturesPerAtlas{(unsigned int)ceilWrap((int)textureCnt, (int)atlasCnt)}
 {
-    this->texture = {name, useTextureDataToCreateTexture(nullptr, ttm::diffDimensions(this->options.width*textureCnt,this->options.height,options))};
+    unsigned int atlasWidth = texturesPerAtlas*options.width;
+    for(int i = 0; i < atlasCnt; i++){
+        std::string atlasName = name + "[" + std::to_string(i) + "]";
+        OpenGLTextureOptions atlasOptions = ttm::diffDimensions(atlasWidth,this->options.height,options);
+        unsigned int atlasAddress = useTextureDataToCreateTexture(nullptr, atlasOptions);
+        this->textures.push_back({atlasName, atlasAddress});
+    }
 }
 
 void TextureAtlas::replaceTexture(const void *data)
 {
-    glBindTexture(options.target, texture.address);
+    unsigned int atlasIndex = backIndex/texturesPerAtlas;
+    unsigned int offsetIndex = (backIndex%texturesPerAtlas);
+    glBindTexture(options.target, textures[atlasIndex].address);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
     glTexSubImage2D(
         options.target,
         options.level,
-        backIndex * options.width,
+        offsetIndex * options.width,
         0,
         options.width,
         options.height,
@@ -5462,7 +5476,7 @@ int mainDrawSubTextures(int argc, char* argv[]){
     options.width = WIDTH;
     options.height = HEIGHT;
 
-    TextureAtlas textureAtlas(options, BATCHES, "ONE_BIG_BEAUTIFUL_TEXTURE");
+    TextureAtlas textureAtlas(options, BATCHES, 1, "ONE_BIG_BEAUTIFUL_TEXTURE");
     PngData benTexture(WIDTH,HEIGHT,CHANNELS);
     generatePNGBlank(benTexture);
     for(int i = 0; i < BATCHES; i++){

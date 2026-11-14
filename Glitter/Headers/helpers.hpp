@@ -56,6 +56,8 @@
 // Default paths
 #define SHADER_PATH (std::string("Glitter/Shaders/"))
 
+// Texture Info
+#define NUMBER_OF_ATLAS_TEXTURES 16
 
 // Data sizes
 
@@ -67,11 +69,12 @@
 // Layer info
 
 #define MAXIMUM_IMAGE_POWER 32
-#define TOTAL_LAYERS 16
-#define SHAPES_IN_BATCH 3
-#define MID_LAYER 3
-#define TOTAL_EMOTION_LAYERS 4 
-#define TOTAL_SHAPES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS*SHAPES_IN_BATCH)
+#define TOTAL_LAYERS 32
+#define SHAPES_IN_BATCH 8
+#define MID_LAYER 8
+#define TOTAL_EMOTION_LAYERS  16
+#define NUMBER_OF_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
+#define TOTAL_SHAPES (NUMBER_OF_BATCHES*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
 
 // Emotion Data File
@@ -174,7 +177,7 @@
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 3.0f
+#define SCALE_MULTIPLIER 1.0f
 #define MAX_SCALE 1.10f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.10f*SCALE_MULTIPLIER
@@ -460,22 +463,27 @@ class PngData{
 
 class TextureAtlas{
     public:
-        TextureAtlas(const OpenGLTextureOptions options, const unsigned int textureCnt, const std::string name);
+        TextureAtlas(const OpenGLTextureOptions options, const unsigned int textureCnt, const unsigned int atlasCnt, const std::string name);
         unsigned int getTextureCnt    () const { return textureCnt;    }
         unsigned int getBackIndex     () const { return backIndex;      }
         unsigned int getShiftLeft     () const { return (textureCnt - 1) - backIndex;      }
-        unsigned int getTextureAddress       () const { return texture.address; }
-        OpenGLTexture getTexture       () const { return texture; }
-        OpenGLTextureOptions getTextureOptions() const { return options; }
+        unsigned int getTextureAddress       (unsigned int index = 0) const { return textures[index].address; }
+        const OpenGLTexture& getTexture       (unsigned int index=0) const { return textures[index]; }
+        const std::vector<OpenGLTexture>& getTextures      () const { return textures; };
+        const OpenGLTextureOptions getTextureOptions() const { return options; }
         void replaceTexture(const void* data);
         template <typename T> void replaceTexture(const std::vector<T> data, GLsizei width, GLsizei height);
+        unsigned int getTexturesPerAtlas() const { return texturesPerAtlas; }
+        unsigned int getAtlasCnt() const { return atlasCnt; }
 
 
     private:
         const OpenGLTextureOptions options;
         const unsigned int textureCnt;
         unsigned int backIndex;
-        OpenGLTexture texture;
+        std::vector<OpenGLTexture> textures;
+        const unsigned int atlasCnt;
+        const unsigned int texturesPerAtlas;
 };
 
 

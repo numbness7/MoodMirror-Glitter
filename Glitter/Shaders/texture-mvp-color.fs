@@ -19,12 +19,13 @@ const float BORDER_THICKNESS = 0.5f;
 uniform bool DISABLE_ALMOST_EVERYTHING;
 uniform int  ATLAS_SHIFT_LEFT;
 in mat3 matrixOut;
+const int ATLAS_TEXTURES_CNT = 16;
 
 
 // TEXTURES
 uniform sampler2D borderTexture;
 uniform sampler2D ourTexture;
-uniform sampler2D ONE_BIG_BEAUTIFUL_TEXTURE;
+uniform sampler2D ATLAS_TEXTURES[ATLAS_TEXTURES_CNT];
 uniform isampler2D BATCH_NUMBER_TEXTURE;
 uniform isampler2D LAYER_NUMBER_TEXTURE;
 uniform sampler2D INNER_COLORS_TEXTURE;
@@ -34,6 +35,7 @@ uniform sampler2D DESTRUCTION_TIMES_TEXTURE;
 uniform sampler2D DESTRUCTION_TIME_PASSEDS_TEXTURE;
 
 uniform int BATCHES_CNT;
+uniform int BATCHES_PER_ATLAS_TEXTURE;
 
 
 float distFromCenter(float dist);
@@ -56,16 +58,12 @@ ivec2 getTexelCoord(int index);
 vec4 getTexel(sampler2D texture, int index);
 ivec4 getTexel(isampler2D texture, int index);
 uvec4 getTexel(usampler2D texture, int index);
+vec4 getBenTexture();
 
 
 void main(){
-    
     vec4 finalFragColor = vec4(1.0f);
-    int batchNumber = int(getBatch());
-    int index = batchNumber - ATLAS_SHIFT_LEFT;
-    if(index < 0)
-        index = BATCHES_CNT + index;
-    vec4 BenTextureColor = texture(ONE_BIG_BEAUTIFUL_TEXTURE, vec2(ourTexCoord.x/float(BATCHES_CNT) + float(int(index)%int(BATCHES_CNT))/float(BATCHES_CNT), ourTexCoord.y));
+    vec4 BenTextureColor = getBenTexture();
     finalFragColor = BenTextureColor;
 
     if(!DISABLE_ALMOST_EVERYTHING){
@@ -259,4 +257,68 @@ uint getLayer(){
 }
 uint getBatch(){
     return uint(texelFetch(BATCH_NUMBER_TEXTURE, ivec2(InstanceID, 0), 0).r);
+}
+
+vec4 getBenTexture(){
+    int batchNumber = int(getBatch());
+    int index = batchNumber - ATLAS_SHIFT_LEFT;
+    if(index < 0)
+        index = BATCHES_CNT + index;
+    int atlasIndex = index/BATCHES_PER_ATLAS_TEXTURE;
+    int subIndex = index % BATCHES_PER_ATLAS_TEXTURE;
+    vec2 coords = vec2(ourTexCoord.x/float(BATCHES_PER_ATLAS_TEXTURE) + float(int(subIndex)%int(BATCHES_PER_ATLAS_TEXTURE))/float(BATCHES_PER_ATLAS_TEXTURE), ourTexCoord.y);
+    //vec2 coords = vec2(ourTexCoord.x, ourTexCoord.y);
+    vec4 BenTextureColor;
+    BenTextureColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    switch(atlasIndex){
+        case 0:
+            BenTextureColor = texture(ATLAS_TEXTURES[0], coords);
+            break;
+        case 1:
+            BenTextureColor = texture(ATLAS_TEXTURES[1], coords);
+            break;
+        case 2:
+            BenTextureColor = texture(ATLAS_TEXTURES[2], coords);
+            break;
+        case 3:
+            BenTextureColor = texture(ATLAS_TEXTURES[3], coords);
+            break;
+        case 4:
+            BenTextureColor = texture(ATLAS_TEXTURES[4], coords);
+            break;
+        case 5:
+            BenTextureColor = texture(ATLAS_TEXTURES[5], coords);
+            break;
+        case 6:
+            BenTextureColor = texture(ATLAS_TEXTURES[6], coords);
+            break;
+        case 7:
+            BenTextureColor = texture(ATLAS_TEXTURES[7], coords);
+            break;
+        case 8:
+            BenTextureColor = texture(ATLAS_TEXTURES[8], coords);
+            break;
+        case 9:
+            BenTextureColor = texture(ATLAS_TEXTURES[9], coords);
+            break;
+        case 10:
+            BenTextureColor = texture(ATLAS_TEXTURES[10], coords);
+            break;
+        case 11:
+            BenTextureColor = texture(ATLAS_TEXTURES[11], coords);
+            break;
+        case 12:
+            BenTextureColor = texture(ATLAS_TEXTURES[12], coords);
+            break;
+        case 13:
+            BenTextureColor = texture(ATLAS_TEXTURES[13], coords);
+            break;
+        case 14:
+            BenTextureColor = texture(ATLAS_TEXTURES[14], coords);
+            break;
+        case 15:
+            BenTextureColor = texture(ATLAS_TEXTURES[15], coords);
+            break;
+    }
+    return BenTextureColor;
 }

@@ -14,3 +14,10 @@ Models Texture Improvements
 Shader
     Fix the broken vertex shader
 
+Implement Atlas texture in shader
+Make code less confusing
+Separate code into different files if they have different functionality
+Some of my code is math based
+Some of my code has to do with shape creation
+Some of my code does operations on glm data types
+...
