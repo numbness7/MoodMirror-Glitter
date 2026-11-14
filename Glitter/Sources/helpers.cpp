@@ -632,8 +632,8 @@ void generateDistancesFromBorder(std::vector<float>& distances, int width, int h
             float minDistance = std::numeric_limits<float>::max();
             glm::vec2 prevVertex  = borderVerticesN[borderVerticesN.size()-1];
             auto curVertex = borderVerticesN[0];
-            glm::vec2 leftVertex = dir::LEFT*(float)width*10.0f;
-            glm::vec2 rightVertex = dir::RIGHT*(float)width*10.0f;
+            glm::vec2 leftVertex = dir3D::LEFT*(float)width*10.0f;
+            glm::vec2 rightVertex = dir3D::RIGHT*(float)width*10.0f;
             auto [allRight, allLeft, allDown, allUp] = std::tuple<bool,bool,bool,bool>{true,true,true,true};
             for(int borderLineIndex = 0; borderLineIndex < borderLines.size(); borderLineIndex++){
                 curVertex = borderVerticesN[borderLineIndex];
@@ -1758,12 +1758,12 @@ float emotionArrayToRotation(std::vector<float> emotionArray)
     float surprise  = emotionArray[SURPRISE];
     float disgust   = emotionArray[DISGUST];
     
-    glm::vec2 happinessDir = dir::UP;
-    glm::vec2 surpriseDir =  dir::UP_RIGHT;
-    glm::vec2 angerDir = dir::RIGHT;
-    glm::vec2 sadnessDir = dir::DOWN;
-    glm::vec2 disgustDir = dir::DOWN_LEFT;
-    glm::vec2 fearDir = dir::LEFT;
+    glm::vec2 happinessDir = dir3D::UP;
+    glm::vec2 surpriseDir =  dir3D::UP_RIGHT;
+    glm::vec2 angerDir = dir3D::RIGHT;
+    glm::vec2 sadnessDir = dir3D::DOWN;
+    glm::vec2 disgustDir = dir3D::DOWN_LEFT;
+    glm::vec2 fearDir = dir3D::LEFT;
     
     glm::vec2 combineDir = glm::normalize(happiness*happinessDir + surprise* surpriseDir + anger* angerDir + sadness* sadnessDir + disgust * disgustDir + fear * fearDir);
     float rotation = glm::atan(combineDir.y, combineDir.x);
@@ -2038,7 +2038,7 @@ InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
     return isf;
 }
 
-ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow){
+ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer){
     glDepthMask(false);
     unsigned layerCount = 0;
 
@@ -2089,13 +2089,26 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
         if(transitions[BACK_OUT_T] || transitions[MOVE_FORWARD_T]){
             dX = calcDisplacement(passedTime,waitTime,TOTAL_LAYERS,MID_LAYER,layer,SHAPE_MIN_FADE,SHAPE_MAX_FADE, false, lineAbove, lineBelow);
         }
+        dX = (transitions[BACK_OUT_T]) ? -dX : dX;
         float scaleDownPulse = 0.0f;
         if(pulses[SCALE_P]){
             scaleDownPulse = calcFade(pulseTime, pulseMaxTime, 0.0f, 0.5f, 0.5f, 1.0f, PULSE_FADE_SCALE_MIN, PULSE_FADE_SCALE_MAX, false);                    
         }
-        translationMatrices[layer] = dX*glm::mat3(1.0f);
-        rotationMatrices[layer] = glm::mat3(1.0f);
-        scaleMatrices[layer] = glm::scale(glm::mat3(1.0f),glm::vec2((1.0f - scaleDown)));
+        if(pulses[SPINL_P]){
+            static const float speed = 15.0f;
+            shapeLayer.spin += speed*deltaTimer.getDeltaTime() / PULSE_TIME_RATIO;
+        }
+        if(pulses[RUMBLE_P]){
+            static const float speed = 1.0f;
+            shapeLayer.rumbleCoords += speed * randCoords2D() * deltaTimer.getDeltaTime() / PULSE_TIME_RATIO;
+        }
+        translationMatrices[layer] = glm::translate(glm::mat3(1.0f), dX *dir2D::RIGHT + shapeLayer.rumbleCoords);
+        rotationMatrices[layer] = glm::rotate(glm::mat3(1.0f), shapeLayer.spin);
+        scaleMatrices[layer] = glm::scale(glm::mat3(1.0f),glm::vec2((1.0f - scaleDown)*(1.0f - scaleDownPulse)));
+        assert(scaleDown  <= 1.0f && scaleDown >= 0.0f);
+        //translationMatrices[layer] = glm::mat3(1.0f);
+        //rotationMatrices[layer] = glm::mat3(1.0f);
+        //scaleMatrices[layer] = glm::mat3(1.0f);
         innerColors[layer] = innerColor;
         outerColors[layer] = outerColor;
         destructionTimes[layer] = waitTime;
@@ -3009,7 +3022,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         // Draw cubes
         glDisable(GL_DEPTH_TEST);
         auto isf = loadShapes2D(shapeLayersStorage);
-        auto slf = loadShapeLayer2Ds(shapeLayersStorage, lineAbove, lineBelow);
+        auto slf = loadShapeLayer2Ds(shapeLayersStorage, lineAbove, lineBelow, deltaTimer);
         std::vector<OpenGLTexture> openGLTextures{
             {"ourTexture",blankTexture},
             {"borderTexture",squareBorderTexture},
@@ -3051,6 +3064,12 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             runawayPrinter.pushMessage(emotionArrayToString(shapeLayersStorage.back().emotionArray));
             runawayPrinter.pushMessage("FPS: " + std::to_string(getFPS(deltaTimer)));
         }
+        for(auto& texture : openGLTextures){
+            if(!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
+                glDeleteTextures(1, &texture.address);
+            }
+        }
+        
         
     }   
 
@@ -4687,7 +4706,7 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
     shape.scaleMatrix = glm::scale(glm::mat3(1.0f), shape.scale);
     shape.rotationMatrix = glm::rotate(glm::mat3(1.0f), shape.rotation);
     shape.transition = glm::translate(glm::mat3(1.0f), shape.coords);
-    shape.direction = dir::UP;
+    shape.direction = dir3D::UP;
     shape.direction  = shape.rotationMatrix * shape.direction;
     shape.direction = glm::normalize(shape.direction);
     shape.rotatedCoords = glm::mat3(shape.rotationMatrix) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
@@ -4909,7 +4928,9 @@ bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const s
     return lineSegmentsDefineLines || hasIntersection(lineSegment1, lineSegment2, intersection);
 }
 glm::vec2 rotate(const glm::vec2& vec2, const float& radians){
-    return glm::vec2(glm::rotate(glm::mat4(1.0f), radians, dir::FORWARD) * glm::vec4(vec2, glm::vec2(0.0f)));
+    float originalAngle = glm::atan(vec2.y,vec2.x);
+    glm::vec2 rotatedN = glm::vec2(glm::cos(originalAngle +  radians), glm::sin( originalAngle + radians));
+    return glm::length(vec2) * rotatedN;
 }
 
 void getRecursiveShapeHolesHelper(unsigned int maxIterations, unsigned int iterations, std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes, glm::vec2 position, float rotation, float size, std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>>& shapeHoles){
@@ -4933,7 +4954,7 @@ void getRecursiveShapeHolesHelper(unsigned int maxIterations, unsigned int itera
             const float rayAngle = glm::atan(ray.y, ray.x); // Assumes shape is initially pointing to the right, this will have to be corrected later since the
                                                       // shapes in shapes.hpp point upward initially.
             const float perpRayAngle = rayAngle - mm_math::PI/2.0f;
-            const glm::vec2 newRay = glm::normalize(glm::vec2(glm::rotate(glm::mat4(1.0f), perpRayAngle, dir::FORWARD) * glm::vec4(1.0f,0.0f,0.0f,0.0f)));
+            const glm::vec2 newRay = glm::normalize(glm::vec2(glm::rotate(glm::mat4(1.0f), perpRayAngle, dir3D::FORWARD) * glm::vec4(1.0f,0.0f,0.0f,0.0f)));
             const glm::vec2 perpRayFromPos = newRay;
             glm::vec2 intersection;
             tryGetIntersection(intersection, { glm::vec2(0.0f), perpRayFromPos}, {preVec2, vec2}, true);
@@ -4969,7 +4990,7 @@ std::vector<std::vector<std::tuple<glm::mat4, SHAPE_TYPE_2D>>> getRecursiveSquar
         for(const auto& [position, size, rotation, shapeType] : holeLayer){
             glm::mat4 model(1.0f);
             model = glm::translate(model, glm::vec3(position,0.0f));
-            model = glm::rotate(model, rotation, dir::FORWARD);
+            model = glm::rotate(model, rotation, dir3D::FORWARD);
             model = glm::scale(model, glm::vec3(glm::vec2(size),1.0f));
             models.back().push_back({model,shapeType});
         }
@@ -5524,4 +5545,21 @@ template <typename T> void TextureAtlas::replaceTexture(const std::vector<T> vec
     const OpenGLTextureOptions vecOptions = ttm::map(vec, width*textureCnt, height);
     assert(vecOptions == options);
     replaceTexture(vec.data());
+}
+
+template<typename ARRAY> ARRAY substring(const ARRAY str, const unsigned int startInclusive, const unsigned int endExclusive){
+	ARRAY sub;
+	for(unsigned int i = startInclusive; i < endExclusive; i++)
+		sub.push_back(str[i]);
+	return sub;
+}
+
+template<typename ARRAY> bool contains(const ARRAY str, const ARRAY subStr)
+{
+    if(str.size() < subStr.size())
+		return false;
+    for(unsigned int i = 0; i <= str.size() - subStr.size(); i++)
+        if(substring(str, i, i + subStr.size()) == subStr)
+            return true;
+    return false;
 }

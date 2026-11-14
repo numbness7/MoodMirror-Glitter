@@ -59,7 +59,7 @@ void main(){
         mat3  scaleL = getMat3Model(SCALE_L_TEXTURE, layer);
         mat3 rotateL= getMat3Model(ROTATE_L_TEXTURE, layer);
         //mat3 matrix =  transS*rotateS*rotateL*scaleS*scaleL;
-        mat3 matrix =  (transS+transL)*(rotateS+rotateL)*matrixCompMult(scaleS,scaleL);
+        mat3 matrix =  (transS+(rotateS*transL))*(rotateS+rotateL)*matrixCompMult(scaleS,scaleL);
         //mat3 matrix =  transS*rotateS*scaleS;
         //mat3 matrix =  transL*rotateL*scaleL;
         //mat3 matrix = mat3(1.0f);

@@ -21,3 +21,8 @@ Some of my code is math based
 Some of my code has to do with shape creation
 Some of my code does operations on glm data types
 ...
+
+Find a way you could add a new texture to the shader without having to add a bunch of lines to the shader.
+One possibility I can think of is having one atlasTexture array contain a bunch of unsigned chars and convert those to the values you want.
+You just have to make sure to take account of the stride, offset, and size of each of the members.
+That way one texture can contain a struct of information.

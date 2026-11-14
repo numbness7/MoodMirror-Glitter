@@ -71,7 +71,7 @@
 #define MAXIMUM_IMAGE_POWER 32
 #define TOTAL_LAYERS 32
 #define SHAPES_IN_BATCH 8
-#define MID_LAYER 8
+#define MID_LAYER 20
 #define TOTAL_EMOTION_LAYERS  16
 #define NUMBER_OF_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
 #define TOTAL_SHAPES (NUMBER_OF_BATCHES*SHAPES_IN_BATCH)
@@ -83,13 +83,13 @@
 
 // Spawn Times
 
-#define SHAPE_INITIAL_SPAWN_TIME 0.25f
-#define DESTRUCTION_TIME         1.25f
+#define SHAPE_INITIAL_SPAWN_TIME 0.15f
+#define DESTRUCTION_TIME         0.25f
 #define UPDATE_ITERATIONS 10.0f
 
 // Pulse
 
-#define PULSE_TIME_RATIO 3.0f
+#define PULSE_TIME_RATIO 12.0f
 #define PULSE_TIME (DESTRUCTION_TIME*PULSE_TIME_RATIO)
 #define PULSE_TIME_INITAL (SHAPE_INITIAL_SPAWN_TIME*PULSE_TIME_RATIO)
 
@@ -177,7 +177,7 @@
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 1.0f
+#define SCALE_MULTIPLIER 1.5f
 #define MAX_SCALE 1.10f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.10f*SCALE_MULTIPLIER
@@ -695,6 +695,8 @@ struct ShapeLayer{
    std::map<PULSES,bool> pulses{};
    glm::vec4 innerColor = glm::vec4(1.0f);
    glm::vec4 outerColor = glm::vec4(1.0f);
+   float spin = 0.0f;
+   glm::vec2 rumbleCoords = glm::vec2(0.0f);
 };
 
 
@@ -727,7 +729,7 @@ class ShapeLayerStorage{
 
 // #CONSTANTS -------------------------------------------------------------
 
-namespace dir{
+namespace dir3D{
     const glm::vec3 UP(0.0f,1.0f,0.0f);
     const glm::vec3 DOWN(0.0f,-1.0f,0.0f);
     const glm::vec3 RIGHT(1.0f,0.0f,0.0f);
@@ -736,6 +738,15 @@ namespace dir{
     const glm::vec3 DOWN_LEFT = glm::normalize(DOWN + LEFT);
     const glm::vec3 FORWARD(0.0f, 0.0f, -1.0f);
     const glm::vec3 BACKWARD(0.0f, 0.0f, 1.0f);
+}
+
+namespace dir2D{
+    const glm::vec2 UP(0.0f,1.0f);
+    const glm::vec2 DOWN(0.0f,-1.0f);
+    const glm::vec2 RIGHT(1.0f,0.0f);
+    const glm::vec2 LEFT(-1.0f,0.0f);
+    const glm::vec2 UP_RIGHT = glm::normalize(UP + RIGHT);
+    const glm::vec2 DOWN_LEFT = glm::normalize(DOWN + LEFT);
 }
 
 namespace mm_math{
@@ -1069,8 +1080,10 @@ namespace glm{
     glm::vec2 vec3ToVec2(glm::vec3 vec3);
 };
 InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers);
-ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow);
+ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer);
 bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2);
+template<typename ARRAY> ARRAY substring(const ARRAY str, const unsigned int startInclusive, const unsigned int endExclusive);
+template<typename ARRAY> bool contains(const ARRAY str, const ARRAY subStr);
 
 #endif
 
