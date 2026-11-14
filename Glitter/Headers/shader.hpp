@@ -14,7 +14,6 @@
 #include <fstream>
 #include <map>
 
-std::string readfile(const char filepath[]);
 class Shader {
     public:
         Shader();

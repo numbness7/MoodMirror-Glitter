@@ -1287,7 +1287,7 @@ nlohmann::json readjsonfile(std::string filepath)
     while(true){
         try{
             using json = nlohmann::json;
-            std::string json_string = readfile(filepath.c_str());
+            std::string json_string = read_file(filepath.c_str());
             json data = json::parse(json_string);
             return data;
         }

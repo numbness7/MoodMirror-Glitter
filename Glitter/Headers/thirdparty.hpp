@@ -10,6 +10,8 @@
 #include <iomanip>
 #include <chrono>
 #include <sstream>
+#include <filesystem>
+#include <assert.h>
 
 
 // ChatGPT Start
@@ -19,6 +21,8 @@ int64_t duration(std::chrono::_V2::system_clock::time_point start,std::chrono::_
 std::chrono::_V2::system_clock::time_point getNow();
 std::string unixTimeStamp();
 std::string getWorldTime();
+std::string unixTimeStamp();
+
 /// @brief 
 /// @param filename 
 /// @param content what is written to the file
@@ -26,7 +30,7 @@ std::string getWorldTime();
 /// @return 0 if successful -1 if failed
 int writeToFile(const std::string& filename,
                  const std::string& content,
-                 bool append = false);
+                 bool append = false, bool prepend = false);
 /// @brief Runs bash command
 /// @param command the command, don't allow untrusted user input
 /// @return Command Status
@@ -34,6 +38,7 @@ int runCommand (std::string command);
 /// @brief Terminates program created with runCommand
 /// @param pid The program to be terminated
 void killCommand (int pid);
-std::string unixTimeStamp();
 // ChatGPT End
+auto read_file(std::filesystem::path const& path) -> std::string;
+auto deleteFile(std::filesystem::path const& path) -> void;
 #endif

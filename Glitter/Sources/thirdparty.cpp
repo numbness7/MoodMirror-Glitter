@@ -36,11 +36,53 @@ std::string getWorldTime() {
     return ss.str();
 }
 
+
+
+
+
+// Source - https://stackoverflow.com/a/116220
+// Posted by Konrad Rudolph, modified by community. See post 'Timeline' for change history
+// Retrieved 2026-11-14, License - CC BY-SA 4.0
+auto read_file(std::filesystem::path const& path) -> std::string {
+    constexpr auto read_size = std::size_t(4096);
+    auto stream = std::ifstream(path);
+    stream.exceptions(std::ios_base::badbit);
+
+    if (not stream) {
+        throw std::ios_base::failure("file does not exist");
+    }
+    
+    auto out = std::string();
+    auto buf = std::string(read_size, '\0');
+    while (stream.read(& buf[0], read_size)) {
+        out.append(buf, 0, stream.gcount());
+    }
+    out.append(buf, 0, stream.gcount());
+    return out;
+}
+
+auto deleteFile(std::filesystem::path const& path) -> void {
+    std::remove(path.c_str());
+}
+    
+
+
+// ChatGPT Start
 int writeToFile(const std::string& filename,
                  const std::string& content,
-                 bool append) {
+                 bool append, bool prepend) {
 
+    assert(!(append && prepend));
     std::ofstream file;
+    std::string newContent = content;
+    if(prepend){
+        try{
+            newContent = newContent + read_file(filename);
+        }
+        catch(std::ios_base::failure){
+            // Do nothing
+        }
+    }
 
     if (append)
         file.open(filename, std::ios::app);
@@ -52,7 +94,7 @@ int writeToFile(const std::string& filename,
         return -1;
     }
 
-    file << content;
+    file << newContent;
     file.close();
     return 0;
 }
