@@ -375,17 +375,6 @@ void generatePNGBorder(unsigned char* data, int width, int height, int nrChannel
     doCopy(data, pngData.getData(), pngData.size(), pngData.size());
 }
 
-/// @brief 
-/// @param width 
-/// @param height 
-/// @param borderVertices In clockwise order each vertex has x in [-0.5f,0.5f], y in [-0.5f,0.5f]
-/// @return 
-unsigned int obtainPNGDistanceFromBorder(int width, int height, std::vector<glm::vec2> borderVertices){
-    PngData pngData(width, height);
-    generatePNGDistanceFromBorder(pngData, borderVertices);
-    unsigned int texture = getTextureFromData(pngData);
-    return texture;
-}
 void loadPngTexture(std::string texture_filepath, PngData& pD)
 {
     do{
@@ -402,230 +391,9 @@ PngData loadPngTexture(std::string texture_filepath)
     PngData pngData(width, height, nrChannels, data);
     return pngData;
 }
-/// @brief
-/// @param pngData
-/// @param borderVertices In clockwise order each vertex has x in [-0.5f,0.5f], y in [-0.5f,0.5f]
-/// @return
-unsigned int obtainPNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices){
-    generatePNGDistanceFromBorder(pngData, borderVertices);
-    unsigned int texture = getTextureFromData(pngData);
-    return texture;
-}
-
-float distFromLine(std::tuple<float,float,float> line, glm::vec2 point){
-    const auto [A, B, C] = line;
-    assert(A != 0 || B != 0);
-    auto lineValue = A*point.x + B*point.y + C;
-    lineValue = glm::abs(lineValue);
-    auto lineNormalizer = glm::sqrt(glm::pow(A,2) + glm::pow(B,2));
-    return lineValue/lineNormalizer;
-}
-
-std::vector<glm::vec2> borderVerticesFromShape(const shapes::Shape& shape){
-    return borderVerticesFromShape(shape.vertices, shape.vertCnt, shape.getStride());
-}
-std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride){
-    std::vector<glm::vec2> borderVertices{};
-    for(int i = 0; i < vert_cnt; i+=stride){
-        borderVertices.push_back(glm::vec2(shape[i],shape[i+1]));
-    }
-    return borderVertices;
-    
-}
-
-bool isInSquare(float x, float y, float centerX, float centerY, float length){
-    float dx = abs(centerX - x);
-    float dy = abs(centerY - y);
-    return length >= dx && length >= dy;
-}
-
-bool isInSquare(glm::vec2 point, glm::vec2 center,  float length){
-    return isInSquare(point.x, point.y, center.x, center.y, length);
-}
-
-void generateDistancesFromBorder(std::vector<float>& distances, int width, int height, const std::vector<glm::vec2>& borderVertices){
-        std::vector<std::tuple<float,float,float>> borderLines{}; 
-        glm::vec2 prevVertex  = borderVertices[borderVertices.size()-1];
-        std::vector<glm::vec2> borderVerticesN{};
-        glm::vec2 centerN = glm::vec2(
-                boundTransformation(0, -0.5f, 0.5f, 0, width),
-                boundTransformation(0, -0.5f, 0.5f, 0, height));
-        for(int borderVertexIndex = 0; borderVertexIndex < borderVertices.size(); borderVertexIndex++){
-            glm::vec2 curVertex;
-            if(borderVertexIndex < borderVertices.size() - 1)
-                curVertex = borderVertices[borderVertexIndex];
-            else
-                curVertex = borderVertices[borderVertices.size()-1];
-            float  preVertexNormX = boundTransformation(prevVertex.x, -0.5f, 0.5f, 0, width);
-            float  preVertexNormY = boundTransformation(prevVertex.y, -0.5f, 0.5f, 0, height);
-            glm::vec2 preVertexNorm(preVertexNormX,preVertexNormY);
-            float  curVertexNormX = boundTransformation(curVertex.x, -0.5f, 0.5f, 0, width);
-            float  curVertexNormY = boundTransformation(curVertex.y, -0.5f, 0.5f, 0, height);
-            glm::vec2 curVertexNorm(curVertexNormX,curVertexNormY);
-            borderVerticesN.push_back(curVertexNorm);
-            auto line = getLineFromVertices(preVertexNorm.x, curVertexNorm.x, preVertexNorm.y, curVertexNorm.y);
-            borderLines.push_back(line);
-            prevVertex = curVertex;
-        }
-    
-
-    for(int rowI = 0; rowI < height; rowI++){
-        for(int colI = 0; colI < width; colI++){
-            float row = (float) rowI;
-            float col = (float) colI;
-            float gridY = row;
-            float gridX = col;
-            glm::vec2 tileCenter(0.5,0.5);
-            glm::vec2 gridVertex(gridX + tileCenter.x, gridY + tileCenter.y);
-
-            float minDistance = std::numeric_limits<float>::max();
-            glm::vec2 prevVertex  = borderVerticesN[borderVerticesN.size()-1];
-            auto curVertex = borderVerticesN[0];
-            glm::vec2 leftVertex = dir3D::LEFT*(float)width*10.0f;
-            glm::vec2 rightVertex = dir3D::RIGHT*(float)width*10.0f;
-            auto [allRight, allLeft, allDown, allUp] = std::tuple<bool,bool,bool,bool>{true,true,true,true};
-            for(int borderLineIndex = 0; borderLineIndex < borderLines.size(); borderLineIndex++){
-                curVertex = borderVerticesN[borderLineIndex];
-                if(curVertex.x < gridVertex.x)
-                    allRight = false;
-                if(curVertex.x > gridVertex.x)
-                    allLeft = false;
-                if(curVertex.y < gridVertex.y)
-                    allUp = false;
-                if(curVertex.y > gridVertex.y)
-                    allDown = false;
-                if(curVertex.x > leftVertex.x && curVertex.x < gridVertex.x){
-                    leftVertex = curVertex;
-                }
-                if(curVertex.x < rightVertex.x && curVertex.x > gridVertex.x){
-                    rightVertex = curVertex;
-                }
-            }
 
 
-            glm::vec2  endRayPoint;
-            endRayPoint = ((glm::vec2(leftVertex.x, height*10.0f) + glm::vec2(rightVertex.x, height*10.0f))/2.0f);
 
-            int intersections = 0;
-            bool onBorder = false;
-            for(int borderLineIndex = 0; borderLineIndex < borderLines.size(); borderLineIndex++){
-                curVertex = borderVerticesN[borderLineIndex];
-
-
-                auto line = borderLines[borderLineIndex];
-                glm::vec2 trash;
-                if(tryGetIntersection(trash,{gridVertex, endRayPoint}, {prevVertex, curVertex}, false)){
-                    intersections++;
-                }
-                float distance = distFromLine(line, gridVertex);
-                if(glm::abs(distance) < glm::abs(minDistance)){
-                    minDistance = distance;
-                }
-                prevVertex = curVertex;
-            }
-            
-            bool isInside = (intersections % 2 == 1 && !(allDown || allLeft || allRight || allUp)) || onBorder;
-            //debug::checkPrint(std::format("row: {}, col : {}\n", rowI, colI), intersections == 1, true);
-            //debug::checkPrint(std::format("intersections: {}, row: {}, col : {}\n", intersections, rowI, colI), intersections != 1, true);
-            
-            if(isInside)
-                distances.push_back(minDistance);
-            else
-                distances.push_back(-minDistance);
-        }
-    }
-    float maxDistance = maxM(distances);
-    float minDistance = minM(distances);
-    float normDistance = (glm::abs(maxDistance) > glm::abs(minDistance)) ? glm::abs(maxDistance) : glm::abs(minDistance);
-    for(int i = 0; i < distances.size(); i++){
-        distances[i]/=normDistance;
-    }
-}
-
-void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices){
-        std::vector<std::tuple<float,float,float>> borderLines{}; 
-        glm::vec2 prevVertex  = borderVertices[borderVertices.size()-1];
-        std::vector<glm::vec2> borderVerticesN{};
-        glm::vec2 centerN = glm::vec2(
-                boundTransformation(0, -0.5f, 0.5f, 0, pngData.width),
-                boundTransformation(0, -0.5f, 0.5f, 0, pngData.height));
-        for(int borderVertexIndex = 0; borderVertexIndex < borderVertices.size(); borderVertexIndex++){
-            glm::vec2 curVertex;
-            if(borderVertexIndex < borderVertices.size() - 1)
-                curVertex = borderVertices[borderVertexIndex];
-            else
-                curVertex = borderVertices[borderVertices.size()-1];
-            float  preVertexNormX = boundTransformation(prevVertex.x, -0.5f, 0.5f, 0, pngData.width);
-            float  preVertexNormY = boundTransformation(prevVertex.y, -0.5f, 0.5f, 0, pngData.height);
-            glm::vec2 preVertexNorm(preVertexNormX,preVertexNormY);
-            float  curVertexNormX = boundTransformation(curVertex.x, -0.5f, 0.5f, 0, pngData.width);
-            float  curVertexNormY = boundTransformation(curVertex.y, -0.5f, 0.5f, 0, pngData.height);
-            glm::vec2 curVertexNorm(curVertexNormX,curVertexNormY);
-            borderVerticesN.push_back(curVertexNorm);
-            auto line = getLineFromVertices(preVertexNorm.x, curVertexNorm.x, preVertexNorm.y, curVertexNorm.y);
-            borderLines.push_back(line);
-            prevVertex = curVertex;
-        }
-
-        std::vector<std::tuple<float,float,float>> centerlines{}; 
-
-        for(int borderVertexIndexN = 0; borderVertexIndexN < borderVerticesN.size(); borderVertexIndexN++){
-            glm::vec2 curVertexN = borderVerticesN[borderVertexIndexN];
-            const auto line = getLineFromVertices(centerN.x, curVertexN.x, centerN.y, curVertexN.y);
-            centerlines.push_back(line);
-        }
-
-    for(int gI = 0; gI < pngData.gridSize(); gI++){
-        float row = (float) pngData.rFG(gI);
-        float col = (float) pngData.cFG(gI);
-        float gridY = row;
-        float gridX = col;
-        float gridYN = boundTransformation(gridY, 0, pngData.height, -0.5f, 0.5f);
-        float gridXN = boundTransformation(gridX, 0, pngData.width, -0.5f, 0.5f);
-        glm::vec2 tileCenter(0.5,0.5);
-        glm::vec2 gridVertex(gridX + tileCenter.x, gridY + tileCenter.y);
-        
-
-
-        
-
-        
-
-        float minDistance = std::numeric_limits<float>::max();
-
-        int preIndex = borderVertices.size()-1;
-        glm::vec2 prevVertexN  = borderVertices[preIndex];
-        for(int borderVertexIndexN = 0; borderVertexIndexN < borderVertices.size(); borderVertexIndexN++){
-            auto line = borderLines[borderVertexIndexN];
-            glm::vec2 curVertexN;
-            int curIndex = borderVertexIndexN;
-            if(borderVertexIndexN >= borderVertices.size() - 1)
-                curIndex = borderVertices.size()-1;
-            curVertexN = borderVertices[curIndex];
-
-            float distance = distFromLine(line, gridVertex);
-            // bool isOnPreCenterLine = isOnLine(centerlines[preIndex], gridVertex);
-            // bool isOnCurCenterLine = isOnLine(centerlines[curIndex], gridVertex);
-            if(distance < minDistance){
-                minDistance = distance;
-            }
-            prevVertexN = curVertexN;
-        }
-
-        float maximumPossibleDistance = glm::length(glm::vec2(pngData.width,pngData.height))/2.0f;
-        static const float multiplier = 1.0f;
-        unsigned int distanceFloatValueNorm = boundTransformation((unsigned int) minDistance, 0, (unsigned int) multiplier*(unsigned int) maximumPossibleDistance, 0, std::numeric_limits<unsigned int>::max());
-        unsigned int distanceValue = static_cast<unsigned int>(distanceFloatValueNorm);
-        cdata::ColorRGBA colorCodedDistance =  pngColorFromValue(distanceValue);
-        pngData.setColor(gI, colorCodedDistance);
-        
-
-        
-        unsigned int maxInt = std::numeric_limits<unsigned int>::max();
-        cdata::ColorRGBA colorCodedMaxDistance =  pngColorFromValue(maxInt);
-    }
-
-}
 unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder){
     PngData pngData(width, height);
     generatePNGBorder(pngData, width, height,  hThickness, vThickness, borderColor, innerColor, ignoreInner, ignoreBorder);
@@ -653,16 +421,7 @@ void generatePNGBlank(PngData& pngData, cdata::ColorRGB color){
     }
 }
 
-bool isInRange(float x, float min, float max){
-   return min < x && x < max; 
-}
 
-bool isOnLine(std::tuple<float, float, float> line, glm::vec2 point)
-{
-    const auto& [A, B, C] = line;
-    float actualValue = A*point.x + B*point.y + C;
-    return isInRange(actualValue, -SMALL_FLOAT, SMALL_FLOAT);
-}
 
 unsigned int obtainPNGBorder(PngData &pngData, int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder)
 {
@@ -1083,52 +842,7 @@ void setupSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sa
 }
 
 
-unsigned int boundTransformation(unsigned int x, unsigned int min, unsigned int max, unsigned int minT, unsigned int maxT){
-    unsigned int slope = (maxT - minT)/(max - min);
-    unsigned int intercept = minT - slope*min;
-    return slope*x + intercept;
-}
 
-float boundTransformation(float x, float min, float max, float minT, float maxT){
-    assert(max != min);
-    float slope = (maxT - minT)/(max - min);
-    float intercept = minT - slope*min;
-    return slope*x + intercept;
-}
-glm::vec2 boundTransformation(glm::vec2 pos, glm::vec2 min, glm::vec2 max, glm::vec2 minT, glm::vec2 maxT){
-    assert(max != min);
-    float xT = boundTransformation(pos.x, min.x, max.x, minT.x, maxT.x);
-    float yT = boundTransformation(pos.y, min.y, max.y, minT.y, maxT.y);
-    return glm::vec2(xT, yT);
-}
-
-std::tuple<float,float> linearTransformation(float xf, float xi, float yf, float yi){
-    if(xf - xi == 0){
-        throw(std::runtime_error("Error: No horizontal distance"));
-    }
-    float slope = (yf - yi)/(xf - xi);
-    float intercept = yi - slope*xi;
-    return std::tuple<float,float>(slope,intercept);
-}
-
-std::tuple<float,float,float> getLineFromVertices(const float xi, const float xf, const float yi, const float yf){
-    const float A = yf - yi;
-    const float B = xi - xf;
-    const float C = xf*yi - xi*yf;
-    return {A,B,C};
-}
-
-std::tuple<float,float,float> getLineFromVertices(const glm::vec2 vi, const glm::vec2 vf){
-    return getLineFromVertices(vi.x, vf.x, vi.y, vf.y);
-}
-
-float boundTransformation(float x, std::tuple<float,float> line){
-    return x*std::get<0>(line)+ std::get<1>(line);
-}
-
-float boundTransformation(float x, float slope, float intercept){
-    return x*slope + intercept;
-}
 
 nlohmann::json readjsonfile(std::string filepath)
 {
@@ -2155,100 +1869,10 @@ std::tuple<shapes::Shape, std::vector<glm::vec2>> createCircleShapeBorder(unsign
     return {circleShape, border};
 }
 
-OpenGLShape create_circle(unsigned int tri_cnt, PngData& pngData){
-    std::vector<float> circle{};
-    std::vector<unsigned> ind{};
-    unsigned int index = 0;
-    std::vector<glm::vec2> border;
-
-    for(unsigned int tri = 0; tri < tri_cnt; tri++){
-       
-        
-        for(int vi = 0; vi<3;vi++){
-
-            glm::vec3 vert;
-            if(vi > 0){
-                glm::mat4 transform(1.0f);
-                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
-                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
-                glm::vec3 radius_vec(0.5f,0.0f,0.0f);
-                glm::vec4 radius_vec4(radius_vec,1.0f);
-                radius_vec4 = transform * radius_vec4;
-                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
-                assert(vert.x != 0.0f || vert.y != 0.0f);
-                if(vi == 1)
-                    border.push_back(glm::vec2(vert.x,vert.y));
-            }
-            else{
-                vert = glm::vec3(0.0f,0.0f,0.0f); // Center Vertex
-            }
-            circle.push_back(vert.x);
-            circle.push_back(vert.y);
-            circle.push_back(vert.z);
-            circle.push_back(boundTransformation(vert.x, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
-            circle.push_back(boundTransformation(vert.y, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
-            
-            for(unsigned int i = 0; i<3; i++){
-                ind.push_back(index);
-                index++;
-            }
-        }
-    }
-    
-    unsigned int texture = obtainPNGDistanceFromBorder(pngData, border);
-    
-    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, texture, true);
-}
 
 void pngDataSavePng(const std::string filepath, const PngData& pngData){
     
     stbi_write_png(filepath.c_str(), pngData.width, pngData.height, pngData.nrChannels, pngData.getData(), pngData.nrChannels * pngData.width);
-}
-OpenGLShape create_circle(unsigned int tri_cnt)
-{
-
-    std::vector<float> circle{};
-    std::vector<unsigned> ind{};
-    unsigned int index = 0;
-    std::vector<glm::vec2> border;
-
-    for(unsigned int tri = 0; tri < tri_cnt; tri++){
-       
-        
-        for(int vi = 0; vi<3;vi++){
-
-            glm::vec3 vert;
-            if(vi > 0){
-                glm::mat4 transform(1.0f);
-                float angle = glm::radians(((float)tri+vi)*360.0f/(float)tri_cnt);
-                transform = glm::rotate(transform, angle, glm::vec3(0.0f,0.0f,1.0f));
-                glm::vec3 radius_vec(0.5f,0.0f,0.0f);
-                glm::vec4 radius_vec4(radius_vec,1.0f);
-                radius_vec4 = transform * radius_vec4;
-                vert = glm::vec3(radius_vec4.x,radius_vec4.y,radius_vec4.z);
-                assert(vert.x != 0.0f || vert.y != 0.0f);
-                if(vi == 1)
-                    border.push_back(glm::vec2(vert.x,vert.y));
-            }
-            else{
-                vert = glm::vec3(0.0f,0.0f,0.0f); // Center Vertex
-            }
-            circle.push_back(vert.x);
-            circle.push_back(vert.y);
-            circle.push_back(vert.z);
-            circle.push_back(boundTransformation(vert.x, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
-            circle.push_back(boundTransformation(vert.y, -0.5f, 0.5f, 0.0f, 1.0f)); // Texture x coordinate (Have to normalize it to [0,1])
-            
-            for(unsigned int i = 0; i<3; i++){
-                ind.push_back(index);
-                index++;
-            }
-        }
-    }
-    
-    unsigned int texture = obtainPNGDistanceFromBorder(255,255, border);
-    
-    return OpenGLShape((unsigned) (tri_cnt*3), (unsigned) (tri_cnt*3), &circle[0], &ind[0], std::vector<unsigned>{ 3, 2}, texture, true);
 }
 
 float calcFade(float destructionTimePassed, float maxDestructionTime, float changePointStart, float changePointBefore, float changePointAfter, float changePointEnd, float shapeMinFade, float shapeMaxFade, bool delay){
@@ -2733,7 +2357,9 @@ int mainDrawRectangle(int argc, char* argv[]){
     DeltaTimer deltaTimer{};
     PngData blankPngData(16,16);
     PngData borderPngData(16,16);
-    unsigned int borderTexture = obtainPNGDistanceFromBorder(borderPngData, borderVerticesFromShape(shapes::rectT));
+    std::vector<float> distances;
+    generateDistancesFromBorder(distances, 256, 256, borderVerticesFromShape(shapes::rectT));
+    unsigned int borderTexture = useTextureDataToCreateTexture(distances.data(), ttm::map(distances, 256, 256));
     unsigned int blankTexture = obtainPNGBlank(blankPngData);
     OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture}, true);
     pngDataSavePng("testSSR.png", borderPngData);
@@ -2766,8 +2392,11 @@ int mainDrawCircle(int argc, char *argv[])
 
     DeltaTimer deltaTimer{};
     
+    std::vector<float> distances;
+    generateDistancesFromBorder(distances, 256, 256, borderVerticesFromShape(shapes::rectT));
+    unsigned int borderTexture = useTextureDataToCreateTexture(distances.data(), ttm::map(distances, 256, 256));
     PngData pngData(255, 255);
-    OpenGLShape circle = create_circle(3, pngData);
+    OpenGLShape circle(shapes::rectT, {blankTexture, borderTexture}, true);
     circle.setTextures({blankTexture,circle.getTexture(0)});
     pngDataSavePng("test.png", pngData);
     
@@ -3099,73 +2728,6 @@ void drawRecursiveSquareHolesHelper(GLFWwindow* window, OpenGLShape& square, Ope
     }
 }
 
-bool hasIntersection(const std::tuple<float, float, float> line1, const std::tuple<float, float, float> line2){
-    const auto [A1, B1, C1] = line1;
-    const auto [A2, B2, C2] = line2;
-    return A1 != A2 || B1 != B2;
-}
-
-bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, const glm::vec2 lineIntersection){
-    const glm::vec2 startPoint1 = std::get<0>(lineSegment1);
-    const glm::vec2 endPoint1 = std::get<1>(lineSegment1);
-    
-    const glm::vec2 startPoint2 = std::get<0>(lineSegment2);
-    const glm::vec2 endPoint2 = std::get<1>(lineSegment2);
-
-    const float minX1 = glm::min(startPoint1.x, endPoint1.x);
-    const float maxX1 = glm::max(startPoint1.x, endPoint1.x); 
-    const float minY1 = glm::min(startPoint1.y, endPoint1.y);
-    const float maxY1 = glm::max(startPoint1.y, endPoint1.y); 
-
-    const float minX2 = glm::min(startPoint2.x, endPoint2.x);
-    const float maxX2 = glm::max(startPoint2.x, endPoint2.x); 
-    const float minY2 = glm::min(startPoint2.y, endPoint2.y);
-    const float maxY2 = glm::max(startPoint2.y, endPoint2.y); 
-
-    const float minX = glm::max(minX1, minX2);
-    const float maxX = glm::min(maxX1, maxX2);
-    const float minY = glm::max(minY1, minY2);
-    const float maxY = glm::min(maxY1, maxY2);
-
-    return lineIntersection.x >= minX && lineIntersection.x <= maxX && lineIntersection.y >= minY && lineIntersection.y <= maxY;
-}
-
-
-bool tryGetIntersection(glm::vec2& intersection, const std::tuple<float, float, float> line1, const std::tuple<float, float, float> line2){
-    const auto [A1, B1, C1] = line1;
-    const auto [A2, B2, C2] = line2;
-
-    if(!hasIntersection(line1, line2))
-        return false;
-
-    const auto x = (B1*C2 - B2*C1)/(A1*B2-A2*B1);
-    const auto y = (A1*C2 - A2*C1)/(B1*A2-B2*A1);
-    intersection = glm::vec2(x,y);
-    return true;
-}
-
-bool tryGetIntersection(glm::vec2& intersection, const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, bool lineSegmentsDefineLines){
-    const auto line1= getLineFromVertices(std::get<0>(lineSegment1), std::get<1>(lineSegment1));
-    const auto line2= getLineFromVertices(std::get<0>(lineSegment2), std::get<1>(lineSegment2));
-    if(!tryGetIntersection(intersection, line1, line2))
-        return false;
-    return lineSegmentsDefineLines || hasIntersection(lineSegment1, lineSegment2, intersection);
-}
-
-bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, bool lineSegmentsDefineLines){
-    glm::vec2 intersection;
-    const auto line1= getLineFromVertices(std::get<0>(lineSegment1), std::get<1>(lineSegment1));
-    const auto line2= getLineFromVertices(std::get<0>(lineSegment2), std::get<1>(lineSegment2));
-    if(!tryGetIntersection(intersection, line1, line2))
-        return false;
-    return lineSegmentsDefineLines || hasIntersection(lineSegment1, lineSegment2, intersection);
-}
-glm::vec2 rotate(const glm::vec2& vec2, const float& radians){
-    float originalAngle = glm::atan(vec2.y,vec2.x);
-    glm::vec2 rotatedN = glm::vec2(glm::cos(originalAngle +  radians), glm::sin( originalAngle + radians));
-    return glm::length(vec2) * rotatedN;
-}
-
 void getRecursiveShapeHolesHelper(unsigned int maxIterations, unsigned int iterations, std::vector<std::tuple<std::vector<glm::vec2>,SHAPE_TYPE_2D>> shapes, glm::vec2 position, float rotation, float size, std::vector<std::vector<std::tuple<glm::vec2, float, float, SHAPE_TYPE_2D>>>& shapeHoles){
     if(iterations < maxIterations - 1){
         iterations++;
@@ -3386,7 +2948,9 @@ int mainDrawBatch(int argc, char* argv[]){
     static const unsigned int HEIGHT = COLOR_HEIGHT;
     PngData blankPngData(WIDTH,HEIGHT);
     PngData borderPngData(WIDTH,HEIGHT);
-    unsigned int borderTexture = obtainPNGDistanceFromBorder(borderPngData, borderVerticesFromShape(shapes::rectT));
+    std::vector<float> distances;
+    generateDistancesFromBorder(distances, 256, 256, borderVerticesFromShape(shapes::rectT));
+    unsigned int borderTexture = useTextureDataToCreateTexture(distances.data(), ttm::map(distances, 256, 256));
     unsigned int blankTexture = obtainPNGBlank(blankPngData);
 
     static const unsigned int ROWS = 15;
@@ -3761,4 +3325,16 @@ template <typename T> void TextureAtlas::replaceTexture(const std::vector<T> vec
     const OpenGLTextureOptions vecOptions = ttm::map(vec, width*textureCnt, height);
     assert(vecOptions == options);
     replaceTexture(vec.data());
+}
+
+std::vector<glm::vec2> borderVerticesFromShape(const shapes::Shape& shape){
+    return borderVerticesFromShape(shape.vertices, shape.vertCnt, shape.getStride());
+}
+std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride){
+    std::vector<glm::vec2> borderVertices{};
+    for(int i = 0; i < vert_cnt; i+=stride){
+        borderVertices.push_back(glm::vec2(shape[i],shape[i+1]));
+    }
+    return borderVertices;
+    
 }

@@ -64,6 +64,8 @@ add_executable(${PROJECT_NAME}
     Glitter/Headers/mathoperations.hpp
     Glitter/Sources/mathoperations.cpp
     Glitter/Sources/randomextensions.cpp
+    Glitter/Headers/geometry.hpp
+    Glitter/Sources/geometry.cpp
     )
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)

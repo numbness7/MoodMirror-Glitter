@@ -40,3 +40,7 @@ int ceilWrap(int x, int y)
     else
         return (x-mod)/y + 1;
 }
+
+bool isInRange(float x, float min, float max){
+   return min < x && x < max; 
+}

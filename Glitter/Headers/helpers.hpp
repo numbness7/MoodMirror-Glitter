@@ -46,6 +46,7 @@
 #include <color.hpp>
 #include <mathoperations.hpp>
 #include <randomextensions.hpp>
+#include <geometry.hpp>
 
 // #Header Macros -------------------------------------------------------------
 
@@ -65,11 +66,7 @@
 #define NUMBER_OF_ATLAS_TEXTURES 16
 
 // Data sizes
-
 #define BYTESIZE 8
-#define SUPER_SMALL_FLOAT 0.00000000000001f
-#define SMALL_FLOAT 0.002f
-#define NOT_THAT_SMALL_FLOAT 0.01f
 
 // Layer info
 
@@ -276,6 +273,8 @@ namespace textureTypeMappings{
     inline OpenGLTextureOptions map   (const std::vector<glm::mat4>&,     const GLsizei width,  const GLsizei height){  return {width * 4, height, GL_RGBA32F,    GL_RGBA, GL_FLOAT,          GL_TEXTURE_2D, 0}; };
     inline OpenGLTextureOptions map   (const std::vector<int>&,           const GLsizei width,  const GLsizei height){  return {width,     height, GL_R32I,       GL_RED_INTEGER,  GL_INT,            GL_TEXTURE_2D, 0}; };
     inline OpenGLTextureOptions map   (const std::vector<unsigned int>&,  const GLsizei width,  const GLsizei height){  return {width,     height, GL_R32UI,      GL_RED_INTEGER,  GL_UNSIGNED_INT,   GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions map   (const std::vector<unsigned short>&,  const GLsizei width,  const GLsizei height){  return {width,   height, GL_R16UI,      GL_RED_INTEGER,  GL_UNSIGNED_INT,   GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions map   (const std::vector<unsigned char>&,  const GLsizei width,  const GLsizei height){  return {width,   height, GL_R8UI,        GL_RED_INTEGER,  GL_UNSIGNED_BYTE,   GL_TEXTURE_2D, 0}; };
     //unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), SIZE, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
     inline OpenGLTextureOptions png4Map    (const GLsizei width, const GLsizei height){  return {width,     height, GL_RGBA8,      GL_RGBA, GL_UNSIGNED_BYTE,  GL_TEXTURE_2D, 0}; };
     inline OpenGLTextureOptions png3Map    (const GLsizei width, const GLsizei height){  return {width,     height, GL_RGB8,       GL_RGB,  GL_UNSIGNED_BYTE,  GL_TEXTURE_2D, 0}; };
@@ -679,31 +678,7 @@ class ShapeLayerStorage{
 };
 
 
-// #CONSTANTS -------------------------------------------------------------
 
-namespace dir3D{
-    const glm::vec3 UP(0.0f,1.0f,0.0f);
-    const glm::vec3 DOWN(0.0f,-1.0f,0.0f);
-    const glm::vec3 RIGHT(1.0f,0.0f,0.0f);
-    const glm::vec3 LEFT(-1.0f,0.0f,0.0f);
-    const glm::vec3 UP_RIGHT = glm::normalize(UP + RIGHT);
-    const glm::vec3 DOWN_LEFT = glm::normalize(DOWN + LEFT);
-    const glm::vec3 FORWARD(0.0f, 0.0f, -1.0f);
-    const glm::vec3 BACKWARD(0.0f, 0.0f, 1.0f);
-}
-
-namespace dir2D{
-    const glm::vec2 UP(0.0f,1.0f);
-    const glm::vec2 DOWN(0.0f,-1.0f);
-    const glm::vec2 RIGHT(1.0f,0.0f);
-    const glm::vec2 LEFT(-1.0f,0.0f);
-    const glm::vec2 UP_RIGHT = glm::normalize(UP + RIGHT);
-    const glm::vec2 DOWN_LEFT = glm::normalize(DOWN + LEFT);
-}
-
-namespace mm_math{
-    const float PI = ((float)M_PI);
-}
 
 // #Main Programs -------------------------------------------------------------
 
@@ -877,10 +852,8 @@ unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickn
 unsigned int obtainPNGBorder(PngData& pngData,  int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder);
 cdata::ColorRGBA pngColorFromValue(const unsigned int& value);
 unsigned int valueFromPngColor(cdata::ColorRGBA color);
-unsigned int obtainPNGDistanceFromBorder(int width, int height, std::vector<glm::vec2> borderVertices);
 PngData loadPngTexture(std::string texture_filepath);
 unsigned char* initializePNGTextureData(int width, int height, int nrChannels);
-void generatePNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices);
 unsigned int createPngTexture(const PngData* pngData);
 void pngDataSavePng(const std::string filepath, const PngData& pngData);
 
@@ -896,36 +869,10 @@ unsigned int createTexture(std::string texture_filepath, std::string filetype);
 // #Linear Operations -------------------------------------------------------------
 
 std::vector<glm::vec2> borderVerticesFromShape(const shapes::Shape& shape);
-std::tuple<float,float,float> getLineFromVertices(const float xi, const float xf, const float yi, const float yf);
-std::tuple<float,float,float> getLineFromVertices(const glm::vec2 vi, const glm::vec2 vf);
 std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride);
-bool isInSquare(glm::vec2 point, glm::vec2 center,  float length);
-bool isInSquare(float x, float y, float centerX, float centerY, float length);
-bool isOnLine(std::tuple<float,float,float> line, glm::vec2 point);
+std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride);
 
 
-// #Linear Transformations -------------------------------------------------------------
-
-float boundTransformation(float x, std::tuple<float,float> line);
-std::tuple<float,float> linearTransformation(float min, float max, float minT, float maxT);
-float boundTransformation(float x, float slope, float intercept);
-
-/// @brief Convert the range from [min, max] to [minT, maxT].
-/// 
-/// Useful for normalizing ranges and transforming normalized ranges to other ranges.
-/// @param x Number in range [min, max].
-/// @param min 
-/// @param max 
-/// @param minT 
-/// @param maxT 
-/// @return x that was transformed to be within range [minT, maxT].
-float boundTransformation(float x, float min, float max, float minT, float maxT);
-/// @brief Obtain a texture that encodes the distance from the border at each pixel.
-/// @param pngData stores texture data.
-/// @param borderVertices vertices of shape border in clockwise order.
-/// @return reference to OpenGL texture.
-unsigned int obtainPNGDistanceFromBorder(PngData& pngData, std::vector<glm::vec2> borderVertices);
-glm::vec2 boundTransformation(glm::vec2 pos, glm::vec2 min, glm::vec2 max, glm::vec2 minT, glm::vec2 maxT);
 
 
 
@@ -971,10 +918,6 @@ void drawRecursiveSquareHoles(GLFWwindow* window, OpenGLShape& square, OpenGLSha
 void generatePNGBlank(PngData& pngData, cdata::ColorRGBA color);
 void generatePNGBlank(PngData& pngData, cdata::ColorRGB color);
 template<typename T> std::string vec2str(T vec, unsigned int size);
-bool tryGetIntersection(glm::vec2& intersection, const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, bool lineSegmentsDefineLines=false);
-bool tryGetIntersection(glm::vec2& intersection, const std::tuple<float, float, float> line1, const std::tuple<float, float, float> line2);
-bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, const glm::vec2 lineIntersection);
-bool hasIntersection(const std::tuple<float, float, float> line1, const std::tuple<float, float, float> line2);
 std::string vec2ToString(glm::vec2 vec2);
 
 glm::vec2 rotate(const glm::vec2& vec2, const float& radians);
@@ -982,12 +925,6 @@ float getFPS(DeltaTimer deltaTimer);
 
 std::tuple<unsigned int, unsigned int, unsigned int> transferShapeLayers(std::counting_semaphore<TOTAL_LAYERS>& shapesSemaphore, std::mutex& shapeLock, const unsigned int& requiredLayers, std::deque<ShapeLayer>& shapeLayersBuffer, ShapeLayerStorage& shapeLayersStorage, float currentDestructionTime, float currentPulseMaxTime, std::deque<PngData>& pngDataDeque);
 std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>> modelsToCols(std::vector<glm::mat4> models);
-/// @brief Returns distance from point to line
-/// @param line a line defined by Ax + By + C = 0. A B and C are passed as a tuple.
-/// @param point 
-/// @return 
-float distFromLine(std::tuple<float,float,float> line, glm::vec2 point);
-bool hasIntersection(const std::tuple<glm::vec2,glm::vec2> lineSegment1, const std::tuple<glm::vec2, glm::vec2> lineSegment2, bool lineSegmentsDefineLines);
 unsigned int useFloatsToCreateTexture2D(float* floats, unsigned int width, unsigned int height);
 unsigned int useUCharsToCreateTexture2D(unsigned char* uchars, unsigned int width, unsigned int height);
 unsigned int useModelsToCreateTexture2D(glm::mat4* models, unsigned int width, unsigned int height);

@@ -4,6 +4,7 @@
 #include <glm/vec4.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
+#include <geometry.hpp>
 // #Random -------------------------------------------------------------
 
 glm::vec3 randScale(float min=0.0f, float max=1.0f);
