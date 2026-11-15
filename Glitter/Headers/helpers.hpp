@@ -234,14 +234,6 @@
 float getElapsedTime();
 
 
-// #Simple Math Operations -------------------------------------------------------------
-float clamp(const float x, const float min, const float max);
-float floorWrap(float dividend, float divisor);
-float floorWrap(float quotient);
-float ceilWrap(float dividend, float divisor);
-float ceilWrap(float dividend);
-int floorWrap(int dividend, int divisor);
-int ceilWrap(int dividend, int divisor);
 
 
 struct OpenGLTexture {
