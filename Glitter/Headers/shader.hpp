@@ -14,16 +14,16 @@
 #include <fstream>
 #include <map>
 
+#include <variablemanipulation.hpp>
+
 class Shader {
     public:
         Shader();
+        Shader(std::string vertex_shader_filepath, std::string fragment_shader_filepath, bool replaceVersion=false, std::string version="330 core");
         /// @brief load and compile vertex and fragment shaders
         /// @param vertex_shader_filepath 
         /// @param fragment_shader_filepath 
-        Shader(std::string vertex_shader_filepath, std::string fragment_shader_filepath) ;
-        /// @brief load shader and compile vertex and fragment shaders with just one filepath
-        /// @param shader_filepath path of both vertex and fragment shader but with their extensions removed
-        Shader(std::string shader_filepath) ;
+        Shader(std::string shader_filepath, bool replaceVersion=false, std::string version="330 core") ;
         void use() { glUseProgram(shaderProgram); }
         void setUniformV4(std::string name, const glm::vec4 vec4);
         void setUniformAV4(std::string name, const glm::vec4 vec4[], const int size);

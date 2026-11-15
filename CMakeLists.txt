@@ -57,7 +57,9 @@ add_executable(${PROJECT_NAME}
     Glitter/Headers/thirdparty.hpp
     Glitter/Sources/thirdparty.cpp
     Glitter/Headers/debugging.hpp
-    Glitter/Sources/debugging.cpp)
+    Glitter/Sources/debugging.cpp
+    Glitter/Headers/variablemanipulation.hpp
+    Glitter/Sources/variablemanipulation.cpp)
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 

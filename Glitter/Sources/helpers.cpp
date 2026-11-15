@@ -1785,13 +1785,13 @@ void initMouse(GLFWwindow* mWindow){
     glfwSetCursorPosCallback(mWindow, mouse_callback);
     glfwSetScrollCallback(mWindow, scroll_callback);
 }
-LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath){
+LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath, bool replaceVersion, std::string version){
     glm::mat4 proj(1.0f);
     glm::mat4 view(1.0f);
     glm::mat4 model(1.0f);
 
-    Shader object_shader(vertexShaderPath, fragmentShaderPath);
-    Shader light_shader(vertexShaderPath, fragmentShaderPath);
+    Shader object_shader(vertexShaderPath, fragmentShaderPath, replaceVersion, version);
+    Shader light_shader(vertexShaderPath, fragmentShaderPath, replaceVersion, version);
     object_shader.use();
     object_shader.setUniformM4("projection", proj);
     object_shader.setUniformM4("view", view);
@@ -2888,12 +2888,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     LightingEnvironment lightingEnvironment;
 
     
-    if(ON_PI){
-        lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color-pi.vs", "Glitter/Shaders/texture-mvp-color-pi.fs");
-    }
-    else{
-        lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
-    }
+    lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
 
     lightingEnvironment.view = glm::scale(lightingEnvironment.view, glm::vec3(1.2f,1.2f,0.0f));
     glm::mat4 model(1.0f);
@@ -5545,21 +5541,4 @@ template <typename T> void TextureAtlas::replaceTexture(const std::vector<T> vec
     const OpenGLTextureOptions vecOptions = ttm::map(vec, width*textureCnt, height);
     assert(vecOptions == options);
     replaceTexture(vec.data());
-}
-
-template<typename ARRAY> ARRAY substring(const ARRAY str, const unsigned int startInclusive, const unsigned int endExclusive){
-	ARRAY sub;
-	for(unsigned int i = startInclusive; i < endExclusive; i++)
-		sub.push_back(str[i]);
-	return sub;
-}
-
-template<typename ARRAY> bool contains(const ARRAY str, const ARRAY subStr)
-{
-    if(str.size() < subStr.size())
-		return false;
-    for(unsigned int i = 0; i <= str.size() - subStr.size(); i++)
-        if(substring(str, i, i + subStr.size()) == subStr)
-            return true;
-    return false;
 }

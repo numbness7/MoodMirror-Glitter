@@ -41,6 +41,7 @@
 #include <deque>
 #include <json.hpp>
 #include <thirdparty.hpp>
+#include <variablemanipulation.hpp>
 
 // #Header Macros -------------------------------------------------------------
 
@@ -822,7 +823,7 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
 // #Initialization -------------------------------------------------------------
 
 LightingEnvironment initMPV(std::string vertexShaderPath, std::string fragmentShaderPath);
-LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath);
+LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath, bool replaceVersion = false, std::string version = "330 core");
 GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen=FULL_SCREEN);
 bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height);
 int initOpenGL(GLFWwindow*& mWindow, int width, int height);
@@ -1082,8 +1083,6 @@ namespace glm{
 InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers);
 ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer);
 bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2);
-template<typename ARRAY> ARRAY substring(const ARRAY str, const unsigned int startInclusive, const unsigned int endExclusive);
-template<typename ARRAY> bool contains(const ARRAY str, const ARRAY subStr);
 
 #endif
 

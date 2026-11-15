@@ -7,14 +7,21 @@ Shader::Shader()
 {
 }
 
-Shader::Shader(std::string vertex_shader_filepath, std::string fragment_shader_filepath) : vertex_shader_filepath(vertex_shader_filepath), fragment_shader_filepath(fragment_shader_filepath)
+Shader::Shader(std::string vertex_shader_filepath, std::string fragment_shader_filepath, bool replaceVersion, std::string version) : vertex_shader_filepath(vertex_shader_filepath), fragment_shader_filepath(fragment_shader_filepath)
 {
     std::string vertex_shader_source = read_file(vertex_shader_filepath.c_str());
     std::string fragment_shader_source = read_file(fragment_shader_filepath.c_str());
+    if(replaceVersion){
+        int vvI = vertex_shader_source.find('\n') + 1;
+        int vfI = fragment_shader_source.find('\n') + 1;
+        vertex_shader_source = "#version " + version + '\n' + substring(vertex_shader_source, vvI, vertex_shader_source.size());
+        fragment_shader_source = "#version " +  version + '\n' + substring(fragment_shader_source, vfI, fragment_shader_source.size());
+    }
     compileShader(vertex_shader_source.c_str(), fragment_shader_source.c_str());
 }
 
-Shader::Shader(std::string shader_filepath) : Shader(shader_filepath + ".vs", shader_filepath + ".fs")
+
+Shader::Shader(std::string shader_filepath, bool replaceVersion, std::string version) : Shader(shader_filepath + ".vs", shader_filepath + ".fs", replaceVersion,  version)
 {
 }
 

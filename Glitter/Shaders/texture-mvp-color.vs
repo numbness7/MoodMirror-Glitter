@@ -1,4 +1,6 @@
-#version 330 core
+#version 310 es
+precision mediump float;
+precision mediump int;
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
 
@@ -13,35 +15,33 @@ uniform mat4 model;
 uniform mat4 view;
 uniform int COLS;
 uniform int SIZE;
-uniform sampler2D MODEL_TEXTURE;
-uniform sampler2D TRANS_S_TEXTURE;
-uniform sampler2D ROTATE_S_TEXTURE;
-uniform sampler2D SCALE_S_TEXTURE;
-uniform sampler2D TRANS_L_TEXTURE;
-uniform sampler2D ROTATE_L_TEXTURE;
-uniform sampler2D SCALE_L_TEXTURE;
-uniform isampler2D BATCH_NUMBER_TEXTURE;
-uniform isampler2D LAYER_NUMBER_TEXTURE;
+uniform mediump sampler2D MODEL_TEXTURE;
+uniform mediump sampler2D TRANS_S_TEXTURE;
+uniform mediump sampler2D ROTATE_S_TEXTURE;
+uniform mediump sampler2D SCALE_S_TEXTURE;
+uniform mediump sampler2D TRANS_L_TEXTURE;
+uniform mediump sampler2D ROTATE_L_TEXTURE;
+uniform mediump sampler2D SCALE_L_TEXTURE;
+uniform mediump isampler2D BATCH_NUMBER_TEXTURE;
+uniform mediump isampler2D LAYER_NUMBER_TEXTURE;
 
 
 mat4 scaleMatrix(mat4 matrix, vec4 scale);
 mat4 translateMatrix(mat4 matrix, vec4 translation);
 vec2 boundTransformation(vec2 pos, vec2 mini, vec2 maxi, vec2 miniT, vec2 maxiT);
 float boundTransformation(float x, float mini, float maxi, float miniT, float maxiT);
-vec2 getPosition(sampler2D position_texture);
 mat4 getModel();
-vec2 getPosition(int id, sampler2D position_texture);
-mat3 getMat3Model(sampler2D mat3ModelTexture, int iD);
 vec2 matrixMultiply(mat3 matrix, vec2 pos);
 mat4 mat3ToMat4(mat3 matrix3);
 uint getLayer();
 uint getBatch();
-float getFloatInterpolatedFromTexture(sampler2D floatTexture, vec2 coords);
-float getDistFromTexture(sampler2D distTexture, vec2 coords);
 ivec2 getTexelCoord(int index);
-vec4 getTexel(sampler2D texture, int index);
-ivec4 getTexel(isampler2D texture, int index);
-uvec4 getTexel(usampler2D texture, int index);
+float getFloatInterpolatedFromTexture   (mediump sampler2D floatTexture, vec2 coords);
+float getDistFromTexture                (mediump sampler2D distTexture, vec2 coords);
+mat3 getMat3Model                       (mediump sampler2D mat3ModelTexture, int iD);
+vec4 getTexel                           (mediump sampler2D texture, int index);
+ivec4 getTexel                          (mediump isampler2D texture, int index);
+uvec4 getTexel                          (mediump usampler2D texture, int index);
 
 flat out int LAYER_OUT;
 
@@ -85,7 +85,7 @@ vec2 matrixMultiply(mat3 matrix, vec2 pos){
     return nV2;
 }
 
-mat3 getMat3Model(sampler2D mat3ModelTexture, int iD){
+mat3 getMat3Model(mediump sampler2D mat3ModelTexture, int iD){
     // CHATGPT START
     vec3 col0 = texelFetch( mat3ModelTexture, ivec2(3*iD,0), 0).rgb;
     vec3 col1 = texelFetch( mat3ModelTexture, ivec2(3*iD+1,0), 0).rgb;
@@ -98,7 +98,7 @@ mat3 getMat3Model(sampler2D mat3ModelTexture, int iD){
     return model;
 }
 
-mat4 getMat4Model(sampler2D mat4ModelTexture, int iD){
+mat4 getMat4Model(mediump sampler2D mat4ModelTexture, int iD){
     // CHATGPT START
     vec4 col0 = texelFetch( mat4ModelTexture, ivec2(4*iD,0), 0);
     vec4 col1 = texelFetch( mat4ModelTexture, ivec2(4*iD+1,0), 0);
@@ -136,20 +136,6 @@ float boundTransformation(float x, float mini, float maxi, float miniT, float ma
     float intercept = miniT - slope*mini;
     return slope*x + intercept;
 }
-vec2 getPosition(int id, sampler2D position_texture){
-    // CHATGPT START
-    ivec2 texelCoord = ivec2(
-        id % COLS,
-        id / COLS
-    );
-    vec2 position = texelFetch(
-        position_texture,
-        texelCoord,
-        0
-    ).rg;
-    // CHATGPT END
-    return position;
-}
 mat4 mat3ToMat4(mat3 matrix3){
     mat4 matrix4 = mat4(1.0f);
     for(int row = 0; row < 3; row++){
@@ -169,23 +155,23 @@ uint getBatch(){
 ivec2 getTexelCoord(int index){
     return ivec2(index,0);
 }
-vec4 getTexel(sampler2D texture, int index){
+vec4 getTexel(mediump sampler2D texture, int index){
     ivec2 texelCoord = getTexelCoord(index);
     return texelFetch(texture, texelCoord, 0);
 }
-ivec4 getTexel(isampler2D texture, int index){
+ivec4 getTexel(mediump isampler2D texture, int index){
     ivec2 texelCoord = getTexelCoord(index);
     return texelFetch(texture, texelCoord, 0);
 }
-uvec4 getTexel(usampler2D texture, int index){
+uvec4 getTexel(mediump usampler2D texture, int index){
     ivec2 texelCoord = getTexelCoord(index);
     return texelFetch(texture, texelCoord, 0);
 }
 
-float getFloatInterpolatedFromTexture(sampler2D floatTexture, vec2 coords){
+float getFloatInterpolatedFromTexture(mediump sampler2D floatTexture, vec2 coords){
     float f = texture(floatTexture, coords).r;
     return f;
 }
-float getDistFromTexture(sampler2D distTexture, vec2 coords){
+float getDistFromTexture(mediump sampler2D distTexture, vec2 coords){
     return getFloatInterpolatedFromTexture(distTexture, coords);
 }
