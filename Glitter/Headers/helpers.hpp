@@ -256,20 +256,20 @@ namespace defaults{
 };
 
 namespace textureTypeMappings{                                                                                                  
-    inline OpenGLTextureOptions map   (const float*,         const GLsizei width,  const GLsizei height){ return {width,     height, GL_R32F,    GL_RED,         GL_FLOAT,         GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const glm::vec2*,     const GLsizei width,  const GLsizei height){ return {width,     height, GL_RG32F,   GL_RG,          GL_FLOAT,         GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const glm::vec3*,     const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGB32F,  GL_RGB,         GL_FLOAT,         GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const glm::vec4*,     const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGBA32F, GL_RGBA,        GL_FLOAT,         GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const glm::mat2*,     const GLsizei width,  const GLsizei height){ return {width * 2, height, GL_RG32F,   GL_RG,          GL_FLOAT,         GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const glm::mat3*,     const GLsizei width,  const GLsizei height){ return {width * 3, height, GL_RGB32F,  GL_RGB,         GL_FLOAT,         GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const glm::mat4*,     const GLsizei width,  const GLsizei height){ return {width * 4, height, GL_RGBA32F, GL_RGBA,        GL_FLOAT,         GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const int*,           const GLsizei width,  const GLsizei height){ return {width,     height, GL_R32I,    GL_RED_INTEGER, GL_INT,           GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const short*,         const GLsizei width,  const GLsizei height){ return {width,     height, GL_R16I,    GL_RED_INTEGER, GL_INT,           GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const char*,          const GLsizei width,  const GLsizei height){ return {width,     height, GL_R8I,     GL_RED_INTEGER, GL_INT,           GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const unsigned int*,  const GLsizei width,  const GLsizei height){ return {width,     height, GL_R32UI,   GL_RED_INTEGER, GL_UNSIGNED_INT,  GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const unsigned short*,const GLsizei width,  const GLsizei height){ return {width,     height, GL_R16UI,   GL_RED_INTEGER, GL_UNSIGNED_INT,  GL_TEXTURE_2D, 0};};
-    inline OpenGLTextureOptions map   (const unsigned char*, const GLsizei width,  const GLsizei height){ return {width,     height, GL_R8UI,    GL_RED_INTEGER, GL_UNSIGNED_BYTE, GL_TEXTURE_2D, 0};};
-    template<typename T> OpenGLTextureOptions map(const std::vector<T> v, const GLsizei width,  const GLsizei height) { return map(v.data(), width, height); }; 
+    inline OpenGLTextureOptions map2D   (const float*,         const GLsizei width,  const GLsizei height){ return {width,     height, GL_R32F,    GL_RED,         GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const glm::vec2*,     const GLsizei width,  const GLsizei height){ return {width,     height, GL_RG32F,   GL_RG,          GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const glm::vec3*,     const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGB32F,  GL_RGB,         GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const glm::vec4*,     const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGBA32F, GL_RGBA,        GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const glm::mat2*,     const GLsizei width,  const GLsizei height){ return {width * 2, height, GL_RG32F,   GL_RG,          GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const glm::mat3*,     const GLsizei width,  const GLsizei height){ return {width * 3, height, GL_RGB32F,  GL_RGB,         GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const glm::mat4*,     const GLsizei width,  const GLsizei height){ return {width * 4, height, GL_RGBA32F, GL_RGBA,        GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const int*,           const GLsizei width,  const GLsizei height){ return {width,     height, GL_R32I,    GL_RED_INTEGER, GL_INT,           GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const short*,         const GLsizei width,  const GLsizei height){ return {width,     height, GL_R16I,    GL_RED_INTEGER, GL_INT,           GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const char*,          const GLsizei width,  const GLsizei height){ return {width,     height, GL_R8I,     GL_RED_INTEGER, GL_INT,           GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const unsigned int*,  const GLsizei width,  const GLsizei height){ return {width,     height, GL_R32UI,   GL_RED_INTEGER, GL_UNSIGNED_INT,  GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const unsigned short*,const GLsizei width,  const GLsizei height){ return {width,     height, GL_R16UI,   GL_RED_INTEGER, GL_UNSIGNED_INT,  GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map2D   (const unsigned char*, const GLsizei width,  const GLsizei height){ return {width,     height, GL_R8UI,    GL_RED_INTEGER, GL_UNSIGNED_BYTE, GL_TEXTURE_2D, 0};};
+    template<typename T> OpenGLTextureOptions map2D(const std::vector<T> v, const GLsizei width,  const GLsizei height) { return map2D(v.data(), width, height); }; 
     inline OpenGLTextureOptions png4Map                                  (const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGBA8,   GL_RGBA,        GL_UNSIGNED_BYTE, GL_TEXTURE_2D, 0};};
     inline OpenGLTextureOptions png3Map                                  (const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGB8,    GL_RGB,         GL_UNSIGNED_BYTE, GL_TEXTURE_2D, 0};};
     inline OpenGLTextureOptions diffDimensions(const GLsizei width, const GLsizei height, const OpenGLTextureOptions options) { OpenGLTextureOptions optionsDiff{options}; optionsDiff.width = width; optionsDiff.height = height; return optionsDiff; };

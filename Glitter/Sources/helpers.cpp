@@ -492,10 +492,10 @@ void generatePNGData(unsigned char *data, int width, int height, int nrChannels)
 }
 
 template <typename T> unsigned int useTextureDataToCreateTexture(std::vector<T> data, GLsizei width, GLsizei height){
-    return useTextureDataToCreateTexture(data.data(), ttm::map(data, width, height));
+    return useTextureDataToCreateTexture(data.data(), ttm::map2D(data, width, height));
 }
 template <typename T> unsigned int useTextureDataToCreateTexture(T* data, GLsizei width, GLsizei height){
-    return useTextureDataToCreateTexture(data.data(), ttm::map(data, width, height));
+    return useTextureDataToCreateTexture(data.data(), ttm::map2D(data, width, height));
 }
 unsigned int useTextureDataToCreateTexture(const void* data, OpenGLTextureOptions options){
     unsigned int texture;
@@ -2362,7 +2362,7 @@ int mainDrawRectangle(int argc, char* argv[]){
     PngData borderPngData(16,16);
     std::vector<float> distances;
     generateDistancesFromBorder(distances, 256, 256, borderVerticesFromShape(shapes::rectT));
-    unsigned int borderTexture = useTextureDataToCreateTexture(distances.data(), ttm::map(distances, 256, 256));
+    unsigned int borderTexture = useTextureDataToCreateTexture(distances.data(), ttm::map2D(distances, 256, 256));
     unsigned int blankTexture = obtainPNGBlank(blankPngData);
     OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture}, true);
     pngDataSavePng("testSSR.png", borderPngData);
@@ -2397,7 +2397,7 @@ int mainDrawCircle(int argc, char *argv[])
     
     std::vector<float> distances;
     generateDistancesFromBorder(distances, 256, 256, borderVerticesFromShape(shapes::rectT));
-    unsigned int borderTexture = useTextureDataToCreateTexture(distances.data(), ttm::map(distances, 256, 256));
+    unsigned int borderTexture = useTextureDataToCreateTexture(distances.data(), ttm::map2D(distances, 256, 256));
     PngData pngData(255, 255);
     OpenGLShape circle(shapes::rectT, {blankTexture, borderTexture}, true);
     circle.setTextures({blankTexture,circle.getTexture(0)});
@@ -2953,7 +2953,7 @@ int mainDrawBatch(int argc, char* argv[]){
     PngData borderPngData(WIDTH,HEIGHT);
     std::vector<float> distances;
     generateDistancesFromBorder(distances, 256, 256, borderVerticesFromShape(shapes::rectT));
-    unsigned int borderTexture = useTextureDataToCreateTexture(distances.data(), ttm::map(distances, 256, 256));
+    unsigned int borderTexture = useTextureDataToCreateTexture(distances.data(), ttm::map2D(distances, 256, 256));
     unsigned int blankTexture = obtainPNGBlank(blankPngData);
 
     static const unsigned int ROWS = 15;
@@ -3325,7 +3325,7 @@ bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2){
 }
 template <typename T> void TextureAtlas::replaceTexture(const std::vector<T> vec, GLsizei width, GLsizei height){
     assert(vec.size() >= width*height);
-    const OpenGLTextureOptions vecOptions = ttm::map(vec, width*textureCnt, height);
+    const OpenGLTextureOptions vecOptions = ttm::map2D(vec, width*textureCnt, height);
     assert(vecOptions == options);
     replaceTexture(vec.data());
 }
