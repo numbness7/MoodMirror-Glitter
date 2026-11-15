@@ -736,7 +736,6 @@ int mainDrawSubTextures(int argc, char* argv[]);
 void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, OpenGLShape& openGLShape,  std::vector<OpenGLTexture>& openGLTextures, int shapeCount);
 void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
 void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
-void setupLightingEnvironmentToDraw(LightingEnvironment& lightingEnvironment, glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT], OpenGLShape& lightShape, bool drawLights=true);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, unsigned int texture);
 void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2);
@@ -769,21 +768,18 @@ GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen=FULL_SCR
 bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height);
 int initOpenGL(GLFWwindow*& mWindow, int width, int height);
 void initMouse(GLFWwindow* mWindow);
-LightingEnvironment initLighting(glm::vec3 light_positions[POINT_LIGHT_COUNT], glm::vec3 diffuses[POINT_LIGHT_COUNT]);
 
 // #RenderLoop Start -------------------------------------------------------------
 
-void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment);
 void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor = glm::vec4(0.0f,0.0f,0.0f,1.0f));
-void startMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor);
 void startDummyMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor=glm::vec4(1.0f));
 void setupDummyMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment);
 
 // #RenderLoop End -------------------------------------------------------------
 
-void endRenderLoop(GLFWwindow*& mWindow, DeltaTimer deltaTimer, Camera& camera);
 void endRenderLoopStatic(GLFWwindow*& mWindow);
 void endRenderLoopViewStatic(GLFWwindow*& mWindow, DeltaTimer deltaTimer);
+void endRenderLoopView2D(GLFWwindow*& mWindow, DeltaTimer& deltaTimer, glm::vec2& position, float& zoom);
 
 // #Input -------------------------------------------------------------
 
@@ -838,10 +834,6 @@ std::map<EMOTION, float> emotionIntensitiesToEmotionMap(EmotionIntensities eI);
 EmotionIntensities EmotionMapToEmotionIntensities(std::map<EMOTION, float> eIMap);
 std::map<EMOTION, float> emotionArrayToEmotionMap(std::vector<float> emotionArray);
 
-// #Front to back comparisons -------------------------------------------------------------
-
-bool compareShapeForwardDistance(const ShapeProperties& a, const ShapeProperties& b);
-bool compareZDistance(const ShapeProperties& a, const ShapeProperties& b);
 
 
 // #Shape Transition Calculations -------------------------------------------------------------
