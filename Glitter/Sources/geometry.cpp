@@ -232,3 +232,48 @@ bool isOnLine(std::tuple<float, float, float> line, glm::vec2 point)
     float actualValue = A*point.x + B*point.y + C;
     return isInRange(actualValue, -SMALL_FLOAT, SMALL_FLOAT);
 }
+
+glm::mat3 glm::rotate(glm::mat3 mat3, float angle)
+{
+    glm::mat3 rotMat3(0.0f);
+    rotMat3[0][0] = glm::cos(angle);
+    rotMat3[1][0] = -glm::sin(angle);
+    rotMat3[0][1] = glm::sin(angle);
+    rotMat3[1][1] = glm::cos(angle);
+    rotMat3[2][2] = 1;
+    return rotMat3 * mat3;
+}
+
+glm::mat3 glm::scale(glm::mat3 mat3, glm::vec2 vec2)
+{
+    for(int i = 0; i < 2; i++){
+        mat3[i][i] *= vec2[i];
+    }
+    return mat3;
+}
+
+glm::mat3 glm::translate(glm::mat3 mat3, glm::vec2 vec2)
+{
+    for(int i = 0; i < 2; i++){
+        mat3[2][i] = vec2[i];
+    }
+    return mat3;
+}
+
+glm::vec2 glm::vec3ToVec2(glm::vec3 vec3)
+{
+    return glm::vec2(vec3.x,vec3.y);
+}
+
+
+glm::vec2 glm::operator*(glm::mat3 mat3, glm::vec2 vec2)
+{
+    glm::vec3 vec3(vec2, 1.0f);
+    glm::vec2 newVec(0.0f);
+    for(int row = 0; row < 2; row++){
+        for(int col = 1; col < 3; col++){
+            newVec[row] += mat3[col][row]*vec3[col];
+        }
+    }
+    return newVec;
+}

@@ -65,4 +65,12 @@ std::tuple<float,float,float> getLineFromVertices(const glm::vec2 vi, const glm:
 bool isInSquare(glm::vec2 point, glm::vec2 center,  float length);
 bool isInSquare(float x, float y, float centerX, float centerY, float length);
 bool isOnLine(std::tuple<float,float,float> line, glm::vec2 point);
+glm::vec2 rotate(const glm::vec2& vec2, const float& radians);
+namespace glm{
+    glm::mat3 rotate(glm::mat3 mat3, float angle);
+    glm::mat3 scale(glm::mat3 mat3, glm::vec2 vec2);
+    glm::mat3 translate(glm::mat3 mat3, glm::vec2 vec2);
+    glm::vec2 operator*(glm::mat3 mat3, glm::vec2 vec2);
+    glm::vec2 vec3ToVec2(glm::vec3 vec3);
+};
 #endif

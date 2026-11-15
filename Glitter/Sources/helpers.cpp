@@ -2,6 +2,7 @@
 unsigned int getGL_TextureX(unsigned int index){
     return GL_TEXTURE0 + index;
 }
+
 void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures){
     shader.use();
     for(int i = 0; i < textures.size(); i++){
@@ -36,7 +37,6 @@ void processInput(GLFWwindow* mWindow){
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(mWindow, true);
 }
-
 
 void processInputStatic(GLFWwindow* mWindow){
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -105,283 +105,6 @@ GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen){
         return mWindow;
     }
 }
-unsigned char* initializePNGTextureData(int width, int height, int nrChannels){
-    unsigned char* data = (unsigned char*)malloc(sizeof(unsigned char)*width*height*nrChannels);
-    return data;
-}
-void freePNGTextureData(unsigned char* data){
-    free(data);
-}
-bool isOnBorder(int width, int height, int row, int col, int hThickness, int vThickness){
-    return col < hThickness || col > width - (hThickness + 1) || row < vThickness || row > height - (vThickness + 1);
-}
-unsigned char getBorderCheckColor(int width, int height, int row, int col, int hThickness, int vThickness){
-    if (isOnBorder(width, height, row, col, hThickness, vThickness)) return cdata::FULL_COLOR_D;
-    else return cdata::EMPTY_COLOR_D; 
-
-}
-void generatePNGBorder(PngData& pngData, const int width, const int height,  const int hThickness, const int vThickness, const cdata::ColorRGBA borderColor, const cdata::ColorRGBA innerColor, const bool ignoreInner, const bool ignoreBorder){
-    for(int gI = 0; gI < pngData.gridSize(); gI++){
-        if (isOnBorder(width, height, pngData.rFG(gI), pngData.cFG(gI), hThickness, vThickness)){
-            if(!ignoreBorder) pngData.setColor(gI, borderColor);
-        }
-        else{
-            if(!ignoreInner) pngData.setColor(gI, innerColor);
-        }
-    }
-}
-void generatePNGBorder(unsigned char* data, int width, int height, int nrChannels, int hThickness, int vThickness){
-    PngData pngData(width, height, nrChannels);
-    generatePNGBorder(pngData, width, height, hThickness, vThickness, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
-    doCopy(data, pngData.getData(), pngData.size(), pngData.size());
-}
-
-void loadPngTexture(std::string texture_filepath, PngData& pD)
-{
-    do{
-        pD = loadPngTexture(texture_filepath);
-        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
-    } while((!pD.isValid()));
-}
-
-PngData loadPngTexture(std::string texture_filepath)
-{
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
-    PngData pngData(width, height, nrChannels, data);
-    return pngData;
-}
-unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder){
-    PngData pngData(width, height);
-    generatePNGBorder(pngData, width, height,  hThickness, vThickness, borderColor, innerColor, ignoreInner, ignoreBorder);
-    unsigned texture = createPngTexture(pngData);
-    return texture;
-}
-unsigned int obtainPNGBlank(PngData& pngData){
-    generatePNGBlank(pngData);
-    unsigned texture = createPngTexture(pngData);
-    return texture;
-}
-void generatePNGBlank(PngData& pngData){
-    for(int i = 0; i < pngData.size(); i++){
-        pngData.setData(i, cdata::FULL_COLOR_D);
-    }
-}
-void generatePNGBlank(PngData& pngData, cdata::ColorRGBA color){
-    for(int gI = 0; gI < pngData.gridSize(); gI++){
-        pngData.setColor(gI, color);
-    }
-}
-void generatePNGBlank(PngData& pngData, cdata::ColorRGB color){
-    for(int gI = 0; gI < pngData.gridSize(); gI++){
-        pngData.setColor(gI, color);
-    }
-}
-
-unsigned int obtainPNGBorder(PngData &pngData, int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder)
-{
-    generatePNGBorder(pngData, pngData.width, pngData.height,  hThickness, vThickness, borderColor, innerColor, ignoreInner, ignoreBorder);
-    unsigned texture = createPngTexture(pngData);
-    return texture;
-}
-cdata::ColorRGBA pngColorFromValue(const unsigned int &value)
-{
-    const cdata::ColorRGBA color(
-        (unsigned char) (value >> ((PngData::nrChannelsDefault - 1 - PngData::redChannel   ) * sizeof(unsigned char)*BYTESIZE)),
-        (unsigned char) (value >> ((PngData::nrChannelsDefault - 1 - PngData::greenChannel ) * sizeof(unsigned char)*BYTESIZE)),
-        (unsigned char) (value >> ((PngData::nrChannelsDefault - 1 - PngData::blueChannel  ) * sizeof(unsigned char)*BYTESIZE)),
-        (unsigned char) (value >> ((PngData::nrChannelsDefault - 1 - PngData::alphaChannel ) * sizeof(unsigned char)*BYTESIZE))
-    );
-
-    return color;
-}
-unsigned int valueFromPngColor(cdata::ColorRGBA color)
-{
-    unsigned int value = 0;
-    value = ((color.red  )   << ((PngData::redChannel   ) *sizeof(unsigned char)*BYTESIZE))  |
-            ((color.green)   << ((PngData::greenChannel ) *sizeof(unsigned char)*BYTESIZE))  |
-            ((color.blue )   << ((PngData::blueChannel  ) *sizeof(unsigned char)*BYTESIZE))  |
-            ((color.alpha)   << ((PngData::alphaChannel ) *sizeof(unsigned char)*BYTESIZE))  ;
-    return value;
-}
-void generatePNGData(unsigned char *data, int width, int height, int nrChannels)
-{
-    std::cout << "W: " << width << ", H: " << height << ", N: " << nrChannels << std::endl;
-    static const unsigned int size = 0xFF;
-    std::cout << "S: " << size << std::endl;
-
-    unsigned int stepsToIncrementRed;
-    if (height % size != 0)
-        stepsToIncrementRed = height/(size) + 1;
-    else
-        stepsToIncrementRed = height/(size);
-    std::cout << "STIR: " << stepsToIncrementRed << std::endl;
-    unsigned int stepsToIncrementAlpha;
-    if (width % size != 0)
-        stepsToIncrementAlpha = width/(size) + 1;
-    else
-        stepsToIncrementAlpha = width/(size);
-    unsigned char red = 0;
-    unsigned int other = 0;
-    
-    for(int row = 0; row < height; row+=1){
-        if (row % stepsToIncrementRed == 0) red++;
-        if (row % stepsToIncrementRed == 0) other++;
-        unsigned char alpha = 0;
-        for(int col = 0; col < width*nrChannels; col+=nrChannels){
-            if(col % stepsToIncrementAlpha == 0) alpha++;
-
-            for(int channel = 0; channel < nrChannels; channel++){
-                if(channel == 0) // Red
-                    data[row*width*nrChannels+col+channel] = red;
-                if(channel == 1) // Green
-                    data[row*width*nrChannels+col+channel] = red;
-                if(channel == 2) // Blue
-                    data[row*width*nrChannels+col+channel] = red;
-                if(channel == 3) // Don't know
-                    data[row*width*nrChannels+col+channel] = alpha;
-            }
-        }
-    }
-    std::cout << "O: " << other << std::endl;
-}
-
-template <typename T> unsigned int useTextureDataToCreateTexture(std::vector<T> data, GLsizei width, GLsizei height){
-    return useTextureDataToCreateTexture(data.data(), ttm::map2D(data, width, height));
-}
-template <typename T> unsigned int useTextureDataToCreateTexture(T* data, GLsizei width, GLsizei height){
-    return useTextureDataToCreateTexture(data.data(), ttm::map2D(data, width, height));
-}
-unsigned int useTextureDataToCreateTexture(const void* data, OpenGLTextureOptions options){
-    unsigned int texture;
-    glGenTextures(1, &texture);
-    glBindTexture(options.target, texture);
-    // CHATGPT START
-    int stores = 0;
-    
-    switch(options.format){
-        case GL_RGBA:
-        case GL_RGBA_INTEGER:
-            stores = 4;
-            break;
-        case GL_RGB:
-        case GL_RGB_INTEGER:
-            stores = 3;
-            break;
-        case GL_RG:
-        case GL_RG_INTEGER:
-            stores = 2;
-            break;
-        case GL_RED:
-        case GL_RED_INTEGER:
-            stores = 1;
-            break;
-        default:
-            std::cout << "SOMETHING WENT HORRIBLY WRONG AHHHHHH!!!\n" << std::endl;
-            assert(false);
-    }
-    glPixelStorei(GL_UNPACK_ALIGNMENT, stores);
-    glTexParameteri(options.target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(options.target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(options.target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(options.target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    // CHATGPT END
-    
-    glTexImage2D(options.target, options.level, options.internalFormat, options.width, options.height, 0 /* border (must be zero smh) */ , options.format, options.type, data);
-    return texture;
-}
-
-unsigned int useTextureDataToCreateTexture(const void* data, GLsizei width, GLsizei height, GLenum target = GL_TEXTURE_2D, GLint level = 0, GLint internalFormat = GL_RGBA,  GLenum format = GL_RGBA, GLenum type = GL_UNSIGNED_BYTE){
-    unsigned int texture;
-    glGenTextures(1, &texture);
-    glBindTexture(target, texture);
-    // CHATGPT START
-    int stores = 0;
-    switch(format){
-        case GL_RGBA:
-        case GL_RGBA_INTEGER:
-            stores = 4;
-            break;
-        case GL_RG:
-        case GL_RG_INTEGER:
-            stores = 2;
-            break;
-        case GL_RGB:
-        case GL_RGB_INTEGER:
-        case GL_RED:
-        case GL_RED_INTEGER:
-            stores = 1;
-            break;
-        default:
-            std::cout << "SOMETHING WENT HORRIBLY WRONG AHHHHHH!!!\n" << std::endl;
-            assert(false);
-    }
-    glPixelStorei(GL_UNPACK_ALIGNMENT, stores);
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    // CHATGPT END
-    glTexImage2D(target, level, internalFormat, width, height, 0 /* border (must be zero smh) */ , format, type, data);
-    return texture;
-}
-unsigned int createPngTexture(std::string texture_filepath)
-{
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
-    PngData pngData(width, height, nrChannels, data);
-    return createPngTexture(pngData);
-}
-unsigned int createPngTexture(const PngData* pngData)
-{
-    unsigned int texture;
-    if(pngData->nrChannels == 3)
-        texture = useTextureDataToCreateTexture(pngData->getData(), ttm::png3Map(pngData->width, pngData->height));
-    if(pngData->nrChannels == 4)
-        texture = useTextureDataToCreateTexture(pngData->getData(), ttm::png4Map(pngData->width, pngData->height));
-    return texture;
-}
-unsigned int createPngTexture(const PngData& pngData)
-{
-    return createPngTexture(&pngData);
-}
-unsigned int createTexture(std::string texture_filepath, std::string filetype)
-{
-    unsigned int texture;
-    create_texture(texture, texture_filepath, filetype);
-    return texture;
-}
-
-void create_texture(unsigned int &texture, std::string texture_filepath, std::string filetype){
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
-    glGenTextures(1, &texture);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    
-    glBindTexture(GL_TEXTURE_2D, texture);
-    
-    if (data){
-        if(filetype == "jpg")
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-        else if(filetype == "png")
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        else {
-            throw std::runtime_error("Bad file type: " + filetype);
-        }
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else {
-        throw std::runtime_error("Failed to load texture: " + std::string(texture_filepath));
-    }
-    stbi_image_free(data);
-}
 
 bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height){
     // Load GLFW and Create a Window
@@ -406,11 +129,8 @@ bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height)
     glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-
-    
     unsigned int VBO_O, VAO_O, EBO_O;
     
-
     glEnable(GL_DEPTH_TEST);
     return_status = EXIT_SUCCESS;
     return true;
@@ -423,33 +143,14 @@ int initOpenGL(GLFWwindow *&mWindow, int width, int height)
     return return_status;
 }
 
-
-
 // learnopgl start
-
 
 glm::vec2 screenToModelCoords(float x, float y, float width, float height){
     return glm::vec2(boundTransformation(x, 0.0f, width, -1.0f, 1.0f),boundTransformation(y, 0.0f, height, -1.0f, 1.0f));
 }
 
-
-
-
-
-
-    
-
-#define ProgressMargin 0.0001f
-    
-
-
-
-
-
-
 nlohmann::json readjsonfile(std::string filepath)
 {
-
     while(true){
         try{
             using json = nlohmann::json;
@@ -530,7 +231,6 @@ void crappyClearScreen(int lines=1000){
     for(int i = 0; i < lines; i++) std::cout << std::endl;
 }
 
-
 std::string emotionArrayToString(std::vector<float> emotionArray){
     std::ostringstream ss;
     ss << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
@@ -548,8 +248,8 @@ std::string emotionArrayToString(std::vector<float> emotionArray){
     ss << emotionENUMToString(emotionIntToEnum(maxEmotion)) << std::endl;
     ss << std::endl;
     return ss.str();
-    
 }
+
 void printEmotionArray(std::vector<float> emotionArray){
     std::cout << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
     std::cout << "----------------------------------------------------------------------------------------------------" << std::endl;
@@ -564,8 +264,7 @@ void printEmotionArray(std::vector<float> emotionArray){
         }
     }
     std::cout << emotionENUMToString(emotionIntToEnum(maxEmotion)) << std::endl;
-std::cout << std::endl;
-    
+    std::cout << std::endl;
 }
 
 std::string emotionLayersToString(std::deque<EmotionLayer> emotionLayers){
@@ -773,37 +472,9 @@ glm::vec3 emotionArrayToColor(const std::vector<float> emotionArray){
     float surprise  = emotionArray[SURPRISE];
     float disgust   = emotionArray[DISGUST];
     
-
     float redHue =   (0.5*anger + 0.5*fear);
     float greenHue = (0.5*disgust +  0.5*surprise);
     float blueHue =  (0.5*sadness + 0.5*happiness);
-    //float hue;
-
-    //if(redHue > greenHue && redHue > blueHue)
-    //    if(greenHue > blueHue) hue = (greenHue - blueHue)/(redHue - blueHue);
-    //    else hue = (greenHue - blueHue)/(redHue - greenHue);
-    //else if(greenHue > redHue && greenHue > blueHue)
-    //    if(redHue > blueHue) hue = 2.0f + (blueHue - redHue)/(greenHue - blueHue);
-    //    else hue = 2.0f + (blueHue - redHue)/(greenHue - redHue);
-    //else
-    //    if(redHue > greenHue) hue = 4.0f + (redHue - greenHue)/(blueHue - greenHue);
-    //    else hue = 4.0f + (redHue - greenHue)/(blueHue - redHue);
-    //hue *= 60.0f;
-    //if(hue < 0.0f) hue += 360.0f;
-    //
-    //float saturation = 100.0f*(0.4f*disgust + 0.75f*sadness + 0.77f*fear + anger + happiness + surprise)/(6.0f);
-    //float lightness = 100.0f*(0.2f*fear + 0.4f*sadness + 0.45f*anger + 0.5f*disgust + 0.66f*surprise + 0.75f*happiness)/(6.0f);
-    //color::hsl<float> colorHSL({hue,saturation,lightness});
-    //color::rgb<float> colorRGB;
-    //colorRGB = colorHSL;
-    //
-    //float red = color::get::red(colorRGB);
-    //float green = color::get::green(colorRGB);
-    //float blue = color::get::blue(colorRGB);
-    
-    
-    
-    
     return glm::vec3(redHue,greenHue,blueHue);
     
 }
@@ -1331,35 +1002,7 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
     }
 
 }
-void pngLoader(std::deque<PngData>* datas, bool* turnOff, std::mutex* lock, const std::string* filePath, float* waitTime){
-    static const unsigned int bufferSizeMult = 1;
-    auto& dataBuffer = *datas;
-    PngData pD(255,255,3);
-	while(!*turnOff){
-        bool full;
-        float tempWaitTime;
-        {
-            std::lock_guard guard(*lock);
-            full = dataBuffer.size()>=TOTAL_EMOTION_LAYERS*bufferSizeMult;
-            tempWaitTime = *waitTime;
-        }
-        if(full){
-            std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*100.0f)));
-        }
-        else{
-            pD = loadPngTexture(*filePath);
-            if(pD.isValid()){
-                std::this_thread::sleep_for(std::chrono::nanoseconds((unsigned int)(tempWaitTime*1000000000.0f/(bufferSizeMult))));
-                std::lock_guard guard(*lock);
-                dataBuffer.push_front(pD);
-            }
-            else{
-                std::this_thread::sleep_for(std::chrono::nanoseconds(1));
-                debug::checkPrint("ERROR: loading image\n", false, DEBUG_IMAGE);
-            }
-        }
-	}
-}
+
 int startBensEmotionSimulator(float frequency, bool cycle, bool random){
     assert(cycle || random);
     char simulationType;
@@ -1434,12 +1077,6 @@ std::tuple<shapes::Shape, std::vector<glm::vec2>> createCircleShapeBorder(unsign
     return {circleShape, border};
 }
 
-
-void pngDataSavePng(const std::string filepath, const PngData& pngData){
-    
-    stbi_write_png(filepath.c_str(), pngData.width, pngData.height, pngData.nrChannels, pngData.getData(), pngData.nrChannels * pngData.width);
-}
-
 float calcFade(float destructionTimePassed, float maxDestructionTime, float changePointStart, float changePointBefore, float changePointAfter, float changePointEnd, float shapeMinFade, float shapeMaxFade, bool delay){
 	assert(maxDestructionTime != 0);
 	float timePassed;
@@ -1510,56 +1147,6 @@ void startDummyMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvi
 }
 
 // #Classes -------------------------------------------------------------
-// #PngData Class Functions ------------------------------------------------------------
-
-PngData::PngData(const int width, const int height, const int nrChannels): width{width},  height{height}, nrChannels{nrChannels}{
-    this->data = initializePNGTextureData(width, height, nrChannels);
-}
-PngData::PngData(int width, int height) : width{width},  height{height}, nrChannels{PngData::nrChannelsDefault}{
-    this->data = initializePNGTextureData(width, height, nrChannels);
-}
-PngData::PngData(const int width, const int height, const int nrChannels, unsigned char *data, bool copy) : width{width},  height{height}, nrChannels{nrChannels}
-{
-    if(copy){
-        this->data = copyInitialize(data, width*height*nrChannels);
-    }
-    else this->data = data;
-}
-PngData::PngData(const PngData &pngData) : width{pngData.width}, height{pngData.height}, nrChannels{pngData.nrChannels}
-{
-    this->data = copyInitialize(pngData.getData(), pngData.size());
-}
-PngData::~PngData()
-{
-    freePNGTextureData(this->data);
-}
-
-cdata::ColorRGB PngData::getColorRGB(int row, int col) const
-{
-    unsigned char red = this->getData(row, col, redChannel);
-    unsigned char green = this->getData(row, col, greenChannel);
-    unsigned char blue = this->getData(row, col, blueChannel);
-
-    return cdata::ColorRGB(red, green, blue);
-}
-cdata::ColorRGBA PngData::getColorRGBA(int row, int col) const
-{
-    unsigned char red = this->getData(row, col, redChannel);
-    unsigned char green = this->getData(row, col, greenChannel);
-    unsigned char blue = this->getData(row, col, blueChannel);
-    unsigned char alpha = this->getData(row, col, alphaChannel);
-
-    return cdata::ColorRGBA(red, green, blue, alpha);
-}
-unsigned char PngData::getData(int row, int col, int channel) const
-{
-    return this->data[index(row, col, channel)];
-}
-
-void PngData::setData(int row, int col, int channel, const unsigned char &byte)
-{
-    this->data[index(row, col, channel)] = byte;
-}
 DeltaTimer::DeltaTimer(){
     updateDeltaTime();
 }
@@ -1706,13 +1293,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     unsigned int squareBorderTexture = useFloatsToCreateTexture2D(distances.data(), COLOR_WIDTH, COLOR_HEIGHT);
     OpenGLShape square(shapes::rectT, {blankTexture,squareBorderTexture}, true);
     
-
-    
-    
-    
-    
     LightingEnvironment lightingEnvironment;
-
     
     lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
     lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
@@ -2009,41 +1590,6 @@ int mainSolve(int argc, char *argv[])
 }
 
 
-void generatePNGLineToBordersFromPoint(PngData& pngData, std::vector<glm::vec2> borderVertices, int pointRow, int pointCol, int thickness, cdata::ColorRGBA color){
-    float gridY = pointRow;
-    float gridX = pointCol;
-    float gridYN = boundTransformation(gridY, 0, pngData.height, -0.5f, 0.5f);
-    float gridXN = boundTransformation(gridX, 0, pngData.width, -0.5f, 0.5f);
-    bool combine = false;
-    glm::vec2 gridVertexN(gridXN, gridYN);
-    //bool isInRange = (colN >= -0.01f && colN <= 0.01f && rowN >= -0.01f && rowN <= 0.01f);
-    glm::vec2 gridVertex(gridX, gridY);
-
-    glm::vec2 prevVertex  = borderVertices[borderVertices.size()-1];
-    for(int i = 0; i < borderVertices.size(); i++){
-        glm::vec2 curVertex;
-        if(i < borderVertices.size() - 1)
-            curVertex = borderVertices[i];
-        else
-            curVertex = borderVertices[borderVertices.size()-1];
-        // Normalize
-        float  preVertexNormX = boundTransformation(prevVertex.x, -0.5f, 0.5f, 0, pngData.width);
-        float  preVertexNormY = boundTransformation(prevVertex.y, -0.5f, 0.5f, 0, pngData.height);
-        glm::vec2 preVertexNorm(preVertexNormX,preVertexNormY);
-        float  curVertexNormX = boundTransformation(curVertex.x, -0.5f, 0.5f, 0, pngData.width);
-        float  curVertexNormY = boundTransformation(curVertex.y, -0.5f, 0.5f, 0, pngData.height);
-        glm::vec2 curVertexNorm(curVertexNormX,curVertexNormY);
-
-        auto line = getLineFromVertices(preVertexNorm.x, curVertexNorm.x, preVertexNorm.y, curVertexNorm.y);
-        float distance = distFromLine(line, gridVertex);
-        // checkPrint("NORM=============\n",  combine, DEBUG_BORDER);
-        debug::checkPrint(std::format("({},{}) -> ",  preVertexNorm.x,  preVertexNorm.y), combine, DEBUG_BORDER);
-        debug::checkPrint(std::format("({},{})\n"  ,   curVertexNorm.x,   curVertexNorm.y), combine, DEBUG_BORDER);
-        // checkPrint("NORM=============\n",  combine, DEBUG_BORDER);
-        prevVertex = curVertex;
-    }
-
-}
 std::map<PULSES,bool> emotionArrayToPulses(std::vector<float> emotionArray){
     float happiness = emotionArray[HAPPY];
     float sadness   = emotionArray[SAD];
@@ -2686,18 +2232,10 @@ int mainDrawDistances(int argc, char* argv[]){
     return EXIT_SUCCESS;
 
 }
-unsigned int useUCharsToCreateTexture2D(unsigned char* uchars, unsigned int width, unsigned int height){
-    unsigned int ucharsTexture = useTextureDataToCreateTexture(uchars, width, height, GL_TEXTURE_2D, 0, GL_R8UI, GL_RED, GL_UNSIGNED_BYTE);
-    return ucharsTexture;
-}
 
 unsigned int useFloatsToCreateTexture2D(float* floats, unsigned int width, unsigned int height){
-    unsigned int floatsTexture = useTextureDataToCreateTexture(floats, width, height, GL_TEXTURE_2D, 0, GL_R32F, GL_RED, GL_FLOAT);
+    unsigned int floatsTexture = useTextureDataToCreateTexture(floats, ttm::map2D(floats, width, height));
     return floatsTexture;
-}
-unsigned int useModelsToCreateTexture2D(glm::mat4* models, unsigned int width, unsigned int height){
-    unsigned int modelsTexture = useTextureDataToCreateTexture(models, width*4, height, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    return modelsTexture;
 }
     
 void OpenGLShape::drawBatch(Shader& shader, const std::vector<OpenGLTexture>& textures, unsigned int count){
@@ -2723,87 +2261,7 @@ OpenGLShape::OpenGLShape(const shapes::Shape &shape)
 }
 
 
-TextureAtlas::TextureAtlas(const OpenGLTextureOptions options, const unsigned int textureCnt, const unsigned int atlasCnt, const std::string name) : options{options}, textureCnt{textureCnt}, backIndex{textureCnt - 1}, atlasCnt{atlasCnt}, texturesPerAtlas{(unsigned int)ceilWrap((int)textureCnt, (int)atlasCnt)}
-{
-    unsigned int atlasWidth = texturesPerAtlas*options.width;
-    for(int i = 0; i < atlasCnt; i++){
-        std::string atlasName = name + "[" + std::to_string(i) + "]";
-        OpenGLTextureOptions atlasOptions = ttm::diffDimensions(atlasWidth,this->options.height,options);
-        unsigned int atlasAddress = useTextureDataToCreateTexture(nullptr, atlasOptions);
-        this->textures.push_back({atlasName, atlasAddress});
-    }
-}
 
-void TextureAtlas::replaceTexture(const void *data)
-{
-    unsigned int atlasIndex = backIndex/texturesPerAtlas;
-    unsigned int offsetIndex = (backIndex%texturesPerAtlas);
-    glBindTexture(options.target, textures[atlasIndex].address);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-
-    glTexSubImage2D(
-        options.target,
-        options.level,
-        offsetIndex * options.width,
-        0,
-        options.width,
-        options.height,
-        options.format,
-        options.type,
-        data
-    );
-    glGenerateMipmap(options.target);
-    if(backIndex == 0)
-        backIndex = textureCnt - 1;
-    else
-        backIndex -= 1;
-}
-
-glm::mat3 glm::rotate(glm::mat3 mat3, float angle)
-{
-    glm::mat3 rotMat3(0.0f);
-    rotMat3[0][0] = glm::cos(angle);
-    rotMat3[1][0] = -glm::sin(angle);
-    rotMat3[0][1] = glm::sin(angle);
-    rotMat3[1][1] = glm::cos(angle);
-    rotMat3[2][2] = 1;
-    return rotMat3 * mat3;
-}
-
-glm::mat3 glm::scale(glm::mat3 mat3, glm::vec2 vec2)
-{
-    for(int i = 0; i < 2; i++){
-        mat3[i][i] *= vec2[i];
-    }
-    return mat3;
-}
-
-glm::mat3 glm::translate(glm::mat3 mat3, glm::vec2 vec2)
-{
-    for(int i = 0; i < 2; i++){
-        mat3[2][i] = vec2[i];
-    }
-    return mat3;
-}
-
-glm::vec2 glm::vec3ToVec2(glm::vec3 vec3)
-{
-    return glm::vec2(vec3.x,vec3.y);
-}
-
-
-glm::vec2 glm::operator*(glm::mat3 mat3, glm::vec2 vec2)
-{
-    glm::vec3 vec3(vec2, 1.0f);
-    glm::vec2 newVec(0.0f);
-    for(int row = 0; row < 2; row++){
-        for(int col = 1; col < 3; col++){
-            newVec[row] += mat3[col][row]*vec3[col];
-        }
-    }
-    return newVec;
-}
 
 int mainDrawSubTextures(int argc, char* argv[]){
     int return_status;
@@ -2842,35 +2300,12 @@ int mainDrawSubTextures(int argc, char* argv[]){
     } glfwTerminate();
     
     return EXIT_SUCCESS;
-    
-}
-bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2){
-    if(o1.format != o2.format)
-        return false;
-    if(o1.height != o2.height)
-        return false;
-    if(o1.internalFormat != o2.internalFormat)
-        return false;
-    if(o1.level != o2.level)
-        return false;
-    if(o1.target != o2.target)
-        return false;
-    if(o1.type != o2.type)
-        return false;
-    if(o1.width != o2.width)
-        return false;
-    return true;
-}
-template <typename T> void TextureAtlas::replaceTexture(const std::vector<T> vec, GLsizei width, GLsizei height){
-    assert(vec.size() >= width*height);
-    const OpenGLTextureOptions vecOptions = ttm::map2D(vec, width*textureCnt, height);
-    assert(vecOptions == options);
-    replaceTexture(vec.data());
 }
 
 std::vector<glm::vec2> borderVerticesFromShape(const shapes::Shape& shape){
     return borderVerticesFromShape(shape.vertices, shape.vertCnt, shape.getStride());
 }
+
 std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride){
     std::vector<glm::vec2> borderVertices{};
     for(int i = 0; i < vert_cnt; i+=stride){
