@@ -26,7 +26,8 @@ add_subdirectory(Glitter/Vendor/glfw)
 # NONEED END
 
 # Vendor: GLAD (compiled as part of main target)
-add_library(glad STATIC Glitter/Vendor/glad/src/glad.c)
+add_library(glad STATIC Glitter/Vendor/glad/src/glad.c
+    Glitter/Headers/randomextensions.hpp)
 target_include_directories(glad PUBLIC Glitter/Vendor/glad/include/)
 
 # Sources
@@ -59,7 +60,11 @@ add_executable(${PROJECT_NAME}
     Glitter/Headers/debugging.hpp
     Glitter/Sources/debugging.cpp
     Glitter/Headers/variablemanipulation.hpp
-    Glitter/Sources/variablemanipulation.cpp)
+    Glitter/Sources/variablemanipulation.cpp
+    Glitter/Headers/mathoperations.hpp
+    Glitter/Sources/mathoperations.cpp
+    Glitter/Sources/randomextensions.cpp
+    )
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 

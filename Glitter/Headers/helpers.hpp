@@ -6,17 +6,12 @@
 #include "glm/ext/vector_float3.hpp"
 #include "glm/geometric.hpp"
 #include <iterator>
-#include <shader.hpp>
-#include <camera.hpp>
-#include <debugging.hpp>
-#include <shapes.hpp>
 #include <vector>
 #include <random>
 #include <tuple>
 #include <queue>
 #include <stack>
 #include <numbers>
-#include <color.hpp>
 #include <limits>
 #include <format>
 #include <color.body.hpp>
@@ -40,8 +35,17 @@
 #include <algorithm>
 #include <deque>
 #include <json.hpp>
+#include <shader.hpp>
+#include <camera.hpp>
+
+// My Headers
 #include <thirdparty.hpp>
 #include <variablemanipulation.hpp>
+#include <debugging.hpp>
+#include <shapes.hpp>
+#include <color.hpp>
+#include <mathoperations.hpp>
+#include <randomextensions.hpp>
 
 // #Header Macros -------------------------------------------------------------
 
@@ -234,11 +238,6 @@ float getElapsedTime();
 
 
 // #Simple Math Operations -------------------------------------------------------------
-template <typename NUMBER, typename ITERABLE> NUMBER mean(ITERABLE iterable);
-template <typename NUMBER, typename ITERABLE> NUMBER sum(ITERABLE iterable);
-template <typename CONTAINER> CONTAINER::value_type  maxM(const CONTAINER c);
-template <typename CONTAINER> CONTAINER::value_type  minM(const CONTAINER c);
-template <typename KEY, typename NUMBER> std::tuple<KEY, NUMBER> maxM(std::map<KEY,NUMBER> mapping);
 float clamp(const float x, const float min, const float max);
 float floorWrap(float dividend, float divisor);
 float floorWrap(float quotient);
@@ -247,54 +246,6 @@ float ceilWrap(float dividend);
 int floorWrap(int dividend, int divisor);
 int ceilWrap(int dividend, int divisor);
 
-// #Variable Manipulation
-
-template <typename T> void mySwap(T& t1, T& t2){
-    T temp = t1;
-    t1 = t2;
-    t2 = temp;
-}
-
-
-/// @brief Average the columns.
-/// @tparam V
-/// @param vec Multiple rows.
-/// @return The average of each individual column.
-template <typename V> std::vector<V> average(std::vector<std::vector<V>> vec);
-
-/// @brief Get a vector of the given size for which every entry is initialized to the given element
-/// 
-/// Don't use push_back when adding items with the expectation it will add items before the filling
-/// @tparam T 
-/// @param size given size
-/// @param element given size
-/// @return the vector
-template <typename T> std::vector<T> getFilledVector(unsigned int size, T element);
-
-
-/// @brief 
-/// @tparam T 
-/// @param arrayCopyTo array to copy to.
-/// @param arrayCopyFrom array to copy from.
-/// @param sizeCopyTo size of array to copy to.
-/// @param sizeCopyFrom size of array to copy from.
-/// @return True if size of arrays are equal, False otherwise.
-template <typename T> bool doCopy(T arrayCopyTo[], const T arrayCopyFrom[], const unsigned int sizeCopyTo, const unsigned int sizeCopyFrom){
-    for(unsigned int i = 0; i < sizeCopyTo && i < sizeCopyFrom; i++)
-        arrayCopyTo[i] = arrayCopyFrom[i];
-    return sizeCopyTo == sizeCopyFrom;
-}
-
-/// @brief Create a copy of arrayCopyFrom.
-/// @tparam T 
-/// @param arrayCopyFrom 
-/// @param size 
-/// @return The copy.
-template <typename T> T* copyInitialize(const T arrayCopyFrom[], const unsigned int size){
-    T* aCopy = (T*) malloc(sizeof(T)*size);
-    doCopy(aCopy, arrayCopyFrom, size, size);  
-    return aCopy;
-}
 
 struct OpenGLTexture {
     std::string name;
@@ -880,17 +831,6 @@ extern float pitch;
 extern float lastX;
 extern float lastY;
 extern bool first_mouse;
-
-// #Random -------------------------------------------------------------
-
-glm::vec3 randScale(float min=0.0f, float max=1.0f);
-glm::vec3 randCoords();
-glm::vec2 randCoords2D();
-float rand_range_uniform(float min, float max);
-unsigned int rand_range_uniform(unsigned int min, unsigned int max);
-float rand_range_normal(float mean, float stddev);
-glm::vec3 randRGB();
-glm::vec4 randRGBA();
 
 
 // #Linear Equation Solver -------------------------------------------------------------
