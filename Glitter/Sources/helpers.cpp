@@ -1,35 +1,4 @@
 #include <helpers.hpp>
-
-glm::vec3 cameraFront(0.0f,0.0f,-1.0f);
-float yaw = -90.0f;
-float pitch = 0.0f;
-float lastX = (float)mWidth/2.0f;
-float lastY = (float)mHeight/2.0f;
-float fov = 30.0f;
-bool first_mouse = true;
-bool flash_light = true;
-bool flash_light_pressed = false;
-bool debug_pressed = false;
-bool mouseCaptured = true;
-Camera camera(glm::vec3(0.0f,0.0f,6.2f), glm::vec3(0.0f,1.0f,0.0f), -90, 0);
-//Camera camera(glm::vec3(1.0f,1.3f,3.0f), glm::vec3(0.0f,1.0f,0.0f), -100, -20);
-
-
-
-
-
-
-void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2){
-    shader.use();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texture2);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glDrawElements(GL_TRIANGLES, vert_cnt, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-}
 unsigned int getGL_TextureX(unsigned int index){
     return GL_TEXTURE0 + index;
 }
@@ -68,15 +37,6 @@ void processInput(GLFWwindow* mWindow){
         glfwSetWindowShouldClose(mWindow, true);
 }
 
-void releaseCursor(GLFWwindow* mWindow){
-    mouseCaptured = false;
-    glfwSetInputMode(mWindow, GLFW_CURSOR, mouseCaptured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
-}
-
-void captureCursor(GLFWwindow* mWindow){
-    mouseCaptured = true;
-    glfwSetInputMode(mWindow, GLFW_CURSOR, mouseCaptured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
-}
 
 void processInputStatic(GLFWwindow* mWindow){
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -86,77 +46,7 @@ void processInputViewStatic(GLFWwindow* mWindow, float deltatime){
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(mWindow, true);
 }
-void processInput(GLFWwindow* mWindow, Camera& camera, float deltatime){
 
-    if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(mWindow, true);
-    if (glfwGetKey(mWindow, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, deltatime);
-    if (glfwGetKey(mWindow, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, deltatime);
-    if (glfwGetKey(mWindow, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, deltatime);
-    if (glfwGetKey(mWindow, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltatime);
-    if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_PRESS)
-        camera.ProcessKeyboard(UP, deltatime);
-    if (glfwGetKey(mWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-        camera.ProcessKeyboard(DOWN, deltatime);
-    if (glfwGetKey(mWindow, GLFW_KEY_F) == GLFW_PRESS)
-        flash_light_pressed = true;
-    else if(flash_light_pressed){
-        flash_light_pressed = false;
-        flash_light = !flash_light;
-    }
-    if(glfwGetKey(mWindow, GLFW_KEY_E) == GLFW_PRESS){
-        debug_pressed = true;
-    }
-    else if(debug_pressed){
-        debug_pressed = false;
-        mouseCaptured = !mouseCaptured;
-        if(mouseCaptured)
-            releaseCursor(mWindow);
-        else
-            captureCursor(mWindow);
-    }
-}
-
-        
-void processInputFreezeGimbal(GLFWwindow* mWindow, Camera& camera, float deltatime){
-
-    if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(mWindow, true);
-    if (glfwGetKey(mWindow, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, deltatime);
-    if (glfwGetKey(mWindow, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltatime);
-    if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_PRESS)
-        camera.ProcessKeyboard(UP, deltatime);
-    if (glfwGetKey(mWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-        camera.ProcessKeyboard(DOWN, deltatime);
-}
-        
-
-
-void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFront, glm::vec3 cameraUp, float deltatime){
-    float movementSpeed = 5.5;
-    float cameraSpeed = movementSpeed * deltatime;
-    glm::vec3 velocity(0.0f);
-    if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(mWindow, true);
-    if (glfwGetKey(mWindow, GLFW_KEY_W) == GLFW_PRESS)
-        velocity += cameraFront;
-    if (glfwGetKey(mWindow, GLFW_KEY_S) == GLFW_PRESS)
-        velocity -= cameraFront;
-    if (glfwGetKey(mWindow, GLFW_KEY_D) == GLFW_PRESS)
-        velocity += glm::normalize(glm::cross(cameraFront,cameraUp));
-    if (glfwGetKey(mWindow, GLFW_KEY_A) == GLFW_PRESS)
-        velocity -= glm::normalize(glm::cross(cameraFront,cameraUp));
-    
-    if(glm::length(velocity) > SMALL_FLOAT) 
-        velocity = glm::normalize(velocity) * cameraSpeed;
-    cameraPos += velocity;
-}
 void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, const unsigned int ind_cnt, const unsigned int vert_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes){
     unsigned int totalSize = 0;
     for(unsigned int count : attributeSizes){
@@ -183,67 +73,7 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
         attributeNumber++;
         previousCount += size;
     }
-
 }
-
-
-void create_lamp_and_light_object(unsigned int &VAO_O, unsigned int &VAO_T,unsigned int &VBO, unsigned int& EBO, 
-    const float vert[], unsigned int vert_cnt, const unsigned int ind[], 
-    unsigned int ind_cnt){
-        
-        glGenBuffers(1, &VBO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, 8*ind_cnt*sizeof(float), vert, GL_STATIC_DRAW);
-        
-        glGenBuffers(1,&EBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, ind_cnt*sizeof(unsigned int), ind, GL_STATIC_DRAW);
-        
-        unsigned int dimensions = 3;
-        unsigned int normals = 3;
-        unsigned int texs = 2;
-        unsigned int total = dimensions + normals + texs;
-        
-        
-        // Light
-        glGenVertexArrays(1, &VAO_T);
-        glBindVertexArray(VAO_T);
-        glVertexAttribPointer(0, dimensions, GL_FLOAT, GL_FALSE, total * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-
-        // Object
-        glGenVertexArrays(1, &VAO_O);
-        glBindVertexArray(VAO_O);
-        glVertexAttribPointer(0, dimensions, GL_FLOAT, GL_FALSE, total * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, normals, GL_FLOAT, GL_FALSE, total * sizeof(float), (void*) + (dimensions * sizeof(float)));
-        glEnableVertexAttribArray(1);
-
-        // Texture
-        glVertexAttribPointer(2, texs, GL_FLOAT, GL_FALSE, total * sizeof(float), (void*) + ((dimensions + normals) * sizeof(float)));
-        glEnableVertexAttribArray(2);
-    }
-
-void create_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
-    const float vert[], unsigned int vert_cnt, const unsigned int ind[], 
-    unsigned int ind_cnt){
-        
-        glGenBuffers(1, &VBO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, vert_cnt*sizeof(float), vert, GL_STATIC_DRAW);
-        
-        glGenBuffers(1,&EBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, ind_cnt*sizeof(unsigned int), ind, GL_STATIC_DRAW);
-        
-        unsigned int dimensions = 3;
-        
-        
-        glGenVertexArrays(1, &VAO);
-        glBindVertexArray(VAO);
-        glVertexAttribPointer(0, dimensions, GL_FLOAT, GL_FALSE, dimensions * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-    }
 
 GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen){
     // Load GLFW and Create a Window
@@ -275,81 +105,12 @@ GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen){
         return mWindow;
     }
 }
-
-void create_textured_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
-    const float vert[], unsigned int vert_cnt, unsigned int const ind[], 
-    unsigned int ind_cnt){
-    
-        
-        
-        glGenBuffers(1, &VBO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, vert_cnt*sizeof(float), vert, GL_STATIC_DRAW);
-        
-        glGenBuffers(1,&EBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, ind_cnt*sizeof(unsigned int), ind, GL_STATIC_DRAW);
-        
-        unsigned int dimensions = 3;
-        unsigned int tex_dimensions = 2;
-        
-        unsigned int total = dimensions + tex_dimensions;
-        
-        glGenVertexArrays(1, &VAO);
-        glBindVertexArray(VAO);
-        glVertexAttribPointer(0, dimensions, GL_FLOAT, GL_FALSE, total * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, tex_dimensions, GL_FLOAT, GL_FALSE, total * sizeof(float), (void*)((total-tex_dimensions)*sizeof(float)));
-        glEnableVertexAttribArray(1);
-    }
-void create_colored_textured_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
-    float vert[], unsigned int vert_cnt, unsigned int ind[], 
-    unsigned int ind_cnt){
-    
-        
-        
-        glGenBuffers(1, &VBO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, vert_cnt*sizeof(float), vert, GL_STATIC_DRAW);
-        
-        glGenBuffers(1,&EBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, ind_cnt*sizeof(unsigned int), ind, GL_STATIC_DRAW);
-        
-        unsigned int dimensions = 3;
-        unsigned int color_atts = 3;
-        unsigned int tex_dimensions = 2;
-        
-        unsigned int total = dimensions + color_atts + tex_dimensions;
-        
-        glGenVertexArrays(1, &VAO);
-        glBindVertexArray(VAO);
-        glVertexAttribPointer(0, dimensions, GL_FLOAT, GL_FALSE, total * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, color_atts, GL_FLOAT, GL_FALSE, total * sizeof(float), (void*)(dimensions*sizeof(float)));
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(2, tex_dimensions, GL_FLOAT, GL_FALSE, total * sizeof(float), (void*)((total-tex_dimensions)*sizeof(float)));
-        glEnableVertexAttribArray(2);
-    }
-
-unsigned int generate_texture(std::string texture_filepath, std::string filetype){
-    unsigned int texture;
-    generate_texture(texture, texture_filepath, filetype);
-    return texture;
-}
 unsigned char* initializePNGTextureData(int width, int height, int nrChannels){
     unsigned char* data = (unsigned char*)malloc(sizeof(unsigned char)*width*height*nrChannels);
     return data;
 }
 void freePNGTextureData(unsigned char* data){
     free(data);
-}
-unsigned int generateTextureSpecified(int width, int height, int nrChannels, std::string filetype){
-    unsigned char* data = initializePNGTextureData(width, height, nrChannels);
-    generatePNGData(data, width, height, nrChannels);
-    unsigned int texture = useTextureDataToCreateTexture(data, width, height, filetype);
-    freePNGTextureData(data);
-    return texture;
 }
 bool isOnBorder(int width, int height, int row, int col, int hThickness, int vThickness){
     return col < hThickness || col > width - (hThickness + 1) || row < vThickness || row > height - (vThickness + 1);
@@ -391,18 +152,15 @@ PngData loadPngTexture(std::string texture_filepath)
     PngData pngData(width, height, nrChannels, data);
     return pngData;
 }
-
-
-
 unsigned int obtainPNGBorder(int width, int height,  int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder){
     PngData pngData(width, height);
     generatePNGBorder(pngData, width, height,  hThickness, vThickness, borderColor, innerColor, ignoreInner, ignoreBorder);
-    unsigned texture = getTextureFromData(pngData);
+    unsigned texture = createPngTexture(pngData);
     return texture;
 }
 unsigned int obtainPNGBlank(PngData& pngData){
     generatePNGBlank(pngData);
-    unsigned texture = getTextureFromData(pngData);
+    unsigned texture = createPngTexture(pngData);
     return texture;
 }
 void generatePNGBlank(PngData& pngData){
@@ -421,12 +179,10 @@ void generatePNGBlank(PngData& pngData, cdata::ColorRGB color){
     }
 }
 
-
-
 unsigned int obtainPNGBorder(PngData &pngData, int hThickness, int vThickness, cdata::ColorRGBA borderColor, cdata::ColorRGBA innerColor, bool ignoreInner, bool ignoreBorder)
 {
     generatePNGBorder(pngData, pngData.width, pngData.height,  hThickness, vThickness, borderColor, innerColor, ignoreInner, ignoreBorder);
-    unsigned texture = getTextureFromData(pngData);
+    unsigned texture = createPngTexture(pngData);
     return texture;
 }
 cdata::ColorRGBA pngColorFromValue(const unsigned int &value)
@@ -539,25 +295,20 @@ unsigned int useTextureDataToCreateTexture(const void* data, OpenGLTextureOption
 unsigned int useTextureDataToCreateTexture(const void* data, GLsizei width, GLsizei height, GLenum target = GL_TEXTURE_2D, GLint level = 0, GLint internalFormat = GL_RGBA,  GLenum format = GL_RGBA, GLenum type = GL_UNSIGNED_BYTE){
     unsigned int texture;
     glGenTextures(1, &texture);
-    
-    
     glBindTexture(target, texture);
     // CHATGPT START
     int stores = 0;
-    
     switch(format){
         case GL_RGBA:
         case GL_RGBA_INTEGER:
             stores = 4;
             break;
-        case GL_RGB:
-        case GL_RGB_INTEGER:
-            stores = 3;
-            break;
         case GL_RG:
         case GL_RG_INTEGER:
             stores = 2;
             break;
+        case GL_RGB:
+        case GL_RGB_INTEGER:
         case GL_RED:
         case GL_RED_INTEGER:
             stores = 1;
@@ -572,104 +323,8 @@ unsigned int useTextureDataToCreateTexture(const void* data, GLsizei width, GLsi
     glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     // CHATGPT END
-    
     glTexImage2D(target, level, internalFormat, width, height, 0 /* border (must be zero smh) */ , format, type, data);
     return texture;
-}
-unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width, int height, std::string filetype){
-    unsigned int texture;
-    glGenTextures(1, &texture);
-    
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    
-    
-    if (data){
-        if(filetype == "png"){
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        }
-        else if (filetype == "pngNA"){
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-            
-        }
-        else {
-            throw std::runtime_error("Bad file type: " + filetype);
-        }
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    return texture;
-}
-void generate_texture(unsigned int &texture, std::string texture_filepath, std::string filetype){
-    int width, height, nrChannels;
-
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
-    std::cout << "W: " << width << ", H: " << height << ", N: " << nrChannels << std::endl;
-    static const unsigned int size = 0xFF;
-    std::cout << "S: " << size << std::endl;
-
-    unsigned int stepsToIncrementRed;
-    if (height % size != 0)
-        stepsToIncrementRed = height/(size) + 1;
-    else
-        stepsToIncrementRed = height/(size);
-    std::cout << "STIR: " << stepsToIncrementRed << std::endl;
-    unsigned int stepsToIncrementAlpha;
-    if (width % size != 0)
-        stepsToIncrementAlpha = width/(size) + 1;
-    else
-        stepsToIncrementAlpha = width/(size);
-    unsigned char red = 0;
-    unsigned int other = 0;
-    
-    for(int row = 0; row < height; row+=1){
-        if (row % stepsToIncrementRed == 0) red++;
-        if (row % stepsToIncrementRed == 0) other++;
-        unsigned char alpha = 0;
-        for(int col = 0; col < width*nrChannels; col+=nrChannels){
-            if(col % stepsToIncrementAlpha == 0) alpha++;
-
-            for(int channel = 0; channel < nrChannels; channel++){
-                if(channel == 0) // Red
-                    data[row*width*nrChannels+col+channel] = red;
-                if(channel == 1) // Green
-                    data[row*width*nrChannels+col+channel] = red;
-                if(channel == 2) // Blue
-                    data[row*width*nrChannels+col+channel] = red;
-                if(channel == 3) // Don't know
-                    data[row*width*nrChannels+col+channel] = alpha;
-            }
-        }
-    }
-    std::cout << "O: " << other << std::endl;
-
-    glGenTextures(1, &texture);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    
-    glBindTexture(GL_TEXTURE_2D, texture);
-    
-    if (data){
-        if(filetype == "png")
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        else {
-            throw std::runtime_error("Bad file type: " + filetype);
-        }
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else {
-        throw std::runtime_error("Failed to load texture: " + std::string(texture_filepath));
-    }
-    stbi_image_free(data);
 }
 unsigned int createPngTexture(std::string texture_filepath)
 {
@@ -677,30 +332,20 @@ unsigned int createPngTexture(std::string texture_filepath)
     stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load(texture_filepath.c_str(), &width, &height, &nrChannels, 0);
     PngData pngData(width, height, nrChannels, data);
-    unsigned int texture;
-    if(pngData.nrChannels == 4)
-        texture = useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "png");
-    else
-        texture = useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "pngNA");
-    return texture;
+    return createPngTexture(pngData);
 }
 unsigned int createPngTexture(const PngData* pngData)
 {
     unsigned int texture;
+    if(pngData->nrChannels == 3)
+        texture = useTextureDataToCreateTexture(pngData->getData(), ttm::png3Map(pngData->width, pngData->height));
     if(pngData->nrChannels == 4)
-        texture = useTextureDataToCreateTexture(pngData->getData(), pngData->width, pngData->height, "png");
-    else
-        texture = useTextureDataToCreateTexture(pngData->getData(), pngData->width, pngData->height, "pngNA");
+        texture = useTextureDataToCreateTexture(pngData->getData(), ttm::png4Map(pngData->width, pngData->height));
     return texture;
 }
 unsigned int createPngTexture(const PngData& pngData)
 {
-    unsigned int texture;
-    if(pngData.nrChannels == 4)
-        texture = useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "png");
-    else
-        texture = useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "pngNA");
-    return texture;
+    return createPngTexture(&pngData);
 }
 unsigned int createTexture(std::string texture_filepath, std::string filetype)
 {
@@ -789,32 +434,7 @@ glm::vec2 screenToModelCoords(float x, float y, float width, float height){
 
 
 
-// learnopgl end
 
-glm::vec3 cameraDirection(float yaw, float pitch){
-    glm::vec3 direction;
-    direction.x = glm::cos(glm::radians(yaw)) * glm::cos(glm::radians(pitch));
-    direction.y = glm::sin(glm::radians(pitch));
-    direction.z = glm::sin(glm::radians(yaw)) * glm::cos(glm::radians(pitch));
-    return direction;
-}
-void mouse_callback(GLFWwindow* mWindow, double xpos, double ypos){
-    if(first_mouse){
-        lastX = xpos;
-        lastY = ypos;
-        first_mouse = false;
-    }
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos;
-    lastX = xpos;
-    lastY = ypos;
-
-    camera.ProcessMouseMovement(xoffset, yoffset);
-}
-
-void scroll_callback(GLFWwindow* mWindow, double xoffset, double yoffset){
-    camera.ProcessMouseScroll(static_cast<float>(yoffset));
-}
 
 
     
@@ -823,26 +443,6 @@ void scroll_callback(GLFWwindow* mWindow, double xoffset, double yoffset){
     
 
 
-void generateSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sampler_2d){
-    
-    generate_texture(diffuse_sampler_2d, "Glitter/Textures/container2.png", "png");
-    generate_texture(specular_sampler_2d, "Glitter/Textures/container2_specular.png", "png");
-    
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
-}
-void setupSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sampler_2d, std::string diffuse_path, std::string diffuse_file_type, std::string specular_path, std::string specular_file_type){
-    
-    create_texture(diffuse_sampler_2d, diffuse_path, diffuse_file_type);
-    create_texture(specular_sampler_2d, specular_path, specular_file_type);
-    
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, diffuse_sampler_2d);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, specular_sampler_2d);
-}
 
 
 
@@ -1346,54 +946,29 @@ float emotionArrayToRotation(std::vector<float> emotionArray)
     return rotScale;
 
 }
-void initMouse(GLFWwindow* mWindow){
-    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(mWindow, mouse_callback);
-    glfwSetScrollCallback(mWindow, scroll_callback);
-}
 LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath, bool replaceVersion, std::string version){
-    glm::mat4 proj(1.0f);
     glm::mat4 view(1.0f);
     glm::mat4 model(1.0f);
 
     Shader object_shader(vertexShaderPath, fragmentShaderPath, replaceVersion, version);
     Shader light_shader(vertexShaderPath, fragmentShaderPath, replaceVersion, version);
     object_shader.use();
-    object_shader.setUniformM4("projection", proj);
     object_shader.setUniformM4("view", view);
     object_shader.setUniformM4("model",model);
-    LightingEnvironment lightingEnvironment{model,view,proj,object_shader,light_shader};
+    LightingEnvironment lightingEnvironment{model,view,object_shader};
     return lightingEnvironment;
 }
 void setupDummyMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment){
     lightingEnvironment.object_shader.use();
     lightingEnvironment.object_shader.setUniformM4("view",lightingEnvironment.view);
-    lightingEnvironment.object_shader.setUniformM4("projection",lightingEnvironment.projection);
-
 }
 
-bool cmpShape(const ShapeProperties& a, const ShapeProperties& b){
-    return a.coords.z < b.coords.z;
-}
 std::vector<float> vec3ToVector(glm::vec3 a){
     return std::vector<float>{a.x,a.y,a.z};
 }
 
 glm::vec3 vectorToVec3(std::vector<float> a){
     return glm::vec3(a[0],a[1],a[2]);
-}
-glm::vec3 getViewCoordinates(const glm::vec3 coords){
-    glm::vec3 f = camera.Front;
-    glm::vec3 r = camera.Right;
-    glm::vec3 u = camera.Up;
-    glm::vec3 p = camera.Position;
-    std::vector<std::vector<float>> coefficients {
-        std::vector{ r.x, u.x, f.x,},
-        std::vector{ r.y, u.y, f.y,},
-        std::vector{ r.z, u.z, f.z,},
-    };
-    std::vector<float> constants = vec3ToVector(coords - p);
-    return vectorToVec3(solve(coefficients, constants));
 }
 InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
     glDepthMask(false);
@@ -1528,19 +1103,6 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
 void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, OpenGLShape& openGLShape,  std::vector<OpenGLTexture>& openGLTextures, int shapeCount){
     glDepthMask(false);
     openGLShape.drawBatch(lightingEnvironment.object_shader, openGLTextures, shapeCount); // TAG
-    glDepthMask(true);
-}
-void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer){
-
-    lightingEnvironment.object_shader.setUniformF("elapsedTime", (float)getElapsedTime());
-    // Draw cubes
-    glDepthMask(false);
-    for( ShapeProperties shape : cubeMatrices){
-        lightingEnvironment.object_shader.setUniformF("creationDate", (float)shape.creationTimeStamp);
-        lightingEnvironment.object_shader.setUniformM4("model", shape.model);
-        lightingEnvironment.object_shader.setUniformV4("aColor", shape.color);
-        shapes[shape.type]->draw(lightingEnvironment.object_shader);
-    }
     glDepthMask(true);
 }
 void processInputView2D(GLFWwindow* mWindow, float deltatime, glm::vec2& position, float& zoom){
@@ -2388,25 +1950,19 @@ int mainDrawCircle(int argc, char *argv[])
     int width, height, nrChannels;
     std::string texture_filepath = "Glitter/Textures/container2.png";
     std::vector<glm::vec2> borderVertices = borderVerticesFromShape(shapes::rectT.vertices, shapes::rectT.vertCnt, shapes::rectT.getStride());
-    
     unsigned int blankTexture = obtainPNGBorder(255,255,50,50, cdata::ColorRGBA(255,255,255,255),cdata::ColorRGBA(255,255,255,255), false, false);
-    
     colorShader.setUniformI("ourTexture", 0);
-
     DeltaTimer deltaTimer{};
-    
     std::vector<float> distances;
-    generateDistancesFromBorder(distances, 256, 256, borderVerticesFromShape(shapes::rectT));
+    generateDistancesFromBorder(distances, 256, 256, std::get<std::vector<glm::vec2>>(createCircleShapeBorder(60)));
     unsigned int borderTexture = useTextureDataToCreateTexture(distances.data(), ttm::map2D(distances, 256, 256));
     PngData pngData(255, 255);
     OpenGLShape circle(shapes::rectT, {blankTexture, borderTexture}, true);
     circle.setTextures({blankTexture,circle.getTexture(0)});
     pngDataSavePng("test.png", pngData);
-    
     colorShader.setUniformI("borderCase", 2);
     colorShader.setUniformI("ourTexture", 0);
     colorShader.setUniformI("borderTexture", 1);
-    
     while(!glfwWindowShouldClose(mWindow)){
         minimumStartRenderLoop(deltaTimer);
         glDepthMask(false);
@@ -2452,13 +2008,6 @@ int mainSolve(int argc, char *argv[])
     return 0;
 }
 
-unsigned int getTextureFromData(const PngData &pngData)
-{
-    if(pngData.nrChannels == 4)
-        return useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "png");
-    else
-        return useTextureDataToCreateTexture(pngData.getData(), pngData.width, pngData.height, "pngNA");
-}
 
 void generatePNGLineToBordersFromPoint(PngData& pngData, std::vector<glm::vec2> borderVertices, int pointRow, int pointCol, int thickness, cdata::ColorRGBA color){
     float gridY = pointRow;
@@ -2918,17 +2467,6 @@ std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4
     return std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>>{modelCols0, modelCols1, modelCols2, modelCols3};
 }
 
-std::tuple<unsigned int, unsigned int, unsigned int, unsigned int> modelColsToTextures( std::tuple<std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>, std::vector<glm::vec4>> modelCols){
-    auto& [modelCols0, modelCols1, modelCols2, modelCols3] = modelCols;
-    unsigned int modelsTexture0 = useTextureDataToCreateTexture(&modelCols0[0], modelCols0.size(), 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int modelsTexture1 = useTextureDataToCreateTexture(&modelCols1[0], modelCols1.size(), 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int modelsTexture2 = useTextureDataToCreateTexture(&modelCols2[0], modelCols2.size(), 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    unsigned int modelsTexture3 = useTextureDataToCreateTexture(&modelCols3[0], modelCols3.size(), 1, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    return std::tuple<unsigned int, unsigned int, unsigned int, unsigned int> {modelsTexture0, modelsTexture1, modelsTexture2, modelsTexture3};
-}
-std::tuple<unsigned int, unsigned int, unsigned int, unsigned int> modelsToTextures(std::vector<glm::mat4> models){
-    return modelColsToTextures(modelsToCols(models));
-}
 
 int mainDrawBatch(int argc, char* argv[]){
     int return_status;
@@ -3339,5 +2877,4 @@ std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsign
         borderVertices.push_back(glm::vec2(shape[i],shape[i+1]));
     }
     return borderVertices;
-    
 }

@@ -36,7 +36,6 @@
 #include <deque>
 #include <json.hpp>
 #include <shader.hpp>
-#include <camera.hpp>
 
 // My Headers
 #include <thirdparty.hpp>
@@ -546,20 +545,7 @@ struct EmotionIntensities{
     float disgust;
 };
 
-struct Material {
-    unsigned int diffuse;
-    unsigned int specular;
-    float shininess;
-};
 
-struct ShapeProperties {
-    glm::mat4 model;
-    glm::vec4 color;
-    SHAPE_TYPE_3D type;
-    float creationTimeStamp;
-    float fadeTime;
-    glm::vec3 coords;
-};
 
 /// @brief Various information to modify how a shape is drawn.
 struct ShapeProperties2D {
@@ -610,9 +596,7 @@ struct ShapeLayerFeatures2D {
 struct LightingEnvironment {
     glm::mat4 model;
     glm::mat4 view;
-    glm::mat4 projection;
     Shader object_shader;
-    Shader light_shader;
 };
 
 /// @brief Multiple shapes that were generated with the same emotion layer.
@@ -705,34 +689,14 @@ int mainDrawSubTextures(int argc, char* argv[]);
 /// @param lineBelow 
 void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, OpenGLShape& openGLShape,  std::vector<OpenGLTexture>& openGLTextures, int shapeCount);
 void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
-void drawCubeMatrices(LightingEnvironment& lightingEnvironment, std::vector<ShapeProperties> cubeMatrices, std::map<SHAPE_TYPE_3D, OpenGLShape*> shapes,  DeltaTimer deltaTimer);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, unsigned int texture);
-void drawDoubleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int vert_cnt, unsigned int texture1, unsigned int texture2);
 
 // #Create -------------------------------------------------------------
-
-OpenGLShape create_circle(unsigned int tri_cnt);
-OpenGLShape create_circle(unsigned int tri_cnt, PngData& pngData);
-void create_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
-    const float vert[], unsigned int vert_cnt, const unsigned int ind[], 
-    unsigned int ind_cnt);
-void create_colored_textured_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
-    float vert[], unsigned int vert_cnt, unsigned int ind[], 
-    unsigned int ind_cnt);
-void create_textured_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, 
-    const float vert[], unsigned int vert_cnt, const unsigned int ind[], 
-    unsigned int ind_cnt);
-void setupSampler2Ds(unsigned int& diffuse_sampler_2d, unsigned int& specular_sampler_2d, std::string diffuse_path, std::string diffuse_file_type, std::string specular_path, std::string specular_file_type);
-void create_lamp_and_light_object(unsigned int &VAO_O, unsigned int &VAO_T,unsigned int &VBO, unsigned int& EBO, 
-    const float vert[], unsigned int vert_cnt, const unsigned int ind[], 
-    unsigned int ind_cnt);
 void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, const unsigned int ind_cnt, const unsigned int vert_cnt, const float vertices[], const unsigned int indices[], const std::vector<unsigned int>& attributeSizes);
-
 
 // #Initialization -------------------------------------------------------------
 
-LightingEnvironment initMPV(std::string vertexShaderPath, std::string fragmentShaderPath);
 LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath, bool replaceVersion = false, std::string version = "330 core");
 GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen=FULL_SCREEN);
 bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height);
@@ -757,14 +721,8 @@ void releaseCursor(GLFWwindow* mWindow);
 
 // #Callback -------------------------------------------------------------
 
-void scroll_callback(GLFWwindow* mWindow, double xoffset, double yoffset);
-void mouse_callback(GLFWwindow* mWindow, double xPos, double yPos);
-glm::vec3 cameraDirection(float yaw, float pitch);
-
 // #Immediate -------------------------------------------------------------
 
-void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFront, glm::vec3 cameraUp);
-void processInput(GLFWwindow* mWindow, glm::vec3& cameraPos, glm::vec3 cameraFront, glm::vec3 cameraUp, float deltatime);
 
 // #Read -------------------------------------------------------------
 
@@ -834,9 +792,8 @@ void generatePNGBlank(PngData& pngData);
 /// @brief Generate a OpenGL texture from pngData.
 /// @param pngData texture data.
 /// @return reference to OpenGL texture.
-unsigned int getTextureFromData(const PngData& pngData);
+unsigned int createPngTexture(const PngData& pngData);
 void freePNGTextureData(unsigned char* data);
-unsigned int generateTextureSpecified(int width, int height, int nrChannels, std::string filetype);
 void generatePNGData(unsigned char* data, int width, int height, int nrChannels);
 unsigned int useTextureDataToCreateTexture(const unsigned char* data, int width, int height, std::string filetype);
 bool isOnBorder(int width, int height, int row, int col, int hThickness, int vThickness);
@@ -850,6 +807,7 @@ unsigned int valueFromPngColor(cdata::ColorRGBA color);
 PngData loadPngTexture(std::string texture_filepath);
 unsigned char* initializePNGTextureData(int width, int height, int nrChannels);
 unsigned int createPngTexture(const PngData* pngData);
+unsigned int createPngTexture(const PngData& pngData);
 void pngDataSavePng(const std::string filepath, const PngData& pngData);
 
 

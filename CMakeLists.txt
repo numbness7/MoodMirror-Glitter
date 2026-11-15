@@ -26,8 +26,7 @@ add_subdirectory(Glitter/Vendor/glfw)
 # NONEED END
 
 # Vendor: GLAD (compiled as part of main target)
-add_library(glad STATIC Glitter/Vendor/glad/src/glad.c
-    Glitter/Headers/randomextensions.hpp)
+add_library(glad STATIC Glitter/Vendor/glad/src/glad.c)
 target_include_directories(glad PUBLIC Glitter/Vendor/glad/include/)
 
 # Sources
