@@ -256,26 +256,29 @@ namespace defaults{
 };
 
 namespace textureTypeMappings{                                                                                                  
-    inline OpenGLTextureOptions map   (const std::vector<float>&,         const GLsizei width,  const GLsizei height){  return {width,     height, GL_R32F,       GL_RED,  GL_FLOAT,          GL_TEXTURE_2D, 0}; };
-    inline OpenGLTextureOptions map   (const std::vector<glm::vec2>&,     const GLsizei width,  const GLsizei height){  return {width,     height, GL_RG32F,      GL_RG,   GL_FLOAT,          GL_TEXTURE_2D, 0}; };
-    inline OpenGLTextureOptions map   (const std::vector<glm::vec3>&,     const GLsizei width,  const GLsizei height){  return {width,     height, GL_RGB32F,     GL_RGB,  GL_FLOAT,          GL_TEXTURE_2D, 0}; };
-    inline OpenGLTextureOptions map   (const std::vector<glm::vec4>&,     const GLsizei width,  const GLsizei height){  return {width,     height, GL_RGBA32F,    GL_RGBA, GL_FLOAT,          GL_TEXTURE_2D, 0}; };
-    inline OpenGLTextureOptions map   (const std::vector<glm::mat2>&,     const GLsizei width,  const GLsizei height){  return {width * 2, height, GL_RG32F,      GL_RG,   GL_FLOAT,          GL_TEXTURE_2D, 0}; };
-    inline OpenGLTextureOptions map   (const std::vector<glm::mat3>&,     const GLsizei width,  const GLsizei height){  return {width * 3, height, GL_RGB32F,     GL_RGB,  GL_FLOAT,          GL_TEXTURE_2D, 0}; };
-    inline OpenGLTextureOptions map   (const std::vector<glm::mat4>&,     const GLsizei width,  const GLsizei height){  return {width * 4, height, GL_RGBA32F,    GL_RGBA, GL_FLOAT,          GL_TEXTURE_2D, 0}; };
-    inline OpenGLTextureOptions map   (const std::vector<int>&,           const GLsizei width,  const GLsizei height){  return {width,     height, GL_R32I,       GL_RED_INTEGER,  GL_INT,            GL_TEXTURE_2D, 0}; };
-    inline OpenGLTextureOptions map   (const std::vector<unsigned int>&,  const GLsizei width,  const GLsizei height){  return {width,     height, GL_R32UI,      GL_RED_INTEGER,  GL_UNSIGNED_INT,   GL_TEXTURE_2D, 0}; };
-    inline OpenGLTextureOptions map   (const std::vector<unsigned short>&,  const GLsizei width,  const GLsizei height){  return {width,   height, GL_R16UI,      GL_RED_INTEGER,  GL_UNSIGNED_INT,   GL_TEXTURE_2D, 0}; };
-    inline OpenGLTextureOptions map   (const std::vector<unsigned char>&,  const GLsizei width,  const GLsizei height){  return {width,   height, GL_R8UI,        GL_RED_INTEGER,  GL_UNSIGNED_BYTE,   GL_TEXTURE_2D, 0}; };
-    //unsigned int batchNumbersTexture = useTextureDataToCreateTexture(batchNumbers.data(), SIZE, 1, GL_TEXTURE_2D, 0, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT);
-    inline OpenGLTextureOptions png4Map    (const GLsizei width, const GLsizei height){  return {width,     height, GL_RGBA8,      GL_RGBA, GL_UNSIGNED_BYTE,  GL_TEXTURE_2D, 0}; };
-    inline OpenGLTextureOptions png3Map    (const GLsizei width, const GLsizei height){  return {width,     height, GL_RGB8,       GL_RGB,  GL_UNSIGNED_BYTE,  GL_TEXTURE_2D, 0}; };
+    inline OpenGLTextureOptions map   (const float*,         const GLsizei width,  const GLsizei height){ return {width,     height, GL_R32F,    GL_RED,         GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const glm::vec2*,     const GLsizei width,  const GLsizei height){ return {width,     height, GL_RG32F,   GL_RG,          GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const glm::vec3*,     const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGB32F,  GL_RGB,         GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const glm::vec4*,     const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGBA32F, GL_RGBA,        GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const glm::mat2*,     const GLsizei width,  const GLsizei height){ return {width * 2, height, GL_RG32F,   GL_RG,          GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const glm::mat3*,     const GLsizei width,  const GLsizei height){ return {width * 3, height, GL_RGB32F,  GL_RGB,         GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const glm::mat4*,     const GLsizei width,  const GLsizei height){ return {width * 4, height, GL_RGBA32F, GL_RGBA,        GL_FLOAT,         GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const int*,           const GLsizei width,  const GLsizei height){ return {width,     height, GL_R32I,    GL_RED_INTEGER, GL_INT,           GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const short*,         const GLsizei width,  const GLsizei height){ return {width,     height, GL_R16I,    GL_RED_INTEGER, GL_INT,           GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const char*,          const GLsizei width,  const GLsizei height){ return {width,     height, GL_R8I,     GL_RED_INTEGER, GL_INT,           GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const unsigned int*,  const GLsizei width,  const GLsizei height){ return {width,     height, GL_R32UI,   GL_RED_INTEGER, GL_UNSIGNED_INT,  GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const unsigned short*,const GLsizei width,  const GLsizei height){ return {width,     height, GL_R16UI,   GL_RED_INTEGER, GL_UNSIGNED_INT,  GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions map   (const unsigned char*, const GLsizei width,  const GLsizei height){ return {width,     height, GL_R8UI,    GL_RED_INTEGER, GL_UNSIGNED_BYTE, GL_TEXTURE_2D, 0};};
+    template<typename T> OpenGLTextureOptions map(const std::vector<T> v, const GLsizei width,  const GLsizei height) { return map(v.data(), width, height); }; 
+    inline OpenGLTextureOptions png4Map                                  (const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGBA8,   GL_RGBA,        GL_UNSIGNED_BYTE, GL_TEXTURE_2D, 0};};
+    inline OpenGLTextureOptions png3Map                                  (const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGB8,    GL_RGB,         GL_UNSIGNED_BYTE, GL_TEXTURE_2D, 0};};
     inline OpenGLTextureOptions diffDimensions(const GLsizei width, const GLsizei height, const OpenGLTextureOptions options) { OpenGLTextureOptions optionsDiff{options}; optionsDiff.width = width; optionsDiff.height = height; return optionsDiff; };
 };
 
 namespace ttm = textureTypeMappings;
         
 template <typename T> unsigned int useTextureDataToCreateTexture(std::vector<T> data, GLsizei width, GLsizei height);
+template <typename T> unsigned int useTextureDataToCreateTexture(T* data, GLsizei width, GLsizei height);
 
 // #Classes -------------------------------------------------------------
 
@@ -864,12 +867,6 @@ std::vector<glm::vec2> borderVerticesFromShape(const shapes::Shape& shape);
 std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride);
 std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsigned int vert_cnt, const unsigned int stride);
 
-
-
-
-
-
-
 // #Threads -------------------------------------------------------------
 
 /// @brief Create ShapeLayers using emotion data and Ben's visual generator.
@@ -923,7 +920,6 @@ unsigned int useModelsToCreateTexture2D(glm::mat4* models, unsigned int width, u
 GLuint createTextures();
 unsigned int getGL_TextureX(unsigned int index);
 void fillSquare(PngData& pngData, const float size, const glm::vec2 position, const cdata::ColorRGBA& color, const int iterations=0);
-
 namespace glm{
     glm::mat3 rotate(glm::mat3 mat3, float angle);
     glm::mat3 scale(glm::mat3 mat3, glm::vec2 vec2);
@@ -931,9 +927,9 @@ namespace glm{
     glm::vec2 operator*(glm::mat3 mat3, glm::vec2 vec2);
     glm::vec2 vec3ToVec2(glm::vec3 vec3);
 };
+bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2);
 InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers);
 ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer);
-bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2);
 
 #endif
 

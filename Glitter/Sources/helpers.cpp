@@ -494,6 +494,9 @@ void generatePNGData(unsigned char *data, int width, int height, int nrChannels)
 template <typename T> unsigned int useTextureDataToCreateTexture(std::vector<T> data, GLsizei width, GLsizei height){
     return useTextureDataToCreateTexture(data.data(), ttm::map(data, width, height));
 }
+template <typename T> unsigned int useTextureDataToCreateTexture(T* data, GLsizei width, GLsizei height){
+    return useTextureDataToCreateTexture(data.data(), ttm::map(data, width, height));
+}
 unsigned int useTextureDataToCreateTexture(const void* data, OpenGLTextureOptions options){
     unsigned int texture;
     glGenTextures(1, &texture);
