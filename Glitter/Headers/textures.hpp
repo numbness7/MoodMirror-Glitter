@@ -11,6 +11,7 @@
 #include <glm/vec3.hpp>
 #include <mathoperations.hpp>
 #include <variablemanipulation.hpp>
+#include <assert.h>
 // Data sizes
 #define BYTESIZE 8
 // #PNG -------------------------------------------------------------
@@ -203,6 +204,7 @@ namespace textureTypeMappings{
     inline OpenGLTextureOptions map2D   (const unsigned int*,  const GLsizei width,  const GLsizei height){ return {width,     height, GL_R32UI,   GL_RED_INTEGER, GL_UNSIGNED_INT,  GL_TEXTURE_2D, 0};};
     inline OpenGLTextureOptions map2D   (const unsigned short*,const GLsizei width,  const GLsizei height){ return {width,     height, GL_R16UI,   GL_RED_INTEGER, GL_UNSIGNED_INT,  GL_TEXTURE_2D, 0};};
     inline OpenGLTextureOptions map2D   (const unsigned char*, const GLsizei width,  const GLsizei height){ return {width,     height, GL_R8UI,    GL_RED_INTEGER, GL_UNSIGNED_BYTE, GL_TEXTURE_2D, 0};};
+    template<typename T> OpenGLTextureOptions map2D(const GLsizei width,  const GLsizei height) { T t; return map2D(&t, width, height); }; 
     template<typename T> OpenGLTextureOptions map2D(const std::vector<T> v, const GLsizei width,  const GLsizei height) { return map2D(v.data(), width, height); }; 
     inline OpenGLTextureOptions png4Map                                  (const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGBA8,   GL_RGBA,        GL_UNSIGNED_BYTE, GL_TEXTURE_2D, 0};};
     inline OpenGLTextureOptions png3Map                                  (const GLsizei width,  const GLsizei height){ return {width,     height, GL_RGB8,    GL_RGB,         GL_UNSIGNED_BYTE, GL_TEXTURE_2D, 0};};
@@ -221,6 +223,7 @@ template <typename T> unsigned int useTextureDataToCreateTexture(std::vector<T> 
 }
 // #Classes -------------------------------------------------------------
 
+bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2);
 
 class TextureAtlas{
     public:
@@ -233,7 +236,12 @@ class TextureAtlas{
         const std::vector<OpenGLTexture>& getTextures      () const { return textures; };
         const OpenGLTextureOptions getTextureOptions() const { return options; }
         void replaceTexture(const void* data);
-        template <typename T> void replaceTexture(const std::vector<T> data, GLsizei width, GLsizei height);
+        template <typename T> void replaceTexture(const std::vector<T> vec, GLsizei width, GLsizei height){
+            assert(vec.size() >= width*height);
+            const OpenGLTextureOptions vecOptions = ttm::map2D(vec, width, height);
+            assert(vecOptions == options);
+            replaceTexture(vec.data());
+        }
         unsigned int getTexturesPerAtlas() const { return texturesPerAtlas; }
         unsigned int getAtlasCnt() const { return atlasCnt; }
 
@@ -246,5 +254,4 @@ class TextureAtlas{
         const unsigned int atlasCnt;
         const unsigned int texturesPerAtlas;
 };
-bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2);
 #endif

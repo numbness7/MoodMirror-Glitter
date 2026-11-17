@@ -1,13 +1,16 @@
 #version 310 es
 precision mediump float;
 precision mediump int;
-in vec2 ourTexCoord;
 out vec4 FragColor;
 
 
+in flat int TYPE_OUT;
+in vec2 ourTexCoord;
 uniform int borderCase;
 flat in int InstanceID;
-
+in mat3 matrixOut;
+flat in int LAYER_OUT;
+flat in int BATCH_OUT;
 
 uniform int maxLayer;
 uniform float ABOVE_SLOPE;
@@ -19,16 +22,15 @@ uniform bool DO_FADE;
 const float BORDER_THICKNESS = 0.5f;
 uniform bool DISABLE_ALMOST_EVERYTHING;
 uniform int  ATLAS_SHIFT_LEFT;
-in mat3 matrixOut;
 const int ATLAS_TEXTURES_CNT = 16;
 
 
 // TEXTURES
-uniform mediump sampler2D borderTexture;
+uniform mediump sampler2D CIRCLE_TEXTURE;
+uniform mediump sampler2D SQUARE_TEXTURE;
+uniform mediump sampler2D TRIANGLE_TEXTURE;
 uniform mediump sampler2D ourTexture;
 uniform mediump sampler2D ATLAS_TEXTURES[ATLAS_TEXTURES_CNT];
-uniform mediump isampler2D BATCH_NUMBER_TEXTURE;
-uniform mediump isampler2D LAYER_NUMBER_TEXTURE;
 uniform mediump sampler2D INNER_COLORS_TEXTURE;
 uniform mediump sampler2D OUTER_COLORS_TEXTURE;
 uniform mediump sampler2D SL_SCALES_TEXTURE;
@@ -41,7 +43,6 @@ uniform int BATCHES_PER_ATLAS_TEXTURE;
 
 float distFromCenter(float dist);
 bool isOuter(float dist, float thickness);
-float getDist();
 bool isInner(float dist, float thickness);
 float distFromCenter(float dist);
 bool isOuter(float dist, float thickness);
@@ -51,8 +52,6 @@ float max3(float x[3]);
 float min3(float x[3]);
 vec3 rGBToHSL(vec3 rgb);
 vec3 hSLToRGB(vec3 hsl);
-uint getLayer();
-uint getBatch();
 float getFloatInterpolatedFromTexture(sampler2D floatTexture, vec2 coords);
 float getDistFromTexture(sampler2D distTexture, vec2 coords);
 ivec2 getTexelCoord(int index);
@@ -68,16 +67,26 @@ void main(){
     finalFragColor = BenTextureColor;
 
     if(!DISABLE_ALMOST_EVERYTHING){
-        vec4 borderTextureColor = texture(borderTexture, ourTexCoord);
-        int layer = int(getLayer()); 
-        int batch = int(getBatch());
+        float dist;
+        switch(TYPE_OUT){
+            case 0:
+                dist = getDistFromTexture(TRIANGLE_TEXTURE, ourTexCoord);
+                break;
+            case 1:
+                dist = getDistFromTexture(SQUARE_TEXTURE, ourTexCoord);
+                break;
+            case 2:
+                dist = getDistFromTexture(CIRCLE_TEXTURE, ourTexCoord);
+                break;
+        }
+        int layer = LAYER_OUT; 
+        int batch = BATCH_OUT;
         vec4 INNER_COLOR = getTexel(INNER_COLORS_TEXTURE, layer);
         vec4 OUTER_COLOR = getTexel(OUTER_COLORS_TEXTURE, layer);
         vec2 SL_SCALE = getTexel(SL_SCALES_TEXTURE, layer).rg;
         float destructionTime = getTexel(DESTRUCTION_TIMES_TEXTURE, layer).r;
         float destructionTimePassed = getTexel(DESTRUCTION_TIME_PASSEDS_TEXTURE, layer).r;
         
-        float dist = getDist();
         float AMOUNT_INNER = 0.0f;
         if(dist < 0.0f)
             AMOUNT_INNER = 0.0f;
@@ -143,9 +152,6 @@ float getDistFromTexture(mediump sampler2D distTexture, vec2 coords){
     return getFloatInterpolatedFromTexture(distTexture, coords);
 }
 
-float getDist(){
-    return getDistFromTexture(borderTexture, ourTexCoord);
-}
 
 float distFromCenter(float dist){
     return 1.0f - dist;
@@ -253,22 +259,15 @@ vec3 hSLToRGB(vec3 hsl){
     return rgb;
 }
 
-uint getLayer(){
-    return uint(texelFetch(LAYER_NUMBER_TEXTURE, ivec2(InstanceID, 0), 0).r);
-}
-uint getBatch(){
-    return uint(texelFetch(BATCH_NUMBER_TEXTURE, ivec2(InstanceID, 0), 0).r);
-}
 
 vec4 getBenTexture(){
-    int batchNumber = int(getBatch());
+    int batchNumber = BATCH_OUT;
     int index = batchNumber - ATLAS_SHIFT_LEFT;
     if(index < 0)
         index = BATCHES_CNT + index;
     int atlasIndex = index/BATCHES_PER_ATLAS_TEXTURE;
     int subIndex = index % BATCHES_PER_ATLAS_TEXTURE;
     vec2 coords = vec2(ourTexCoord.x/float(BATCHES_PER_ATLAS_TEXTURE) + float(int(subIndex)%int(BATCHES_PER_ATLAS_TEXTURE))/float(BATCHES_PER_ATLAS_TEXTURE), ourTexCoord.y);
-    //vec2 coords = vec2(ourTexCoord.x, ourTexCoord.y);
     vec4 BenTextureColor;
     BenTextureColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
     switch(atlasIndex){

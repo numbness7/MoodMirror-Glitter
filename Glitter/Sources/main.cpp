@@ -22,7 +22,7 @@
 
 int main(int argc, char * argv[]) {
     if (DO_TEST) {
-        return mainDrawBatch(argc, argv);
+        return mainTypeConversion(argc, argv);
     }
     else {
         return mainCoordsBasic2D(argc, argv);

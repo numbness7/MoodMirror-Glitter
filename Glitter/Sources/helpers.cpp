@@ -136,6 +136,13 @@ bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height)
     return true;
 }
 
+std::tuple<int, GLFWwindow*> initOpenGL(int width, int height)
+{
+    int return_status;
+    GLFWwindow* mWindow;
+    initOpenGL(mWindow, return_status, width, height);
+    return {return_status, mWindow};
+}
 int initOpenGL(GLFWwindow *&mWindow, int width, int height)
 {
     int return_status;
@@ -498,26 +505,6 @@ SHAPE_TYPE_2D emotionArrayToShapeType2D(std::vector<float> emotionArray){
         return SQUARE;
     }
 }
-SHAPE_TYPE_3D emotionArrayToShapeType3D(std::vector<float> emotionArray){
-    float happiness = emotionArray[HAPPY];
-    float sadness   = emotionArray[SAD];
-    float anger     = emotionArray[ANGRY];
-    float fear      = emotionArray[FEAR];
-    float surprise  = emotionArray[SURPRISE];
-    float disgust   = emotionArray[DISGUST];
-    float tri = anger + surprise;
-    float square = disgust + fear;
-    float circ = sadness + happiness;
-    if(circ > tri && circ > square){
-        return OCTAHEDRON;
-    }
-    else if(tri > circ && tri > square){
-        return PYRAMID;
-    }
-    else {
-        return CUBE;
-    }
-}
 std::string vec2ToString(glm::vec2 vec2)
 {
     std::string s;
@@ -617,16 +604,20 @@ float emotionArrayToRotation(std::vector<float> emotionArray)
     return rotScale;
 
 }
-LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath, bool replaceVersion, std::string version){
+LightingEnvironment initDummyMPVOne(std::string shaderPath, bool replaceVersion, std::string version){
     glm::mat4 view(1.0f);
-    glm::mat4 model(1.0f);
-
-    Shader object_shader(vertexShaderPath, fragmentShaderPath, replaceVersion, version);
-    Shader light_shader(vertexShaderPath, fragmentShaderPath, replaceVersion, version);
+    Shader object_shader(shaderPath, replaceVersion, version);
     object_shader.use();
     object_shader.setUniformM4("view", view);
-    object_shader.setUniformM4("model",model);
-    LightingEnvironment lightingEnvironment{model,view,object_shader};
+    LightingEnvironment lightingEnvironment{view,object_shader};
+    return lightingEnvironment;
+}
+LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath, bool replaceVersion, std::string version){
+    glm::mat4 view(1.0f);
+    Shader object_shader(vertexShaderPath, fragmentShaderPath, replaceVersion, version);
+    object_shader.use();
+    object_shader.setUniformM4("view", view);
+    LightingEnvironment lightingEnvironment{view,object_shader};
     return lightingEnvironment;
 }
 void setupDummyMPVEnvironmentToDraw(LightingEnvironment& lightingEnvironment){
@@ -652,6 +643,7 @@ InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
     auto BORDER_THICKNESS = getFilledVector<float>(shapeLayers.getBatchCnt(), 0.0f);
     auto batchNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(), 0u);
     auto layerNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(),0u);
+    auto shapeTypes = getFilledVector<SHAPE_TYPE_2D>(shapeLayers.getShapeCnt(), SQUARE);
     
     for(auto& shapeLayer : shapeLayers){
         int layer = shapeLayers.getLayerCnt() - 1 - layerCount;
@@ -669,6 +661,7 @@ InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
                 scaleMatrices[shapeCount] = scale;
                 layerNumbers[shapeCount] = layer;
                 batchNumbers[shapeCount] = batchCount;
+                shapeTypes[shapeCount] = shape.type;
                 shapeCount++;
             }
             BORDER_THICKNESS[batchCount] = shapeBatch.shapes.back().borderThickness;
@@ -683,6 +676,7 @@ InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
     isf.translationMatrices = translationMatrices;
     isf.rotationMatrices = rotationMatrices;
     isf.scaleMatrices = scaleMatrices;
+    isf.types = shapeTypes;
     return isf;
 }
 
@@ -839,6 +833,7 @@ std::string to_string(std::vector<std::vector<float>> coefficients){
 	s += "]";
 	return s;
 }
+
 std::string to_string(std::vector<float> coefficients){
 	std::string s = "[";
 		for (int col = 0; col < coefficients.size(); col++){
@@ -1288,18 +1283,25 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     PngData pngDataSquare(COLOR_WIDTH, COLOR_HEIGHT);
     std::vector<glm::vec2> squareBorder = borderVerticesFromShape(shapes::rectT);
     std::vector<float> distances; 
+
     distances.reserve(COLOR_HEIGHT*COLOR_WIDTH);
     generateDistancesFromBorder(distances, COLOR_WIDTH, COLOR_HEIGHT, squareBorder);
     unsigned int squareBorderTexture = useFloatsToCreateTexture2D(distances.data(), COLOR_WIDTH, COLOR_HEIGHT);
-    OpenGLShape square(shapes::rectT, {blankTexture,squareBorderTexture}, true);
+    auto [trash, border] = createCircleShapeBorder(16);
+    distances.clear();
+    generateDistancesFromBorder(distances, COLOR_WIDTH, COLOR_HEIGHT, border);
+    unsigned int circleBorderTexture = useFloatsToCreateTexture2D(distances.data(), COLOR_WIDTH, COLOR_HEIGHT);
+    distances.clear();
+    generateDistancesFromBorder(distances, COLOR_WIDTH, COLOR_HEIGHT, borderVerticesFromShape(shapes::eTriT));
+    unsigned int triangleBorderTexture = useFloatsToCreateTexture2D(distances.data(), COLOR_WIDTH, COLOR_HEIGHT);
+
+
+    OpenGLShape square(shapes::rectT);
     
     LightingEnvironment lightingEnvironment;
-    
-    lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
     lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
 
     lightingEnvironment.view = glm::scale(lightingEnvironment.view, glm::vec3(1.2f,1.2f,0.0f));
-    glm::mat4 model(1.0f);
     lightingEnvironment.object_shader.use();
     lightingEnvironment.object_shader.setUniformI("ourTexture", 0);
     lightingEnvironment.object_shader.setUniformI("borderTexture", 1);
@@ -1353,6 +1355,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     PngData pd(COLOR_WIDTH,COLOR_HEIGHT,3);
     OpenGLTextureOptions options = ttm::png3Map(COLOR_WIDTH, COLOR_HEIGHT);
     TextureAtlas textureAtlas(options, NUMBER_OF_BATCHES,  NUMBER_OF_ATLAS_TEXTURES, "ATLAS_TEXTURES");
+    TextureAtlas shapeAtlas(ttm::map2D<glm::vec4>(9, 1), TOTAL_SHAPES, 16, "SUPER_TEXTURE_VS"); 
     runawayPrinter.pause(3.0f);
     
     // #Render 2D Loop
@@ -1410,36 +1413,56 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                 layerCount++;
             }
             std::cout << "Shapes loaded!" << std::endl;
+            runawayPrinter.pause(5.0f);
         }
         // Draw cubes
         glDisable(GL_DEPTH_TEST);
         auto isf = loadShapes2D(shapeLayersStorage);
         auto slf = loadShapeLayer2Ds(shapeLayersStorage, lineAbove, lineBelow, deltaTimer);
+
         std::vector<OpenGLTexture> openGLTextures{
             {"ourTexture",blankTexture},
-            {"borderTexture",squareBorderTexture},
+            {"SQUARE_TEXTURE",squareBorderTexture},
+            {"CIRCLE_TEXTURE",circleBorderTexture},
+            {"TRIANGLE_TEXTURE",triangleBorderTexture},
             {"TRANS_L_TEXTURE",useTextureDataToCreateTexture(slf.translationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
             {"ROTATE_L_TEXTURE",useTextureDataToCreateTexture(slf.rotationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
             {"SCALE_L_TEXTURE",useTextureDataToCreateTexture(slf.scaleMatrices, shapeLayersStorage.getLayerCnt(), 1)},
             {"INNER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.innerColors, shapeLayersStorage.getLayerCnt(), 1)},
             {"OUTER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.outerColors, shapeLayersStorage.getLayerCnt(), 1)},
             {"SL_SCALES_TEXTURE",useTextureDataToCreateTexture(slf.sLSCALEs, shapeLayersStorage.getLayerCnt(), 1)},
-            {"TRANS_S_TEXTURE",useTextureDataToCreateTexture(isf.translationMatrices, shapeLayersStorage.getShapeCnt(), 1)},
-            {"ROTATE_S_TEXTURE",useTextureDataToCreateTexture(isf.rotationMatrices, shapeLayersStorage.getShapeCnt(), 1)},
-            {"SCALE_S_TEXTURE",useTextureDataToCreateTexture(isf.scaleMatrices, shapeLayersStorage.getShapeCnt(), 1)},
-            {"BATCH_NUMBER_TEXTURE",useTextureDataToCreateTexture(isf.batchNumbers, shapeLayersStorage.getShapeCnt(), 1)},
-            {"LAYER_NUMBER_TEXTURE",useTextureDataToCreateTexture(isf.layerNumbers, shapeLayersStorage.getShapeCnt(), 1)},
             {"BORDER_THICKNESS_TEXTURE",useTextureDataToCreateTexture(isf.borderThickness, shapeLayersStorage.getShapeCnt(), 1)},
         };
         for(const auto& texture : textureAtlas.getTextures())
             openGLTextures.push_back(texture);
-
+        
+        for(int shapeIndex = isf.layerNumbers.size() - 1; shapeIndex >= 0; shapeIndex--){
+            auto vec4s = getFilledVector<glm::vec4>(9, glm::vec4(1.0f));
+            float batch =  (*reinterpret_cast<float*>( &isf.batchNumbers[shapeIndex]));
+            float layer = (*reinterpret_cast<float*>( &isf.layerNumbers[shapeIndex]));
+            float type = (*reinterpret_cast<float*>( &isf.types[shapeIndex]));
+            vec4s[0] = glm::vec4(isf.translationMatrices[shapeIndex][0], batch);
+            vec4s[1] = glm::vec4(isf.translationMatrices[shapeIndex][1], layer);
+            vec4s[2] = glm::vec4(isf.translationMatrices[shapeIndex][2], type);
+            vec4s[3] = glm::vec4(isf.rotationMatrices[shapeIndex][0],    1.0f);
+            vec4s[4] = glm::vec4(isf.rotationMatrices[shapeIndex][1],    1.0f);
+            vec4s[5] = glm::vec4(isf.rotationMatrices[shapeIndex][2],    1.0f);
+            vec4s[6] = glm::vec4(isf.scaleMatrices[shapeIndex][0],       1.0f);
+            vec4s[7] = glm::vec4(isf.scaleMatrices[shapeIndex][1],       1.0f);
+            vec4s[8] = glm::vec4(isf.scaleMatrices[shapeIndex][2],       1.0f);
+            shapeAtlas.replaceTexture(vec4s, 9, 1);
+        }
+        for(const auto& texture : shapeAtlas.getTextures())
+            openGLTextures.push_back(texture);
 
         lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS); // TAG
         lightingEnvironment.object_shader.setUniformB("DO_FADE", false); // TAG
         lightingEnvironment.object_shader.setUniformI("borderCase", 2); // TAG
         lightingEnvironment.object_shader.setUniformI("ATLAS_SHIFT_LEFT", textureAtlas.getShiftLeft()); // TAG
         lightingEnvironment.object_shader.setUniformI("BATCHES_PER_ATLAS_TEXTURE", textureAtlas.getTexturesPerAtlas()); // TAG
+        lightingEnvironment.object_shader.setUniformI("SHAPE_CNT", shapeAtlas.getTextureCnt()); // TAG
+        lightingEnvironment.object_shader.setUniformI("SHAPES_ATLAS_SHIFT_LEFT", shapeAtlas.getShiftLeft()); // TAG
+        lightingEnvironment.object_shader.setUniformI("SHAPES_PER_ATLAS", shapeAtlas.getTexturesPerAtlas()); // TAG
         
         if(!shapeLayersStorage.empty())
             drawShapeLayers2D(lightingEnvironment, square, openGLTextures, shapeLayersStorage.getShapeCnt());
@@ -1455,11 +1478,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             runawayPrinter.pushMessage(emotionArrayToString(shapeLayersStorage.back().emotionArray));
             runawayPrinter.pushMessage("FPS: " + std::to_string(getFPS(deltaTimer)));
         }
-        for(auto& texture : openGLTextures){
-            if(!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
-                glDeleteTextures(1, &texture.address);
-            }
-        }
+        //for(auto& texture : openGLTextures){
+        //    if(!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("SUPER")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
+        //        glDeleteTextures(1, &texture.address);
+        //    }
+        //}
         
     }   
 
@@ -1665,7 +1688,7 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
     float minScale = MIN_SCALE;
     float aveScale = AVE_SCALE;
     float devScale = DEV_SCALE;
-    glm::vec3 scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale) * glm::vec3(1.0f);
+    glm::vec2 scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale) * glm::vec2(1.0f);
     if(transitions[SCALE_T] && transitions[FADE_T]) scale *= DO_SCALE_SCALE;
     else if(transitions[SCALE_T]) scale *= DO_SCALE_SCALE;
     else if (transitions[FADE_T]) scale *= DO_FADE_SCALE;
@@ -1676,16 +1699,12 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
     coords = SCATTER_TO_EMOTION_COORD_RATIO* SCATTER_COORD_SCALE * randCoords()+(1-SCATTER_TO_EMOTION_COORD_RATIO)*EMOTION_COORD_SCALE*emotionCoords3D;
     coords.z = 0.0f;
     
-    glm::mat4 model = glm::mat4(1.0f);
     float xCoordScale = 1.0f;
     float yCoordScale = 1.0f;
     glm::vec3 scaledCoordinates(1.0f);
     scaledCoordinates.x = coords.x*xCoordScale;
     scaledCoordinates.y = coords.y*yCoordScale;
     scaledCoordinates.z = 0.0f;
-    model = glm::translate(model, scaledCoordinates);
-    model = glm::scale(model, scale*emotionScale);
-    model = glm::rotate(model, rotScale, rotAxis);
 
     
     // Create and delete cubes
@@ -1699,7 +1718,7 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
     else{
         invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
     }
-    ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
+    ShapeProperties2D shape = ShapeProperties2D{shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
     shape.scaleMatrix = glm::scale(glm::mat3(1.0f), shape.scale);
     shape.rotationMatrix = glm::rotate(glm::mat3(1.0f), shape.rotation);
     shape.transition = glm::translate(glm::mat3(1.0f), shape.coords);
@@ -1909,7 +1928,7 @@ int mainRecursion(int argc, char * argv[]){
     int returnVal;
     GLFWwindow* mWindow;
     if((returnVal = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return returnVal;
-    LightingEnvironment lE = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    LightingEnvironment lE = initDummyMPVOne("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
     unsigned int borderTextureRed = obtainPNGBorder(255, 255, 2, 2, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
     OpenGLShape square(shapes::rectT, {borderTextureRed, borderTextureRed}, true);
     unsigned int borderTextureBlue = obtainPNGBorder(255, 255, 0, 0, cdata::BLACK_D_RGBA, cdata::WHITE_D_RGBA, false, false);
@@ -2018,7 +2037,7 @@ int mainDrawBatch(int argc, char* argv[]){
     int return_status;
     GLFWwindow*  mWindow; 
     if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
-    LightingEnvironment lE = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    LightingEnvironment lE = initDummyMPVOne("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
     lE.object_shader.use();
     lE.object_shader.setUniformV4("INNER_COLOR", glm::vec4(1.0f,0.0f,1.0f,1.0f));
     lE.object_shader.setUniformV4("OUTER_COLOR", glm::vec4(0.0f,1.0f,0.0f,1.0f));
@@ -2312,4 +2331,48 @@ std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsign
         borderVertices.push_back(glm::vec2(shape[i],shape[i+1]));
     }
     return borderVertices;
+}
+int mainTypeConversion(int argc, char* argv[]){
+    auto [return_status, mWindow] = initOpenGL(mWidth, mHeight);
+    if(return_status != EXIT_SUCCESS)
+        return false;
+    auto lE = initDummyMPVOne("Glitter/Shaders/type-conversion");
+    DeltaTimer deltaTimer;
+    auto [zoom, pos] = std::tuple<float, glm::vec2>(1.0f, glm::vec2(0.0f));
+    auto floats = std::vector<float>{};
+    floats.reserve(4*16);
+    TextureAtlas textureAtlas(ttm::map2D(floats, 4,1), 16, 3, "SUPER_TEXTURE_VS");
+    for(int row = 1; row < 5; row++){
+        for(int col = 1; col < 5; col++){
+            glm::vec2 pos = boundTransformation(glm::vec2(col, row), glm::vec2(1.0f), glm::vec2(4.0f), glm::vec2(-0.5f), glm::vec2(0.5f));
+            floats.push_back(pos.x);
+            floats.push_back(pos.y);
+            int colorChange = col % 4;
+            floats.push_back(*reinterpret_cast<float*>(&colorChange));
+            floats.push_back(2.0f*mm_math::PI/3.0f*(float)(col%3));
+        }
+    }
+    for(int i = 0; i < floats.size(); i+=4){
+        textureAtlas.replaceTexture(std::vector<float>{floats[i],floats[i+1], floats[i+2], floats[i+3]}, 4, 1);
+    }
+
+    OpenGLShape rect(shapes::rectT);
+    lE.object_shader.setUniformI("ATLAS_SHIFT_LEFT", textureAtlas.getShiftLeft());
+    lE.object_shader.setUniformI("TEXTURES_PER_ATLAS", textureAtlas.getTexturesPerAtlas());
+    lE.object_shader.setUniformI("SHAPE_CNT", textureAtlas.getTextureCnt());
+    
+    while(!windowShouldClose(mWindow)){
+        startDummyMPVLoop(deltaTimer, lE, glm::vec4(0.5f));
+        rect.drawBatch(lE.object_shader, textureAtlas.getTextures(), 16);
+        endRenderLoopView2D(mWindow, deltaTimer, pos, zoom);
+
+    } glfwTerminate();
+    return EXIT_SUCCESS;
+
+
+}
+
+auto windowShouldClose(GLFWwindow* window) -> bool
+{
+    return glfwWindowShouldClose(window);
 }

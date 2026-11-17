@@ -69,10 +69,10 @@
 // Layer info
 
 #define MAXIMUM_IMAGE_POWER 32
-#define TOTAL_LAYERS 32
-#define SHAPES_IN_BATCH 8
-#define MID_LAYER 20
-#define TOTAL_EMOTION_LAYERS  16
+#define TOTAL_LAYERS 24
+#define SHAPES_IN_BATCH 4
+#define MID_LAYER 18
+#define TOTAL_EMOTION_LAYERS  12
 #define NUMBER_OF_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
 #define TOTAL_SHAPES (NUMBER_OF_BATCHES*SHAPES_IN_BATCH)
 #define BATCHES_SHARE_EMOTION 1 
@@ -83,8 +83,8 @@
 
 // Spawn Times
 
-#define SHAPE_INITIAL_SPAWN_TIME 0.15f
-#define DESTRUCTION_TIME         0.25f
+#define SHAPE_INITIAL_SPAWN_TIME 0.10f
+#define DESTRUCTION_TIME         1.00f
 #define UPDATE_ITERATIONS 10.0f
 
 // Pulse
@@ -177,11 +177,11 @@
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 1.5f
-#define MAX_SCALE 1.10f*SCALE_MULTIPLIER
-#define MIN_SCALE 0.100f*SCALE_MULTIPLIER
-#define AVE_SCALE 0.10f*SCALE_MULTIPLIER
-#define DEV_SCALE 0.10f*SCALE_MULTIPLIER
+#define SCALE_MULTIPLIER 1.00f
+#define MAX_SCALE (1.10f*SCALE_MULTIPLIER)
+#define MIN_SCALE (0.100f*SCALE_MULTIPLIER)
+#define AVE_SCALE (0.10f*SCALE_MULTIPLIER)
+#define DEV_SCALE (0.10f*SCALE_MULTIPLIER)
 
 // Random Alpha Differences Between Shapes in Same Batch
 
@@ -322,8 +322,7 @@ class OpenGLShape {
 
 // #Enums -------------------------------------------------------------
 
-enum SHAPE_TYPE_3D { CUBE, PYRAMID, OCTAHEDRON};
-enum SHAPE_TYPE_2D { TRIANGLE, SQUARE, CIRCLE};
+enum SHAPE_TYPE_2D { TRIANGLE = 0, SQUARE = 1, CIRCLE = 2};
 enum EMOTION {HAPPY=0, SAD=1, ANGRY=2, FEAR=3, SURPRISE=4, DISGUST=5 };
 /// @brief Determines how a shape goes into view and goes out of view.
 enum TRANSITIONS {FADE_T,SCALE_T,VORTEX_T, BACK_OUT_T, MOVE_FORWARD_T};
@@ -344,7 +343,6 @@ struct EmotionIntensities{
 
 /// @brief Various information to modify how a shape is drawn.
 struct ShapeProperties2D {
-    glm::mat3 model;
     glm::vec4 innerColor;
     glm::vec4 outerColor;
     SHAPE_TYPE_2D type;
@@ -372,6 +370,7 @@ struct InitialShapeFeatures2D {
     std::vector<glm::mat3> translationMatrices;
     std::vector<glm::mat3> rotationMatrices;
     std::vector<glm::mat3> scaleMatrices;
+    std::vector<SHAPE_TYPE_2D> types;
 };
 
 struct ShapeLayerFeatures2D {
@@ -387,7 +386,6 @@ struct ShapeLayerFeatures2D {
 
 /// @brief The shader information for drawing shapes.
 struct LightingEnvironment {
-    glm::mat4 model;
     glm::mat4 view;
     Shader object_shader;
 };
@@ -460,6 +458,7 @@ int mainDrawBatch(int argc, char* argv[]);
 int mainSolve(int argc, char * argv[]);
 int mainRecursion(int argc, char * argv[]);
 int mainDrawSubTextures(int argc, char* argv[]);
+int mainTypeConversion(int argc, char* argv[]);
 
 // #Draw -------------------------------------------------------------
 
@@ -482,10 +481,13 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
 
 // #Initialization -------------------------------------------------------------
 
-LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath, bool replaceVersion = false, std::string version = "330 core");
+LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath, bool replaceVersion = false, std::string version = "310 es");
+LightingEnvironment initDummyMPVOne(std::string shaderPath, bool replaceVersion = false, std::string version = "310 es");
 GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen=FULL_SCREEN);
+auto windowShouldClose(GLFWwindow* window) -> bool;
 bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height);
 int initOpenGL(GLFWwindow*& mWindow, int width, int height);
+std::tuple<int, GLFWwindow*> initOpenGL(int width, int height);
 void initMouse(GLFWwindow* mWindow);
 
 // #RenderLoop Start -------------------------------------------------------------
@@ -561,7 +563,6 @@ std::tuple<int,float> emotionArrayToSoftness(std::vector<float> emotionArray, bo
 float emotionArrayToRotation(std::vector<float> array0);
 std::map<TRANSITIONS,bool> emotionArrayToTransitions(std::vector<float> emotionArray);
 glm::vec3 emotionArrayToColor(std::vector<float> array0);
-SHAPE_TYPE_3D emotionArrayToShapeType3D(std::vector<float> array0);
 SHAPE_TYPE_2D emotionArrayToShapeType2D(std::vector<float> array0);
 float emotionArrayToAlpha(std::vector<float> emotionArray);
 glm::vec2 emotionArrayToSL(const std::vector<float> emotionArray);

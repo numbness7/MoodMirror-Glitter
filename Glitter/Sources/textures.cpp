@@ -376,9 +376,3 @@ bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2){
         return false;
     return true;
 }
-template <typename T> void TextureAtlas::replaceTexture(const std::vector<T> vec, GLsizei width, GLsizei height){
-    assert(vec.size() >= width*height);
-    const OpenGLTextureOptions vecOptions = ttm::map2D(vec, width*textureCnt, height);
-    assert(vecOptions == options);
-    replaceTexture(vec.data());
-}
