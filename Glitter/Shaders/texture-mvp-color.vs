@@ -22,8 +22,10 @@ uniform mediump sampler2D SCALE_S_TEXTURE;
 uniform mediump sampler2D TRANS_L_TEXTURE;
 uniform mediump sampler2D ROTATE_L_TEXTURE;
 uniform mediump sampler2D SCALE_L_TEXTURE;
-uniform mediump isampler2D BATCH_NUMBER_TEXTURE;
-uniform mediump isampler2D LAYER_NUMBER_TEXTURE;
+uniform int SHAPES_PER_LAYER;
+uniform int SHAPES_PER_BATCH;
+uniform int TOTAL_BATCHES;
+uniform int TOTAL_LAYERS;
 
 
 mat4 scaleMatrix(mat4 matrix, vec4 scale);
@@ -44,13 +46,16 @@ ivec4 getTexel                          (mediump isampler2D texture, int index);
 uvec4 getTexel                          (mediump usampler2D texture, int index);
 
 flat out int LAYER_OUT;
+flat out int BATCH_OUT;
 
 void main(){
     ourTexCoord = aTexCoord;
     InstanceID = gl_InstanceID;
+    int layer = int(getLayer());
+    LAYER_OUT = layer;
+    BATCH_OUT = int(getBatch());
     if(USE_MODEL_ARRAY){
         int id = InstanceID;
-        int layer = int(getLayer());
         mat3  transS = getMat3Model(TRANS_S_TEXTURE, id);
         mat3  scaleS = getMat3Model(SCALE_S_TEXTURE, id);
         mat3 rotateS= getMat3Model(ROTATE_S_TEXTURE, id);
@@ -147,10 +152,10 @@ mat4 mat3ToMat4(mat3 matrix3){
 
 }
 uint getLayer(){
-    return uint(texelFetch(LAYER_NUMBER_TEXTURE, ivec2(InstanceID, 0), 0).r);
+    return uint(((SHAPES_PER_LAYER*TOTAL_LAYERS) - InstanceID)/SHAPES_PER_LAYER);
 }
 uint getBatch(){
-    return uint(texelFetch(BATCH_NUMBER_TEXTURE, ivec2(InstanceID, 0), 0).r);
+    return uint(((SHAPES_PER_BATCH*TOTAL_BATCHES) - InstanceID)/SHAPES_PER_BATCH);
 }
 ivec2 getTexelCoord(int index){
     return ivec2(index,0);

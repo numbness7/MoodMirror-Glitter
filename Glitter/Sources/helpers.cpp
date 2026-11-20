@@ -1352,7 +1352,10 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
     PngData pd(COLOR_WIDTH,COLOR_HEIGHT,3);
     OpenGLTextureOptions options = ttm::png3Map(COLOR_WIDTH, COLOR_HEIGHT);
-    TextureAtlas textureAtlas(options, NUMBER_OF_BATCHES,  NUMBER_OF_ATLAS_TEXTURES, "ATLAS_TEXTURES");
+    TextureAtlas textureAtlas(options, TOTAL_BATCHES,  NUMBER_OF_ATLAS_TEXTURES, "ATLAS_TEXTURES");
+    std::vector<glm::vec4> shapesVec4s;
+    OpenGLTextureOptions shapeOptions = ttm::png3Map(COLOR_WIDTH, COLOR_HEIGHT);
+    TextureAtlas shapeAtlas(options, TOTAL_BATCHES,  NUMBER_OF_ATLAS_TEXTURES, "SHAPE_ATLAS_TEXTURES");
     runawayPrinter.pause(3.0f);
     
     // #Render 2D Loop
@@ -1427,8 +1430,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             {"TRANS_S_TEXTURE",useTextureDataToCreateTexture(isf.translationMatrices, shapeLayersStorage.getShapeCnt(), 1)},
             {"ROTATE_S_TEXTURE",useTextureDataToCreateTexture(isf.rotationMatrices, shapeLayersStorage.getShapeCnt(), 1)},
             {"SCALE_S_TEXTURE",useTextureDataToCreateTexture(isf.scaleMatrices, shapeLayersStorage.getShapeCnt(), 1)},
-            {"BATCH_NUMBER_TEXTURE",useTextureDataToCreateTexture(isf.batchNumbers, shapeLayersStorage.getShapeCnt(), 1)},
-            {"LAYER_NUMBER_TEXTURE",useTextureDataToCreateTexture(isf.layerNumbers, shapeLayersStorage.getShapeCnt(), 1)},
             {"BORDER_THICKNESS_TEXTURE",useTextureDataToCreateTexture(isf.borderThickness, shapeLayersStorage.getShapeCnt(), 1)},
         };
         for(const auto& texture : textureAtlas.getTextures())
@@ -1440,6 +1441,10 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         lightingEnvironment.object_shader.setUniformI("borderCase", 2); // TAG
         lightingEnvironment.object_shader.setUniformI("ATLAS_SHIFT_LEFT", textureAtlas.getShiftLeft()); // TAG
         lightingEnvironment.object_shader.setUniformI("BATCHES_PER_ATLAS_TEXTURE", textureAtlas.getTexturesPerAtlas()); // TAG
+        lightingEnvironment.object_shader.setUniformI("SHAPES_PER_LAYER", SHAPES_PER_LAYER); // TAG
+        lightingEnvironment.object_shader.setUniformI("SHAPES_PER_BATCH", SHAPES_IN_BATCH); // TAG
+        lightingEnvironment.object_shader.setUniformI("TOTAL_LAYERS", TOTAL_LAYERS); // TAG
+        lightingEnvironment.object_shader.setUniformI("TOTAL_BATCHES", TOTAL_BATCHES); // TAG
         
         if(!shapeLayersStorage.empty())
             drawShapeLayers2D(lightingEnvironment, square, openGLTextures, shapeLayersStorage.getShapeCnt());

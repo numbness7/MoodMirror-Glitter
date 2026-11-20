@@ -2,6 +2,8 @@
 precision mediump float;
 precision mediump int;
 in vec2 ourTexCoord;
+flat in int LAYER_OUT;
+flat in int BATCH_OUT;
 out vec4 FragColor;
 
 
@@ -21,14 +23,14 @@ uniform bool DISABLE_ALMOST_EVERYTHING;
 uniform int  ATLAS_SHIFT_LEFT;
 in mat3 matrixOut;
 const int ATLAS_TEXTURES_CNT = 16;
+uniform int TOTAL_BATCHES;
+uniform int TOTAL_LAYERS;
 
 
 // TEXTURES
 uniform mediump sampler2D borderTexture;
 uniform mediump sampler2D ourTexture;
 uniform mediump sampler2D ATLAS_TEXTURES[ATLAS_TEXTURES_CNT];
-uniform mediump isampler2D BATCH_NUMBER_TEXTURE;
-uniform mediump isampler2D LAYER_NUMBER_TEXTURE;
 uniform mediump sampler2D INNER_COLORS_TEXTURE;
 uniform mediump sampler2D OUTER_COLORS_TEXTURE;
 uniform mediump sampler2D SL_SCALES_TEXTURE;
@@ -254,15 +256,15 @@ vec3 hSLToRGB(vec3 hsl){
 }
 
 uint getLayer(){
-    return uint(texelFetch(LAYER_NUMBER_TEXTURE, ivec2(InstanceID, 0), 0).r);
+    return uint(LAYER_OUT);
 }
 uint getBatch(){
-    return uint(texelFetch(BATCH_NUMBER_TEXTURE, ivec2(InstanceID, 0), 0).r);
+    return uint(BATCH_OUT);
 }
 
 vec4 getBenTexture(){
     int batchNumber = int(getBatch());
-    int index = batchNumber - ATLAS_SHIFT_LEFT;
+    int index = (TOTAL_BATCHES - batchNumber - 1) - ATLAS_SHIFT_LEFT;
     if(index < 0)
         index = BATCHES_CNT + index;
     int atlasIndex = index/BATCHES_PER_ATLAS_TEXTURE;
