@@ -69,15 +69,19 @@
 // Layer info
 
 #define MAXIMUM_IMAGE_POWER 32
-#define TOTAL_LAYERS 32
+#define TOTAL_LAYERS 8
 #define SHAPES_IN_BATCH 8
-#define MID_LAYER 20
-#define TOTAL_EMOTION_LAYERS  16
+#define MID_LAYER 4
+#define TOTAL_EMOTION_LAYERS  3
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
 #define TOTAL_SHAPES (TOTAL_BATCHES*SHAPES_IN_BATCH)
 #define SHAPES_PER_LAYER (TOTAL_SHAPES/TOTAL_LAYERS)
 #define BATCHES_PER_LAYER (TOTAL_SHAPES/(TOTAL_BATCHES))
 #define BATCHES_SHARE_EMOTION 1 
+#define VEC4PERMAT3 3
+#define MAT3PERSHAPE 3
+#define VEC4PERSHAPE ((VEC4PERMAT3)*(MAT3PERSHAPE))
+#define TOTAL_VEC4_FOR_SHAPES ((VEC4PERSHAPE) * (TOTAL_SHAPES))
 
 // Emotion Data File
 #define EMOTION_DATA_FILE_PATH "../data.json"
@@ -179,7 +183,7 @@
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 1.5f
+#define SCALE_MULTIPLIER 0.8f
 #define MAX_SCALE 1.10f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.10f*SCALE_MULTIPLIER
@@ -346,13 +350,10 @@ struct EmotionIntensities{
 
 /// @brief Various information to modify how a shape is drawn.
 struct ShapeProperties2D {
-    glm::mat3 model;
     glm::vec4 innerColor;
     glm::vec4 outerColor;
     SHAPE_TYPE_2D type;
     glm::vec2 coords;
-    float rotation;
-    glm::vec2 scale;
     float borderThickness;
     std::map<TRANSITIONS,bool> transitions;
     int borderCase;

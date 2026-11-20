@@ -15,13 +15,10 @@ uniform mat4 model;
 uniform mat4 view;
 uniform int COLS;
 uniform int SIZE;
-uniform highp sampler2D TRANS_S_TEXTURE;
-uniform highp sampler2D ROTATE_S_TEXTURE;
-uniform highp sampler2D SCALE_S_TEXTURE;
 uniform highp sampler2D TRANS_L_TEXTURE;
 uniform highp sampler2D ROTATE_L_TEXTURE;
 uniform highp sampler2D SCALE_L_TEXTURE;
-uniform highp usampler2D TYPE_S_TEXTURE;
+uniform highp sampler2D SHAPES_TEXTURE;
 uniform int SHAPES_PER_LAYER;
 uniform int SHAPES_PER_BATCH;
 uniform int TOTAL_BATCHES;
@@ -45,6 +42,9 @@ vec4 getTexel                           (highp sampler2D texture, int index);
 ivec4 getTexel                          (highp isampler2D texture, int index);
 uvec4 getTexel                          (highp usampler2D texture, int index);
 
+struct SHAPE_PROPS { mat3 translation; mat3 rotation; mat3 scale; uint type; };
+SHAPE_PROPS getShapeProps();
+
 flat out int LAYER_OUT;
 flat out int BATCH_OUT;
 flat out uint TYPE_OUT;
@@ -56,11 +56,12 @@ void main(){
     int layer = int(getLayer());
     LAYER_OUT = layer;
     BATCH_OUT = int(getBatch());
-    TYPE_OUT = getTexel(TYPE_S_TEXTURE, id).r;
+    SHAPE_PROPS props = getShapeProps();
+    TYPE_OUT = props.type;
     if(USE_MODEL_ARRAY){
-        mat3  transS = getMat3Model(TRANS_S_TEXTURE, id);
-        mat3  scaleS = getMat3Model(SCALE_S_TEXTURE, id);
-        mat3 rotateS= getMat3Model(ROTATE_S_TEXTURE, id);
+        mat3  transS = props.translation;
+        mat3  scaleS = props.scale;
+        mat3 rotateS= props.rotation;
 
         mat3  transL = getMat3Model(TRANS_L_TEXTURE, layer);
         mat3  scaleL = getMat3Model(SCALE_L_TEXTURE, layer);
@@ -182,3 +183,26 @@ float getFloatInterpolatedFromTexture(highp sampler2D floatTexture, vec2 coords)
 float getDistFromTexture(highp sampler2D distTexture, vec2 coords){
     return getFloatInterpolatedFromTexture(distTexture, coords);
 }
+
+SHAPE_PROPS getShapeProps(){
+    vec4 shapeVec4s[9];
+    for(int i = 0; i < 9; i++){
+        shapeVec4s[i] = getTexel(SHAPES_TEXTURE, InstanceID*9 + i);
+    }
+    mat3 translation;
+    mat3 rotation;
+    mat3 scale;
+    uint type;
+    translation[0] = vec3(shapeVec4s[0]); 
+    translation[1] = vec3(shapeVec4s[1]);
+    translation[2] = vec3(shapeVec4s[2]);
+    rotation[0]    = vec3(shapeVec4s[3]);
+    rotation[1]    = vec3(shapeVec4s[4]);
+    rotation[2]    = vec3(shapeVec4s[5]);
+    scale[0]       = vec3(shapeVec4s[6]);
+    scale[1]       = vec3(shapeVec4s[7]);
+    scale[2]       = vec3(shapeVec4s[8]);
+    type           = uint(floatBitsToInt(shapeVec4s[0].a));
+    return SHAPE_PROPS(translation, rotation, scale, type);
+}
+//struct SHAPE_PROPS { mat3 translation; mat3 rotation; mat3 scale; uint type; };

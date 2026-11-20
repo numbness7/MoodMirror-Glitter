@@ -1429,20 +1429,31 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         glDisable(GL_DEPTH_TEST);
         auto isf = loadShapes2D(shapeLayersStorage);
         auto slf = loadShapeLayer2Ds(shapeLayersStorage, lineAbove, lineBelow, deltaTimer);
+        auto shapeVec4s = getFilledVector<glm::vec4>(TOTAL_VEC4_FOR_SHAPES, glm::vec4(1.0f));
+        for( int shapeIndex = 0; shapeIndex < isf.rotationMatrices.size(); shapeIndex++){
+            auto vec4s = getFilledVector<glm::vec4>(TOTAL_VEC4_FOR_SHAPES, glm::vec4(1.0f));
+            shapeVec4s[shapeIndex*VEC4PERSHAPE + 0] = glm::vec4(isf.translationMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+            shapeVec4s[shapeIndex*VEC4PERSHAPE + 1] = glm::vec4(isf.translationMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+            shapeVec4s[shapeIndex*VEC4PERSHAPE + 2] = glm::vec4(isf.translationMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+            shapeVec4s[shapeIndex*VEC4PERSHAPE + 3] = glm::vec4(isf.rotationMatrices    [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+            shapeVec4s[shapeIndex*VEC4PERSHAPE + 4] = glm::vec4(isf.rotationMatrices    [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+            shapeVec4s[shapeIndex*VEC4PERSHAPE + 5] = glm::vec4(isf.rotationMatrices    [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+            shapeVec4s[shapeIndex*VEC4PERSHAPE + 6] = glm::vec4(isf.scaleMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+            shapeVec4s[shapeIndex*VEC4PERSHAPE + 7] = glm::vec4(isf.scaleMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+            shapeVec4s[shapeIndex*VEC4PERSHAPE + 8] = glm::vec4(isf.scaleMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+        }
         std::vector<OpenGLTexture> openGLTextures{
             {"ourTexture",blankTexture},
             {"SQUARE_BORDER_TEXTURE",squareBorderTexture},
             {"CIRCLE_BORDER_TEXTURE",circleBorderTexture},
             {"TRIANGLE_BORDER_TEXTURE",triangleBorderTexture},
+            {"SHAPES_TEXTURE", useTextureDataToCreateTexture(shapeVec4s.data(), shapeVec4s.size(), 1)},
             {"TRANS_L_TEXTURE",useTextureDataToCreateTexture(slf.translationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
             {"ROTATE_L_TEXTURE",useTextureDataToCreateTexture(slf.rotationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
             {"SCALE_L_TEXTURE",useTextureDataToCreateTexture(slf.scaleMatrices, shapeLayersStorage.getLayerCnt(), 1)},
             {"INNER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.innerColors, shapeLayersStorage.getLayerCnt(), 1)},
             {"OUTER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.outerColors, shapeLayersStorage.getLayerCnt(), 1)},
             {"SL_SCALES_TEXTURE",useTextureDataToCreateTexture(slf.sLSCALEs, shapeLayersStorage.getLayerCnt(), 1)},
-            {"TRANS_S_TEXTURE",useTextureDataToCreateTexture(isf.translationMatrices, shapeLayersStorage.getShapeCnt(), 1)},
-            {"ROTATE_S_TEXTURE",useTextureDataToCreateTexture(isf.rotationMatrices, shapeLayersStorage.getShapeCnt(), 1)},
-            {"SCALE_S_TEXTURE",useTextureDataToCreateTexture(isf.scaleMatrices, shapeLayersStorage.getShapeCnt(), 1)},
             {"BORDER_THICKNESS_TEXTURE",useTextureDataToCreateTexture(isf.borderThickness, shapeLayersStorage.getShapeCnt(), 1)},
         };
         for(const auto& texture : textureAtlas.getTextures())
@@ -1684,7 +1695,8 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
     float minScale = MIN_SCALE;
     float aveScale = AVE_SCALE;
     float devScale = DEV_SCALE;
-    glm::vec3 scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale) * glm::vec3(1.0f);
+    auto scale = clamp(rand_range_normal(aveScale,devScale), minScale, maxScale);
+    //auto scale = 0.001f;
     if(transitions[SCALE_T] && transitions[FADE_T]) scale *= DO_SCALE_SCALE;
     else if(transitions[SCALE_T]) scale *= DO_SCALE_SCALE;
     else if (transitions[FADE_T]) scale *= DO_FADE_SCALE;
@@ -1702,9 +1714,6 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
     scaledCoordinates.x = coords.x*xCoordScale;
     scaledCoordinates.y = coords.y*yCoordScale;
     scaledCoordinates.z = 0.0f;
-    model = glm::translate(model, scaledCoordinates);
-    model = glm::scale(model, scale*emotionScale);
-    model = glm::rotate(model, rotScale, rotAxis);
 
     
     // Create and delete cubes
@@ -1718,9 +1727,9 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
     else{
         invertedShapeColor = glm::vec4(0.8f*emotionRGB, alphaScale);
     }
-    ShapeProperties2D shape = ShapeProperties2D{model,shapeColor,invertedShapeColor, type, scaledCoordinates, rotScale, scale, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
-    shape.scaleMatrix = glm::scale(glm::mat3(1.0f), shape.scale);
-    shape.rotationMatrix = glm::rotate(glm::mat3(1.0f), shape.rotation);
+    ShapeProperties2D shape = ShapeProperties2D{shapeColor,invertedShapeColor, type, scaledCoordinates, softnessOrThickness, transitions, borderCase, 0, useBenTexture};
+    shape.scaleMatrix = glm::scale(glm::mat3(1.0f), scale*glm::vec2(1.0f));
+    shape.rotationMatrix = glm::rotate(glm::mat3(1.0f), rotScale);
     shape.transition = glm::translate(glm::mat3(1.0f), shape.coords);
     shape.direction = dir3D::UP;
     shape.direction  = shape.rotationMatrix * shape.direction;
