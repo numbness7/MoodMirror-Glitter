@@ -325,7 +325,7 @@ class OpenGLShape {
 // #Enums -------------------------------------------------------------
 
 enum SHAPE_TYPE_3D { CUBE, PYRAMID, OCTAHEDRON};
-enum SHAPE_TYPE_2D { TRIANGLE, SQUARE, CIRCLE};
+enum SHAPE_TYPE_2D { TRIANGLE=0, SQUARE=1, CIRCLE=2};
 enum EMOTION {HAPPY=0, SAD=1, ANGRY=2, FEAR=3, SURPRISE=4, DISGUST=5 };
 /// @brief Determines how a shape goes into view and goes out of view.
 enum TRANSITIONS {FADE_T,SCALE_T,VORTEX_T, BACK_OUT_T, MOVE_FORWARD_T};
@@ -374,6 +374,7 @@ struct InitialShapeFeatures2D {
     std::vector<glm::mat3> translationMatrices;
     std::vector<glm::mat3> rotationMatrices;
     std::vector<glm::mat3> scaleMatrices;
+    std::vector<unsigned int> types;
 };
 
 struct ShapeLayerFeatures2D {

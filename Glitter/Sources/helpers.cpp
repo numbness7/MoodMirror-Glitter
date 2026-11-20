@@ -652,6 +652,7 @@ InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
     auto BORDER_THICKNESS = getFilledVector<float>(shapeLayers.getBatchCnt(), 0.0f);
     auto batchNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(), 0u);
     auto layerNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(),0u);
+    auto types = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(), 0u);
     
     for(auto& shapeLayer : shapeLayers){
         int layer = shapeLayers.getLayerCnt() - 1 - layerCount;
@@ -668,6 +669,7 @@ InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
                 rotationMatrices[shapeCount] = rotation;
                 scaleMatrices[shapeCount] = scale;
                 layerNumbers[shapeCount] = layer;
+                types[shapeCount] = shape.type;
                 batchNumbers[shapeCount] = batchCount;
                 shapeCount++;
             }
@@ -683,6 +685,7 @@ InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
     isf.translationMatrices = translationMatrices;
     isf.rotationMatrices = rotationMatrices;
     isf.scaleMatrices = scaleMatrices;
+    isf.types = types;
     return isf;
 }
 
@@ -1291,12 +1294,22 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     distances.reserve(COLOR_HEIGHT*COLOR_WIDTH);
     generateDistancesFromBorder(distances, COLOR_WIDTH, COLOR_HEIGHT, squareBorder);
     unsigned int squareBorderTexture = useFloatsToCreateTexture2D(distances.data(), COLOR_WIDTH, COLOR_HEIGHT);
-    OpenGLShape square(shapes::rectT, {blankTexture,squareBorderTexture}, true);
+
+    std::vector<glm::vec2> triangleBorder = borderVerticesFromShape(shapes::eTriT);
+    std::vector<float> tridistances; 
+    tridistances.reserve(COLOR_HEIGHT*COLOR_WIDTH);
+    generateDistancesFromBorder(tridistances, COLOR_WIDTH, COLOR_HEIGHT, triangleBorder);
+    unsigned int triangleBorderTexture = useFloatsToCreateTexture2D(tridistances.data(), COLOR_WIDTH, COLOR_HEIGHT);
     
-    LightingEnvironment lightingEnvironment;
+    auto [trash1, circleBorder] = createCircleShapeBorder(16);
+    std::vector<float> circle_distances; 
+    circle_distances.reserve(COLOR_HEIGHT*COLOR_WIDTH);
+    generateDistancesFromBorder(circle_distances, COLOR_WIDTH, COLOR_HEIGHT, circleBorder);
+    unsigned int circleBorderTexture = useFloatsToCreateTexture2D(circle_distances.data(), COLOR_WIDTH, COLOR_HEIGHT);
+
+    OpenGLShape square(shapes::rectT);
     
-    lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
-    lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    LightingEnvironment lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
 
     lightingEnvironment.view = glm::scale(lightingEnvironment.view, glm::vec3(1.2f,1.2f,0.0f));
     glm::mat4 model(1.0f);
@@ -1322,6 +1335,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     lightingEnvironment.object_shader.setUniformF("DISABLE_ALMOST_EVERYTHING", false);
     lightingEnvironment.object_shader.setUniformF("USE_MODEL_ARRAY", true);
     lightingEnvironment.object_shader.setUniformI("BATCHES_CNT", TOTAL_LAYERS*TOTAL_EMOTION_LAYERS);
+
     std::deque<ShapeLayer> shapeLayersBuffer{};
     ShapeLayerStorage shapeLayersStorage{};
     std::deque<ShapeLayer> shapeLayersDraw{};
@@ -1353,9 +1367,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     PngData pd(COLOR_WIDTH,COLOR_HEIGHT,3);
     OpenGLTextureOptions options = ttm::png3Map(COLOR_WIDTH, COLOR_HEIGHT);
     TextureAtlas textureAtlas(options, TOTAL_BATCHES,  NUMBER_OF_ATLAS_TEXTURES, "ATLAS_TEXTURES");
-    std::vector<glm::vec4> shapesVec4s;
-    OpenGLTextureOptions shapeOptions = ttm::png3Map(COLOR_WIDTH, COLOR_HEIGHT);
-    TextureAtlas shapeAtlas(options, TOTAL_BATCHES,  NUMBER_OF_ATLAS_TEXTURES, "SHAPE_ATLAS_TEXTURES");
     runawayPrinter.pause(3.0f);
     
     // #Render 2D Loop
@@ -1420,7 +1431,9 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         auto slf = loadShapeLayer2Ds(shapeLayersStorage, lineAbove, lineBelow, deltaTimer);
         std::vector<OpenGLTexture> openGLTextures{
             {"ourTexture",blankTexture},
-            {"borderTexture",squareBorderTexture},
+            {"SQUARE_BORDER_TEXTURE",squareBorderTexture},
+            {"CIRCLE_BORDER_TEXTURE",circleBorderTexture},
+            {"TRIANGLE_BORDER_TEXTURE",triangleBorderTexture},
             {"TRANS_L_TEXTURE",useTextureDataToCreateTexture(slf.translationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
             {"ROTATE_L_TEXTURE",useTextureDataToCreateTexture(slf.rotationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
             {"SCALE_L_TEXTURE",useTextureDataToCreateTexture(slf.scaleMatrices, shapeLayersStorage.getLayerCnt(), 1)},
@@ -1450,10 +1463,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             drawShapeLayers2D(lightingEnvironment, square, openGLTextures, shapeLayersStorage.getShapeCnt());
         glEnable(GL_DEPTH_TEST);
         
-        float zoom = 1.0f;
-        glm::vec2 pos;
-        
-        endRenderLoopView2D(mWindow,deltaTimer, pos, zoom);
 
         if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
             runawayPrinter.pushMessage(emotionLayersToString(shapeLayersStorage.back().emotionLayers));
@@ -1461,10 +1470,15 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             runawayPrinter.pushMessage("FPS: " + std::to_string(getFPS(deltaTimer)));
         }
         for(auto& texture : openGLTextures){
-            if(!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
+            if(!contains(texture.name, std::string("BORDER")) &&!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
                 glDeleteTextures(1, &texture.address);
             }
         }
+        float zoom = 1.0f;
+
+        glm::vec2 pos;
+        
+        endRenderLoopView2D(mWindow,deltaTimer, pos, zoom);
         
     }   
 
