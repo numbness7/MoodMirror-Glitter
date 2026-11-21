@@ -81,8 +81,8 @@
 #define BATCHES_SHARE_EMOTION 1 
 #define VEC4PERMAT3 3
 #define MAT3PERSHAPE 3
-#define VEC4PERSHAPE ((VEC4PERMAT3)*(MAT3PERSHAPE))
-#define TOTAL_VEC4_FOR_SHAPES ((VEC4PERSHAPE) * (TOTAL_SHAPES))
+#define VEC4S_PER_SHAPE ((VEC4PERMAT3)*(MAT3PERSHAPE))
+#define TOTAL_VEC4_FOR_SHAPES ((VEC4S_PER_SHAPE) * (TOTAL_SHAPES))
 
 // Emotion Data File
 #define EMOTION_DATA_FILE_PATH "../data.json"
@@ -450,6 +450,34 @@ class ShapeLayerStorage{
        unsigned int layerCnt = 0;
 };
 
+template <typename T> class PseudoVector{
+    public:
+        int getSize() const { return size; }
+        int getStrides() const { return strides; }
+        int getStride() const { return stride; }
+        bool isFull () const { return index == getSize(); }
+        PseudoVector(int strides, int stride, T element);
+        bool push_back(T element){
+            if (isFull()){
+                throw std::runtime_error("TOO BIG!\n");
+            }
+            else{
+                data[index] = element;
+                index++;
+                return isFull();
+            }
+        }
+        std::vector<T> getVector();
+    private:
+        std::vector<T> data;
+        int index;
+        int stride;
+        int strides;
+        int size;
+        T element;
+        void reset();
+};
+
 // #Main Programs -------------------------------------------------------------
 
 /// @brief Draws a 2D display of multiple colored shapes based on emotion data and Ben's visual simulator.
@@ -628,5 +656,38 @@ void fillSquare(PngData& pngData, const float size, const glm::vec2 position, co
 InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers);
 ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer);
 
-#endif
+template <typename T>
+inline PseudoVector<T>::PseudoVector(int strides, int stride, T element)
+{ 
+    this->element = element;
+    this->size = strides * stride;
+    this->stride = stride;
+    reset();
+}
 
+template <typename T>
+inline std::vector<T> PseudoVector<T>::getVector()
+{
+    if (!isFull()){
+        throw std::runtime_error("TOO SMALL!\n");
+    }
+    std::vector<T> dataCopy = getFilledVector(size, element);
+    for(int i = 0; i < dataCopy.size(); i++){
+        dataCopy[i] = data[i];
+    }
+    reset();
+    return dataCopy;
+}
+
+template <typename T>
+inline void PseudoVector<T>::reset()
+{
+    this->data.clear();
+    this->data.reserve(size);
+    for(int i = 0; i < size; i++){
+        this->data.push_back(element);
+    }
+    index = 0;
+}
+
+#endif

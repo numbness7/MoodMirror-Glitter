@@ -1338,7 +1338,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
     std::deque<ShapeLayer> shapeLayersBuffer{};
     ShapeLayerStorage shapeLayersStorage{};
-    std::deque<ShapeLayer> shapeLayersDraw{};
+    ShapeLayerStorage shapeLayersTransfer{};
     glm::vec4 backgroundColor(0.5f,0.6f,0.7f,1.0f);
     std::mutex shapeLock{};
     std::mutex timeLock{};
@@ -1369,6 +1369,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     TextureAtlas textureAtlas(options, TOTAL_BATCHES,  NUMBER_OF_ATLAS_TEXTURES, "ATLAS_TEXTURES");
     runawayPrinter.pause(3.0f);
     std::deque<OpenGLTexture> shapeTextures;
+    PseudoVector<glm::vec4> shapeVec4s(TOTAL_SHAPES/SHAPES_DIVIDER,VEC4S_PER_SHAPE,glm::vec4(0.0f));
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -1382,7 +1383,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         if(requiredLayers > 0)
         {
             requiredLayersFloat -= (float) requiredLayers;
-            transfers = transferShapeLayers(shapesSemaphore, shapeLock, requiredLayers, shapeLayersBuffer, shapeLayersStorage, currentDestructionTime, currentPulseMaxTime,pngDataDeque);
+            transfers = transferShapeLayers(shapesSemaphore, shapeLock, requiredLayers, shapeLayersBuffer, shapeLayersTransfer, currentDestructionTime, currentPulseMaxTime,pngDataDeque);
         }
         
 
@@ -1390,7 +1391,36 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             textureAtlas.replaceTexture(pngDataDeque.back().getData());
             pngDataDeque.pop_back();
         }
+        if (std::get<0>(transfers) > 0){
+            auto isf = loadShapes2D(shapeLayersTransfer);
+            for( int shapeIndex = 0; shapeIndex < isf.rotationMatrices.size(); shapeIndex++){
+                assert(shapeVec4s.getSize() % VEC4S_PER_SHAPE == 0);
+                shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                if (shapeVec4s.isFull()){
+                    if(shapeTextures.size() >= SHAPES_DIVIDER)
+                        shapeTextures.pop_back();
+                    shapeTextures.push_front({"", useTextureDataToCreateTexture(shapeVec4s.getVector(), shapeVec4s.getSize(), 1)});
+                    int i = 0;
+                    for(auto& texture : shapeTextures){
+                        texture.name = "SHAPES_TEXTURES[" + std::to_string(i) + "]";
+                        i++;
+                    }
+                }
+            }
+        }
 
+        while(!shapeLayersTransfer.empty()){
+            shapeLayersStorage.push_front(shapeLayersTransfer.back());
+            shapeLayersTransfer.pop_back();
+        }
 
         bool shapeDeleted = false;
         // Delete cubes
@@ -1429,34 +1459,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         // Draw cubes
         glDisable(GL_DEPTH_TEST);
         auto slf = loadShapeLayer2Ds(shapeLayersStorage, lineAbove, lineBelow, deltaTimer);
-        if (std::get<0>(transfers) > 0){
-            for(auto texture : shapeTextures){
-                glDeleteTextures(1, &texture.address);
-            }
-            shapeTextures.clear();
-            auto isf = loadShapes2D(shapeLayersStorage);
-            auto shapeVec4s = getFilledVector<glm::vec4>(TOTAL_VEC4_FOR_SHAPES, glm::vec4(1.0f));
-            for( int shapeIndex = 0; shapeIndex < isf.rotationMatrices.size(); shapeIndex++){
-                auto vec4s = getFilledVector<glm::vec4>(TOTAL_VEC4_FOR_SHAPES, glm::vec4(1.0f));
-                shapeVec4s[shapeIndex*VEC4PERSHAPE + 0] = glm::vec4(isf.translationMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-                shapeVec4s[shapeIndex*VEC4PERSHAPE + 1] = glm::vec4(isf.translationMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-                shapeVec4s[shapeIndex*VEC4PERSHAPE + 2] = glm::vec4(isf.translationMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-                shapeVec4s[shapeIndex*VEC4PERSHAPE + 3] = glm::vec4(isf.rotationMatrices    [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-                shapeVec4s[shapeIndex*VEC4PERSHAPE + 4] = glm::vec4(isf.rotationMatrices    [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-                shapeVec4s[shapeIndex*VEC4PERSHAPE + 5] = glm::vec4(isf.rotationMatrices    [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-                shapeVec4s[shapeIndex*VEC4PERSHAPE + 6] = glm::vec4(isf.scaleMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-                shapeVec4s[shapeIndex*VEC4PERSHAPE + 7] = glm::vec4(isf.scaleMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-                shapeVec4s[shapeIndex*VEC4PERSHAPE + 8] = glm::vec4(isf.scaleMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-            }
-            auto size = int(shapeVec4s.size()/SHAPES_DIVIDER);
-            for(auto dividerIndex = 0; dividerIndex < SHAPES_DIVIDER; dividerIndex++){
-                auto dividedShapeVec4s = getFilledVector<glm::vec4>(size,glm::vec4(1.0f));
-                for(int i = 0; i < size; i++){
-                    dividedShapeVec4s[i] = shapeVec4s[i + dividerIndex*size];
-                }
-                shapeTextures.push_front({"SHAPES_TEXTURES[" + std::to_string(dividerIndex) + "]", useTextureDataToCreateTexture(dividedShapeVec4s, dividedShapeVec4s.size(), 1)});
-            }
-        }
         std::vector<OpenGLTexture> openGLTextures{
             {"ourTexture",blankTexture},
             {"SQUARE_BORDER_TEXTURE",squareBorderTexture},
