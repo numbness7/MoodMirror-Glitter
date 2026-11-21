@@ -10,6 +10,7 @@ out vec4 FragColor;
 uniform int borderCase;
 flat in int InstanceID;
 flat in uint TYPE_OUT;
+flat in int SHAPE_TEXTURE_INDEX;
 
 
 uniform int maxLayer;
@@ -127,6 +128,20 @@ void main(){
         finalFragColor = finalTextureColor*borderColor;
     }
     FragColor = finalFragColor;
+    //switch(SHAPE_TEXTURE_INDEX){
+    //    case 0:
+    //        FragColor *= vec4(1.0f,0.0f,0.0f,1.0f);
+    //        break;
+    //    case 1:
+    //        FragColor *= vec4(0.0f,1.0f,0.0f,1.0f);
+    //        break;
+    //    case 2:
+    //        FragColor *= vec4(0.0f,0.0f,1.0f,1.0f);
+    //        break;
+    //    case 3:
+    //        FragColor *= vec4(0.0f,0.0f,0.0f,1.0f);
+    //        break;
+    //}
 }
 
 ivec2 getTexelCoord(int index){

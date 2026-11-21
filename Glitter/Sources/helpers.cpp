@@ -1442,12 +1442,20 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             shapeVec4s[shapeIndex*VEC4PERSHAPE + 7] = glm::vec4(isf.scaleMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
             shapeVec4s[shapeIndex*VEC4PERSHAPE + 8] = glm::vec4(isf.scaleMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
         }
+        std::deque<OpenGLTexture> shapeTextures;
+        auto size = int(shapeVec4s.size()/SHAPES_DIVIDER);
+        for(auto dividerIndex = 0; dividerIndex < SHAPES_DIVIDER; dividerIndex++){
+            auto dividedShapeVec4s = getFilledVector<glm::vec4>(size,glm::vec4(1.0f));
+            for(int i = 0; i < size; i++){
+                dividedShapeVec4s[i] = shapeVec4s[i + dividerIndex*size];
+            }
+            shapeTextures.push_front({"SHAPES_TEXTURES[" + std::to_string(dividerIndex) + "]", useTextureDataToCreateTexture(dividedShapeVec4s, dividedShapeVec4s.size(), 1)});
+        }
         std::vector<OpenGLTexture> openGLTextures{
             {"ourTexture",blankTexture},
             {"SQUARE_BORDER_TEXTURE",squareBorderTexture},
             {"CIRCLE_BORDER_TEXTURE",circleBorderTexture},
             {"TRIANGLE_BORDER_TEXTURE",triangleBorderTexture},
-            {"SHAPES_TEXTURE", useTextureDataToCreateTexture(shapeVec4s.data(), shapeVec4s.size(), 1)},
             {"TRANS_L_TEXTURE",useTextureDataToCreateTexture(slf.translationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
             {"ROTATE_L_TEXTURE",useTextureDataToCreateTexture(slf.rotationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
             {"SCALE_L_TEXTURE",useTextureDataToCreateTexture(slf.scaleMatrices, shapeLayersStorage.getLayerCnt(), 1)},
@@ -1457,6 +1465,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             {"BORDER_THICKNESS_TEXTURE",useTextureDataToCreateTexture(isf.borderThickness, shapeLayersStorage.getShapeCnt(), 1)},
         };
         for(const auto& texture : textureAtlas.getTextures())
+            openGLTextures.push_back(texture);
+        for(const auto& texture : shapeTextures)
             openGLTextures.push_back(texture);
 
 

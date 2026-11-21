@@ -18,7 +18,9 @@ uniform int SIZE;
 uniform highp sampler2D TRANS_L_TEXTURE;
 uniform highp sampler2D ROTATE_L_TEXTURE;
 uniform highp sampler2D SCALE_L_TEXTURE;
-uniform highp sampler2D SHAPES_TEXTURE;
+const int SHAPE_TEXTURES_CNT = 16;
+const int STRIDE = 9;
+uniform highp sampler2D SHAPES_TEXTURES[16];
 uniform int SHAPES_PER_LAYER;
 uniform int SHAPES_PER_BATCH;
 uniform int TOTAL_BATCHES;
@@ -48,6 +50,7 @@ SHAPE_PROPS getShapeProps();
 flat out int LAYER_OUT;
 flat out int BATCH_OUT;
 flat out uint TYPE_OUT;
+flat out int SHAPE_TEXTURE_INDEX;
 
 void main(){
     InstanceID = gl_InstanceID;
@@ -185,9 +188,61 @@ float getDistFromTexture(highp sampler2D distTexture, vec2 coords){
 }
 
 SHAPE_PROPS getShapeProps(){
-    vec4 shapeVec4s[9];
-    for(int i = 0; i < 9; i++){
-        shapeVec4s[i] = getTexel(SHAPES_TEXTURE, InstanceID*9 + i);
+    vec4 shapeVec4s[STRIDE];
+    int TOTAL_SHAPES = SHAPES_PER_LAYER*TOTAL_LAYERS;
+    SHAPE_TEXTURE_INDEX = (InstanceID*SHAPE_TEXTURES_CNT)/TOTAL_SHAPES;
+    int subIndex =     STRIDE * ((InstanceID) % (TOTAL_SHAPES/SHAPE_TEXTURES_CNT));
+    for(int i = 0; i < STRIDE; i++){
+        switch (SHAPE_TEXTURE_INDEX){
+            case 0:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[0], subIndex + i);
+                break;
+            case 1:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[1], subIndex + i);
+                break;
+            case 2:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[2], subIndex + i);
+                break;
+            case 3:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[3], subIndex + i);
+                break;
+            case 4:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[4], subIndex + i);
+                break;
+            case 5:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[5], subIndex + i);
+                break;
+            case 6:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[6], subIndex + i);
+                break;
+            case 7:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[7], subIndex + i);
+                break;
+            case 8:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[8], subIndex + i);
+                break;
+            case 9:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[9], subIndex + i);
+                break;
+            case 10:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[10], subIndex + i);
+                break;
+            case 11:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[11], subIndex + i);
+                break;
+            case 12:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[12], subIndex + i);
+                break;
+            case 13:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[13], subIndex + i);
+                break;
+            case 14:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[14], subIndex + i);
+                break;
+            case 15:
+                shapeVec4s[i] = getTexel(SHAPES_TEXTURES[15], subIndex + i);
+                break;
+        }
     }
     mat3 translation;
     mat3 rotation;
