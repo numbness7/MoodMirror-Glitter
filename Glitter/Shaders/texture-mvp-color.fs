@@ -2,6 +2,7 @@
 precision highp float;
 precision highp int;
 in vec2 ourTexCoord;
+flat in int ATLAS_TAG_OUT;
 flat in int LAYER_OUT;
 flat in int BATCH_OUT;
 out vec4 FragColor;
@@ -128,20 +129,109 @@ void main(){
         finalFragColor = finalTextureColor*borderColor;
     }
     FragColor = finalFragColor;
-    //switch(SHAPE_TEXTURE_INDEX){
-    //    case 0:
-    //        FragColor *= vec4(1.0f,0.0f,0.0f,1.0f);
-    //        break;
-    //    case 1:
-    //        FragColor *= vec4(0.0f,1.0f,0.0f,1.0f);
-    //        break;
-    //    case 2:
-    //        FragColor *= vec4(0.0f,0.0f,1.0f,1.0f);
-    //        break;
-    //    case 3:
-    //        FragColor *= vec4(0.0f,0.0f,0.0f,1.0f);
-    //        break;
-    //}
+    if(LAYER_OUT == -1)
+        FragColor = vec4(1.0f,0.0f,1.0f,1.0f);
+    // switch(LAYER_OUT % 16){
+    //     case 0:
+    //         FragColor *= vec4(1.0f,1.0f,1.0f,1.0f);
+    //         break;
+    //     case 1:
+    //         FragColor *= vec4(0.0f,0.0f,0.2f,1.0f);
+    //         break;
+    //     case 2:
+    //         FragColor *= vec4(0.0f,0.0f,0.3f,1.0f);
+    //         break;
+    //     case 3:
+    //         FragColor *= vec4(0.0f,0.0f,0.4f,1.0f);
+    //         break;
+    //     case 4:
+    //         FragColor *= vec4(0.0f,0.0f,0.5f,1.0f);
+    //         break;
+    //     case 5:
+    //         FragColor *= vec4(0.0f,0.0f,0.6f,1.0f);
+    //         break;
+    //     case 6:
+    //         FragColor *= vec4(0.0f,0.0f,0.7f,1.0f);
+    //         break;
+    //     case 7:
+    //         FragColor *= vec4(0.0f,0.0f,0.8f,1.0f);
+    //         break;
+    //     case 8:
+    //         FragColor *= vec4(0.0f,0.0f,0.9f,1.0f);
+    //         break;
+    //     case 9:
+    //         FragColor *= vec4(0.0f,0.0f,1.0f,1.0f);
+    //         break;
+    //     case 10:
+    //         FragColor *= vec4(0.0f,0.1f,0.0f,1.0f);
+    //         break;
+    //     case 11:
+    //         FragColor *= vec4(0.0f,0.2f,0.0f,1.0f);
+    //         break;
+    //     case 12:
+    //         FragColor *= vec4(0.0f,0.3f,0.0f,1.0f);
+    //         break;
+    //     case 13:
+    //         FragColor *= vec4(0.0f,0.4f,0.0f,1.0f);
+    //         break;
+    //     case 14:
+    //         FragColor *= vec4(0.0f,0.5f,0.0f,1.0f);
+    //         break;
+    //     case 15:
+    //         FragColor *= vec4(0.0f,0.6f,0.0f,1.0f);
+    //         break;
+    //     case 16:
+    //         FragColor *= vec4(0.0f,0.7f,0.0f,1.0f);
+    //         break;
+    //     case 17:
+    //         FragColor *= vec4(0.0f,0.8f,0.0f,1.0f);
+    //         break;
+    //     case 18:
+    //         FragColor *= vec4(0.0f,0.9f,0.0f,1.0f);
+    //         break;
+    //     case 19:
+    //         FragColor *= vec4(0.0f,1.0f,0.0f,1.0f);
+    //         break;
+    //     case 20:
+    //         FragColor *= vec4(0.1f,0.0f,0.0f,1.0f);
+    //         break;
+    //     case 21:
+    //         FragColor *= vec4(0.2f,0.0f,0.0f,1.0f);
+    //         break;
+    //     case 22:
+    //         FragColor *= vec4(0.3f,0.0f,0.0f,1.0f);
+    //         break;
+    //     case 23:
+    //         FragColor *= vec4(0.4f,0.0f,0.0f,1.0f);
+    //         break;
+    //     case 24:
+    //         FragColor *= vec4(0.5f,0.0f,0.0f,1.0f);
+    //         break;
+    //     case 25:
+    //         FragColor *= vec4(0.6f,0.0f,0.0f,1.0f);
+    //         break;
+    //     case 26:
+    //         FragColor *= vec4(0.7f,0.0f,0.0f,1.0f);
+    //         break;
+    //     case 27:
+    //         FragColor *= vec4(0.8f,0.0f,0.0f,1.0f);
+    //         break;
+    //     case 28:
+    //         FragColor *= vec4(0.9f,0.0f,0.0f,1.0f);
+    //         break;
+    //     case 29:
+    //         FragColor *= vec4(1.0f,0.0f,0.0f,1.0f);
+    //         break;
+    //     case 30:
+    //         FragColor *= vec4(0.1f,0.1f,0.1f,1.0f);
+    //         break;
+    //     case 31:
+    //         FragColor *= vec4(0.2f,0.2f,0.2f,1.0f);
+    //         break;
+    //     case 32:
+    //         FragColor *= vec4(0.2f,0.2f,0.2f,1.0f);
+    //         break;
+    // }
 }
 
 ivec2 getTexelCoord(int index){
@@ -288,7 +378,7 @@ uint getBatch(){
 
 vec4 getBenTexture(){
     int batchNumber = int(getBatch());
-    int index = (TOTAL_BATCHES - batchNumber - 1) - ATLAS_SHIFT_LEFT;
+    int index = ATLAS_TAG_OUT;
     if(index < 0)
         index = BATCHES_CNT + index;
     int atlasIndex = index/BATCHES_PER_ATLAS_TEXTURE;

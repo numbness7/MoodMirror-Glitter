@@ -642,7 +642,7 @@ glm::vec3 vectorToVec3(std::vector<float> a){
     return glm::vec3(a[0],a[1],a[2]);
 }
 InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
-    glDepthMask(false);
+
     unsigned layerCount = 0;
     unsigned batchCount = 0;
     unsigned shapeCount = 0;
@@ -653,9 +653,13 @@ InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
     auto batchNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(), 0u);
     auto layerNumbers = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(),0u);
     auto types = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(), 0u);
+    auto layerTags = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(), 0u);
+    auto batchTags = getFilledVector<unsigned int>(shapeLayers.getShapeCnt(), 0u);
+
     
     for(auto& shapeLayer : shapeLayers){
         int layer = shapeLayers.getLayerCnt() - 1 - layerCount;
+
         auto transitions = shapeLayer.transitions;
         auto pulses = shapeLayer.pulses;
         for(auto& shapeBatch : shapeLayer.batches){
@@ -671,6 +675,8 @@ InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
                 layerNumbers[shapeCount] = layer;
                 types[shapeCount] = shape.type;
                 batchNumbers[shapeCount] = batchCount;
+                layerTags[shapeCount] = shape.layerTag;
+                batchTags[shapeCount] = shape.batchTag;
                 shapeCount++;
             }
             BORDER_THICKNESS[batchCount] = shapeBatch.shapes.back().borderThickness;
@@ -686,11 +692,29 @@ InitialShapeFeatures2D loadShapes2D(ShapeLayerStorage& shapeLayers){
     isf.rotationMatrices = rotationMatrices;
     isf.scaleMatrices = scaleMatrices;
     isf.types = types;
+    isf.layerTags = layerTags;
+    isf.batchTags = batchTags;
+
     return isf;
 }
 
+BatchFeatures2D loadBatches2D(ShapeLayerStorage& shapeLayers){
+    unsigned layerCount = 0;
+    auto tags = getFilledVector<unsigned int>(shapeLayers.getBatchCnt(), 0u);
+    
+    int batchCount = 0;
+    for(const auto& shapeLayer : shapeLayers){
+        for(const auto& batch : shapeLayer.batches){
+            tags[batchCount] = batch.tag;
+            batchCount++;
+        }
+        layerCount++;
+    }
+    BatchFeatures2D bf;
+    bf.tags = tags;
+    return bf;
+}
 ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer){
-    glDepthMask(false);
     unsigned layerCount = 0;
     auto translationMatrices = getFilledVector<glm::mat3>(shapeLayers.getLayerCnt(), glm::mat3());
     auto rotationMatrices = getFilledVector<glm::mat3>(shapeLayers.getLayerCnt(), glm::mat3());
@@ -700,6 +724,7 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
     auto destructionTimes = getFilledVector<float>(shapeLayers.getLayerCnt(), 0.0f);
     auto destructionTimePasseds = getFilledVector<float>(shapeLayers.getLayerCnt(), 0.0f);
     auto SL_SCALEs = getFilledVector<glm::vec2>(shapeLayers.getLayerCnt(), glm::vec2());
+    auto tags = getFilledVector<unsigned int>(shapeLayers.getLayerCnt(), 0u);
     
     for(auto& shapeLayer : shapeLayers){
         int layer = shapeLayers.getLayerCnt() - 1 - layerCount;
@@ -760,6 +785,7 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
         destructionTimes[layer] = waitTime;
         destructionTimePasseds[layer] = passedTime;
         SL_SCALEs[layer] = shapeLayer.SL_SCALE;
+        tags[layer] = shapeLayer.layerTag; // HORRIBLE AWFUL HACK
         layerCount++;
     }
     ShapeLayerFeatures2D slf;
@@ -771,6 +797,7 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
     slf.translationMatrices = translationMatrices;
     slf.scaleMatrices = scaleMatrices;
     slf.sLSCALEs = SL_SCALEs;
+    slf.tags = tags;
     return slf;
 }
 
@@ -955,6 +982,7 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
         if(alarmSounded){
             std::vector<std::vector<float>> emotionArrays{};
             shapeLayer = {};
+            unsigned int shapeLayerTag = rand_range_uniform(0, std::numeric_limits<unsigned int>::max());
             for(auto const& emotionLayer : emotionLayers){
                 auto const& emotionArray = emotionLayer.emotionArray;
                 emotionArrays.push_back(emotionArray);
@@ -979,11 +1007,12 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
                 float alphaScale = 1.0f;
                 alphaScale = clamp(rand_range_normal(AVE_ALPHA, DEV_ALPHA), MIN_ALPHA, MAX_ALPHA);
                 auto const& [count, size] = std::tuple<unsigned int, float>{(unsigned int)1,(float)1.0f};
+                unsigned int batchTag = rand_range_uniform(0, std::numeric_limits<unsigned int>::max());
 
-                ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, pulses};
+                ShapeBatch shapeBatch{std::deque<ShapeProperties2D>{}, emotionLayer.pngData, pulses, batchTag};
 
                 for (int shapeIndex = 0; shapeIndex < SHAPES_IN_BATCH*count; shapeIndex++){
-                    auto shape = generateShape2D(transitions, coords, emotionCoords3D, rotAxis, rotScale, emotionRGB, alphaScale, useBenTexture, type, 1.0f, 2, size);
+                    auto shape = generateShape2D(transitions, coords, emotionCoords3D, rotAxis, rotScale, emotionRGB, alphaScale, useBenTexture, type, 1.0f, 2, size, shapeLayerTag, batchTag);
                     shapeBatch.shapes.push_front(shape);
                     shapeAdditions++;
                 }
@@ -994,6 +1023,7 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
             shapeLayer.transitions = emotionArrayToTransitions(shapeLayer.emotionArray);
             shapeLayer.emotionLayers = emotionLayers;
             shapeLayer.pulses = emotionArrayToPulses(shapeLayer.emotionArray);
+            shapeLayer.layerTag = shapeLayerTag;
             {
                 shapesSemaphore->acquire();
                 std::lock_guard<std::mutex> guard(*shapeLock);
@@ -1367,6 +1397,9 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     PngData pd(COLOR_WIDTH,COLOR_HEIGHT,3);
     OpenGLTextureOptions options = ttm::png3Map(COLOR_WIDTH, COLOR_HEIGHT);
     TextureAtlas textureAtlas(options, TOTAL_BATCHES,  NUMBER_OF_ATLAS_TEXTURES, "ATLAS_TEXTURES");
+    unsigned int trashInt;
+    OpenGLTextureOptions tagOptions = ttm::map2D(&trashInt, 1,1);
+    TextureAtlas tagAtlas(tagOptions, TOTAL_BATCHES,  1, "ATLAS_TAGS_TEXTURE");
     runawayPrinter.pause(3.0f);
     std::deque<OpenGLTexture> shapeTextures;
     PseudoVector<glm::vec4> shapeVec4s(TOTAL_SHAPES/SHAPES_DIVIDER,VEC4S_PER_SHAPE,glm::vec4(0.0f));
@@ -1387,23 +1420,26 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         }
         
 
-        while(!pngDataDeque.empty()){
-            textureAtlas.replaceTexture(pngDataDeque.back().getData());
-            pngDataDeque.pop_back();
+        for(const auto& layer : shapeLayersTransfer)
+        {
+            for(const auto& batch : layer.batches){
+                textureAtlas.replaceTexture(batch.pngData.getData());
+                tagAtlas.replaceTexture(&batch.tag);
+            }
         }
         if (std::get<0>(transfers) > 0){
             auto isf = loadShapes2D(shapeLayersTransfer);
             for( int shapeIndex = 0; shapeIndex < isf.rotationMatrices.size(); shapeIndex++){
                 assert(shapeVec4s.getSize() % VEC4S_PER_SHAPE == 0);
                 shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.layerTags[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.batchTags[shapeIndex])));
                 shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
                 shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
                 shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][0],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][1],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][2],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
                 if (shapeVec4s.isFull()){
                     if(shapeTextures.size() >= SHAPES_DIVIDER)
                         shapeTextures.pop_back();
@@ -1459,6 +1495,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         // Draw cubes
         glDisable(GL_DEPTH_TEST);
         auto slf = loadShapeLayer2Ds(shapeLayersStorage, lineAbove, lineBelow, deltaTimer);
+        auto bf = loadBatches2D(shapeLayersStorage);
         std::vector<OpenGLTexture> openGLTextures{
             {"ourTexture",blankTexture},
             {"SQUARE_BORDER_TEXTURE",squareBorderTexture},
@@ -1470,8 +1507,12 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             {"INNER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.innerColors, shapeLayersStorage.getLayerCnt(), 1)},
             {"OUTER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.outerColors, shapeLayersStorage.getLayerCnt(), 1)},
             {"SL_SCALES_TEXTURE",useTextureDataToCreateTexture(slf.sLSCALEs, shapeLayersStorage.getLayerCnt(), 1)},
+            {"LAYER_TAGS_TEXTURE",useTextureDataToCreateTexture(slf.tags, shapeLayersStorage.getLayerCnt(), 1)},
+            {"BATCH_TAGS_TEXTURE",useTextureDataToCreateTexture(bf.tags, shapeLayersStorage.getBatchCnt(), 1)}
         };
         for(const auto& texture : textureAtlas.getTextures())
+            openGLTextures.push_back(texture);
+        for(const auto& texture : tagAtlas.getTextures())
             openGLTextures.push_back(texture);
         for(const auto& texture : shapeTextures)
             openGLTextures.push_back(texture);
@@ -1484,9 +1525,11 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         lightingEnvironment.object_shader.setUniformI("BATCHES_PER_ATLAS_TEXTURE", textureAtlas.getTexturesPerAtlas()); // TAG
         lightingEnvironment.object_shader.setUniformI("SHAPES_PER_LAYER", SHAPES_PER_LAYER); // TAG
         lightingEnvironment.object_shader.setUniformI("SHAPES_PER_BATCH", SHAPES_IN_BATCH); // TAG
+        lightingEnvironment.object_shader.setUniformI("BATCHES_PER_LAYER", BATCHES_PER_LAYER); // TAG
         lightingEnvironment.object_shader.setUniformI("TOTAL_LAYERS", TOTAL_LAYERS); // TAG
         lightingEnvironment.object_shader.setUniformI("TOTAL_BATCHES", TOTAL_BATCHES); // TAG
         
+        glDisable(GL_DEPTH_TEST);
         if(!shapeLayersStorage.empty())
             drawShapeLayers2D(lightingEnvironment, square, openGLTextures, shapeLayersStorage.getShapeCnt());
         glEnable(GL_DEPTH_TEST);
@@ -1706,7 +1749,7 @@ float getElapsedTime(){
 
 // #Unordered -------------------------------------------------------------
 
-ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, const glm::vec3 emotionCoords3D, const glm::vec3 rotAxis, const float rotScale, const glm::vec3 emotionRGB, const float alphaScale, const bool useBenTexture, const SHAPE_TYPE_2D type, const float softnessOrThickness, const unsigned int borderCase, const float emotionScale){
+ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, const glm::vec3 emotionCoords3D, const glm::vec3 rotAxis, const float rotScale, const glm::vec3 emotionRGB, const float alphaScale, const bool useBenTexture, const SHAPE_TYPE_2D type, const float softnessOrThickness, const unsigned int borderCase, const float emotionScale, unsigned int tag, unsigned int batchTag){
     
     float maxScale = MAX_SCALE;
     float minScale = MIN_SCALE;
@@ -1752,6 +1795,8 @@ ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::
     shape.direction  = shape.rotationMatrix * shape.direction;
     shape.direction = glm::normalize(shape.direction);
     shape.rotatedCoords = glm::mat3(shape.rotationMatrix) * glm::vec3(shape.coords.x, 0.0f, 0.0f);
+    shape.layerTag = tag;
+    shape.batchTag = batchTag;
     return shape;
 }
 

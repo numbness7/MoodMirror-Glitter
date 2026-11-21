@@ -69,10 +69,10 @@
 // Layer info
 
 #define MAXIMUM_IMAGE_POWER 32
-#define TOTAL_LAYERS 16
-#define SHAPES_IN_BATCH 32
-#define MID_LAYER 8
-#define TOTAL_EMOTION_LAYERS  3
+#define TOTAL_LAYERS 64
+#define SHAPES_IN_BATCH 16
+#define MID_LAYER 32
+#define TOTAL_EMOTION_LAYERS 16
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
 #define TOTAL_SHAPES (TOTAL_BATCHES*SHAPES_IN_BATCH)
 #define SHAPES_DIVIDER 16
@@ -91,7 +91,7 @@
 // Spawn Times
 
 #define SHAPE_INITIAL_SPAWN_TIME 0.15f
-#define DESTRUCTION_TIME         0.25f
+#define DESTRUCTION_TIME         0.5f
 #define UPDATE_ITERATIONS 10.0f
 
 // Pulse
@@ -184,7 +184,7 @@
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 0.1f
+#define SCALE_MULTIPLIER 0.5f
 #define MAX_SCALE 1.10f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.10f*SCALE_MULTIPLIER
@@ -367,6 +367,8 @@ struct ShapeProperties2D {
     glm::vec2 rotatedCoords;
     glm::vec2 rumbleCoords = glm::vec2(0.0f);
     float spin = 0.0f;
+    unsigned int layerTag;
+    unsigned int batchTag;
 };
 
 struct InitialShapeFeatures2D {
@@ -377,6 +379,8 @@ struct InitialShapeFeatures2D {
     std::vector<glm::mat3> rotationMatrices;
     std::vector<glm::mat3> scaleMatrices;
     std::vector<unsigned int> types;
+    std::vector<unsigned int> layerTags;
+    std::vector<unsigned int> batchTags;
 };
 
 struct ShapeLayerFeatures2D {
@@ -388,6 +392,10 @@ struct ShapeLayerFeatures2D {
     std::vector<glm::vec4> outerColors;
     std::vector<float> destructionTimes;
     std::vector<float> destructionTimePasseds;
+    std::vector<unsigned int> tags;
+};
+struct BatchFeatures2D {
+    std::vector<unsigned int> tags;
 };
 
 /// @brief The shader information for drawing shapes.
@@ -402,6 +410,7 @@ struct ShapeBatch{
     std::deque<ShapeProperties2D> shapes;
     PngData pngData;
     std::map<PULSES, bool> pulses;
+    unsigned int tag;
 };
 
 /// @brief Stores emotion data and coloring.
@@ -425,6 +434,7 @@ struct ShapeLayer{
    glm::vec4 outerColor = glm::vec4(1.0f);
    float spin = 0.0f;
    glm::vec2 rumbleCoords = glm::vec2(0.0f);
+   unsigned int layerTag;
 };
 
 typedef std::deque<ShapeLayer> VisualLayer;
@@ -629,7 +639,7 @@ int startBensEmotionSimulator(float frequency, bool cycle = true, bool random = 
 int startMineBensEmotionSimulator(float frequency, bool cycle, bool random);
 
 // #Unordered -------------------------------------------------------------
-ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, const glm::vec3 emotionCoords3D, const glm::vec3 rotAxis, const float rotScale, const glm::vec3 emotionRGB, const float alphaScale, const bool useBenTexture, const SHAPE_TYPE_2D type, const float softnessOrThickness, const unsigned int borderCase, const float emotionScale);
+ShapeProperties2D generateShape2D(std::map<TRANSITIONS, bool> transitions, glm::vec3 coords, const glm::vec3 emotionCoords3D, const glm::vec3 rotAxis, const float rotScale, const glm::vec3 emotionRGB, const float alphaScale, const bool useBenTexture, const SHAPE_TYPE_2D type, const float softnessOrThickness, const unsigned int borderCase, const float emotionScale, unsigned int tag, unsigned int batchTag);
 float emotionIntensitiesWeighting(EmotionIntensities eI, EmotionIntensities weights, float minT, float maxT);
 void printEmotionLayers(std::deque<EmotionLayer> emotionLayers);
 std::map<PULSES,bool> emotionArrayToPulses(std::vector<float> emotionArray);

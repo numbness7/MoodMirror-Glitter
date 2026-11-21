@@ -155,11 +155,11 @@ unsigned int useTextureDataToCreateTexture(const void* data, OpenGLTextureOption
             break;
         case GL_RGB:
         case GL_RGB_INTEGER:
-            stores = 3;
+            stores = 1;
             break;
         case GL_RG:
         case GL_RG_INTEGER:
-            stores = 2;
+            stores = 1;
             break;
         case GL_RED:
         case GL_RED_INTEGER:

@@ -8,7 +8,7 @@ float rand_range_uniform(float min, float max){
 }
 
 unsigned int rand_range_uniform(unsigned int min, unsigned int max){
-    std::uniform_int_distribution<> dis(min,max);
+    std::uniform_int_distribution<unsigned int> dis(min,max);
     return dis(gen);
 }
 
