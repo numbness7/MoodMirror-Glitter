@@ -1368,6 +1368,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     OpenGLTextureOptions options = ttm::png3Map(COLOR_WIDTH, COLOR_HEIGHT);
     TextureAtlas textureAtlas(options, TOTAL_BATCHES,  NUMBER_OF_ATLAS_TEXTURES, "ATLAS_TEXTURES");
     runawayPrinter.pause(3.0f);
+    std::deque<OpenGLTexture> shapeTextures;
     
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow)) {
@@ -1427,29 +1428,34 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         }
         // Draw cubes
         glDisable(GL_DEPTH_TEST);
-        auto isf = loadShapes2D(shapeLayersStorage);
         auto slf = loadShapeLayer2Ds(shapeLayersStorage, lineAbove, lineBelow, deltaTimer);
-        auto shapeVec4s = getFilledVector<glm::vec4>(TOTAL_VEC4_FOR_SHAPES, glm::vec4(1.0f));
-        for( int shapeIndex = 0; shapeIndex < isf.rotationMatrices.size(); shapeIndex++){
-            auto vec4s = getFilledVector<glm::vec4>(TOTAL_VEC4_FOR_SHAPES, glm::vec4(1.0f));
-            shapeVec4s[shapeIndex*VEC4PERSHAPE + 0] = glm::vec4(isf.translationMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-            shapeVec4s[shapeIndex*VEC4PERSHAPE + 1] = glm::vec4(isf.translationMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-            shapeVec4s[shapeIndex*VEC4PERSHAPE + 2] = glm::vec4(isf.translationMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-            shapeVec4s[shapeIndex*VEC4PERSHAPE + 3] = glm::vec4(isf.rotationMatrices    [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-            shapeVec4s[shapeIndex*VEC4PERSHAPE + 4] = glm::vec4(isf.rotationMatrices    [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-            shapeVec4s[shapeIndex*VEC4PERSHAPE + 5] = glm::vec4(isf.rotationMatrices    [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-            shapeVec4s[shapeIndex*VEC4PERSHAPE + 6] = glm::vec4(isf.scaleMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-            shapeVec4s[shapeIndex*VEC4PERSHAPE + 7] = glm::vec4(isf.scaleMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-            shapeVec4s[shapeIndex*VEC4PERSHAPE + 8] = glm::vec4(isf.scaleMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
-        }
-        std::deque<OpenGLTexture> shapeTextures;
-        auto size = int(shapeVec4s.size()/SHAPES_DIVIDER);
-        for(auto dividerIndex = 0; dividerIndex < SHAPES_DIVIDER; dividerIndex++){
-            auto dividedShapeVec4s = getFilledVector<glm::vec4>(size,glm::vec4(1.0f));
-            for(int i = 0; i < size; i++){
-                dividedShapeVec4s[i] = shapeVec4s[i + dividerIndex*size];
+        if (std::get<0>(transfers) > 0){
+            for(auto texture : shapeTextures){
+                glDeleteTextures(1, &texture.address);
             }
-            shapeTextures.push_front({"SHAPES_TEXTURES[" + std::to_string(dividerIndex) + "]", useTextureDataToCreateTexture(dividedShapeVec4s, dividedShapeVec4s.size(), 1)});
+            shapeTextures.clear();
+            auto isf = loadShapes2D(shapeLayersStorage);
+            auto shapeVec4s = getFilledVector<glm::vec4>(TOTAL_VEC4_FOR_SHAPES, glm::vec4(1.0f));
+            for( int shapeIndex = 0; shapeIndex < isf.rotationMatrices.size(); shapeIndex++){
+                auto vec4s = getFilledVector<glm::vec4>(TOTAL_VEC4_FOR_SHAPES, glm::vec4(1.0f));
+                shapeVec4s[shapeIndex*VEC4PERSHAPE + 0] = glm::vec4(isf.translationMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+                shapeVec4s[shapeIndex*VEC4PERSHAPE + 1] = glm::vec4(isf.translationMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+                shapeVec4s[shapeIndex*VEC4PERSHAPE + 2] = glm::vec4(isf.translationMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+                shapeVec4s[shapeIndex*VEC4PERSHAPE + 3] = glm::vec4(isf.rotationMatrices    [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+                shapeVec4s[shapeIndex*VEC4PERSHAPE + 4] = glm::vec4(isf.rotationMatrices    [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+                shapeVec4s[shapeIndex*VEC4PERSHAPE + 5] = glm::vec4(isf.rotationMatrices    [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+                shapeVec4s[shapeIndex*VEC4PERSHAPE + 6] = glm::vec4(isf.scaleMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+                shapeVec4s[shapeIndex*VEC4PERSHAPE + 7] = glm::vec4(isf.scaleMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+                shapeVec4s[shapeIndex*VEC4PERSHAPE + 8] = glm::vec4(isf.scaleMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex]));
+            }
+            auto size = int(shapeVec4s.size()/SHAPES_DIVIDER);
+            for(auto dividerIndex = 0; dividerIndex < SHAPES_DIVIDER; dividerIndex++){
+                auto dividedShapeVec4s = getFilledVector<glm::vec4>(size,glm::vec4(1.0f));
+                for(int i = 0; i < size; i++){
+                    dividedShapeVec4s[i] = shapeVec4s[i + dividerIndex*size];
+                }
+                shapeTextures.push_front({"SHAPES_TEXTURES[" + std::to_string(dividerIndex) + "]", useTextureDataToCreateTexture(dividedShapeVec4s, dividedShapeVec4s.size(), 1)});
+            }
         }
         std::vector<OpenGLTexture> openGLTextures{
             {"ourTexture",blankTexture},
@@ -1462,7 +1468,6 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             {"INNER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.innerColors, shapeLayersStorage.getLayerCnt(), 1)},
             {"OUTER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.outerColors, shapeLayersStorage.getLayerCnt(), 1)},
             {"SL_SCALES_TEXTURE",useTextureDataToCreateTexture(slf.sLSCALEs, shapeLayersStorage.getLayerCnt(), 1)},
-            {"BORDER_THICKNESS_TEXTURE",useTextureDataToCreateTexture(isf.borderThickness, shapeLayersStorage.getShapeCnt(), 1)},
         };
         for(const auto& texture : textureAtlas.getTextures())
             openGLTextures.push_back(texture);
@@ -1491,7 +1496,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             runawayPrinter.pushMessage("FPS: " + std::to_string(getFPS(deltaTimer)));
         }
         for(auto& texture : openGLTextures){
-            if(!contains(texture.name, std::string("BORDER")) &&!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
+            if(!contains(texture.name, std::string("SHAPES_TEXTURES")) && !contains(texture.name, std::string("BORDER")) &&!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
                 glDeleteTextures(1, &texture.address);
             }
         }
