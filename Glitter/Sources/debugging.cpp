@@ -3,20 +3,20 @@ namespace debug{
     void periodicallyPrint(PrintInfo *printInfo)
     {
         bool tempTerminate = false;
-        float tempWaitTime;
+        float tempWaitTime = 1.0f;
         float pauseTime = 0.0f;
         bool queuedItems = false;
         while(!tempTerminate){
             std::this_thread::sleep_for(std::chrono::milliseconds((unsigned int)(1000.0f*pauseTime)));
             std::this_thread::sleep_for(std::chrono::milliseconds((unsigned int)(1000.0f*tempWaitTime)));
             {
-                std::lock_guard<std::mutex>(printInfo->lock);
+                std::lock_guard<std::mutex> guard(printInfo->lock);
                 tempTerminate = printInfo->terminate;
                 tempWaitTime = printInfo->waitTime;
                 queuedItems = !printInfo->printQueue.empty();
             }
             while(queuedItems){
-                std::lock_guard<std::mutex>(printInfo->lock);
+                std::lock_guard<std::mutex> guard(printInfo->lock);
                 if(printInfo->pauseTime > 0.0f)
                     break;
                 if(printInfo->output == OUTPUT::TERMINAL)
@@ -28,7 +28,7 @@ namespace debug{
                 queuedItems = !printInfo->printQueue.empty();
             }
             {
-                std::lock_guard<std::mutex>(printInfo->lock);
+                std::lock_guard<std::mutex> guard(printInfo->lock);
                 pauseTime = printInfo->pauseTime;
                 printInfo->pauseTime = 0.0f;
             }

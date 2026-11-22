@@ -57,7 +57,7 @@
 #define FULL_SCREEN false
 
 // Hardware Specific Configuration
-#define ON_PI false
+#define ON_PI true
 
 // Default paths
 #define SHADER_PATH (std::string("Glitter/Shaders/"))
@@ -69,10 +69,10 @@
 // Layer info
 
 #define MAXIMUM_IMAGE_POWER 32
-#define TOTAL_LAYERS 64
-#define SHAPES_IN_BATCH 16
-#define MID_LAYER 32
-#define TOTAL_EMOTION_LAYERS 16
+#define TOTAL_LAYERS 32
+#define SHAPES_IN_BATCH 2
+#define MID_LAYER 16
+#define TOTAL_EMOTION_LAYERS 8
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
 #define TOTAL_SHAPES (TOTAL_BATCHES*SHAPES_IN_BATCH)
 #define SHAPES_DIVIDER 16
