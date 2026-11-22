@@ -247,4 +247,6 @@ class TextureAtlas{
         const unsigned int texturesPerAtlas;
 };
 bool operator==(const OpenGLTextureOptions& o1,const OpenGLTextureOptions& o2);
+
+std::tuple<OpenGLTexture, OpenGLTextureOptions> loadTexture(std::string filePath, std::string name);
 #endif

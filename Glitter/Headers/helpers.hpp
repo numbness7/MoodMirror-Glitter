@@ -51,7 +51,7 @@
 // #Header Macros -------------------------------------------------------------
 
 // Do Test
-#define DO_TEST false
+#define DO_TEST true
 
 // Window Configuration
 #define FULL_SCREEN false
@@ -503,6 +503,8 @@ int mainDrawBatch(int argc, char* argv[]);
 int mainSolve(int argc, char * argv[]);
 int mainRecursion(int argc, char * argv[]);
 int mainDrawSubTextures(int argc, char* argv[]);
+// learnopengl.com
+int mainStencilTesting(int argc, char* argv[]);
 
 // #Draw -------------------------------------------------------------
 

@@ -382,3 +382,62 @@ template <typename T> void TextureAtlas::replaceTexture(const std::vector<T> vec
     assert(vecOptions == options);
     replaceTexture(vec.data());
 }
+std::tuple<OpenGLTexture, OpenGLTextureOptions> loadTexture(std::string filePath, std::string name){
+
+    int width, height, nrChannels;
+
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load(filePath.c_str(), &width, &height, &nrChannels, 0);
+    OpenGLTextureOptions options;
+    options.target = GL_TEXTURE_2D;
+    options.width = width;
+    options.height = height;
+    options.level = 0;
+    options.type = GL_UNSIGNED_BYTE;
+    switch(nrChannels){
+        case 4:
+            options.format = GL_RGBA;
+            options.internalFormat = GL_RGBA8;
+            break;
+        case 3:
+            options.format = GL_RGB;
+            options.internalFormat = GL_RGB8;
+            break;
+    }
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glBindTexture(options.target, texture);
+    // CHATGPT START
+    int stores = 0;
+    
+    switch(options.format){
+        case GL_RGBA:
+        case GL_RGBA_INTEGER:
+            stores = 4;
+            break;
+        case GL_RGB:
+        case GL_RGB_INTEGER:
+            stores = 1;
+            break;
+        case GL_RG:
+        case GL_RG_INTEGER:
+            stores = 1;
+            break;
+        case GL_RED:
+        case GL_RED_INTEGER:
+            stores = 1;
+            break;
+        default:
+            std::cout << "SOMETHING WENT HORRIBLY WRONG AHHHHHH!!!\n" << std::endl;
+            assert(false);
+    }
+    glPixelStorei(GL_UNPACK_ALIGNMENT, stores);
+    glTexParameteri(options.target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(options.target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(options.target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(options.target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // CHATGPT END
+    
+    glTexImage2D(options.target, options.level, options.internalFormat, options.width, options.height, 0 /* border (must be zero smh) */ , options.format, options.type, data);
+    return {{name,texture},options};
+}
