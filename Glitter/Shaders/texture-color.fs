@@ -1,23 +1,26 @@
-#version 330 core
+#version 310 es
+precision highp float;
+precision highp int;
 in vec2 ourTexCoord;
 out vec4 FragColor;
 
 uniform sampler2D ourTexture;
 uniform sampler2D borderTexture;
 uniform vec4 aColor;
-#define borderCase 0;
-#define SCALE 0.05f; // Can only scale down
+#define borderCase 0
+#define SCALE 0.05f // Can only scale down
 vec4 getDistColor(vec4 textureColor, int theCase);
 float getDist(vec4 textureColor);
 vec4 getDistColor(vec4 textureColor, int theCase, float borderDistScale);
-#define redChannel      0.0f;
-#define greenChannel    1.0f;
-#define blueChannel     2.0f;
-#define alphaChannel    3.0f;
-#define nrChannels      4.0f;
-float maxColor = pow(2,8) - 1;
-float maxDist = pow(2,8*4)-1;
+#define redChannel      0.0f
+#define greenChannel    1.0f
+#define blueChannel     2.0f
+#define alphaChannel    3.0f
+#define nrChannels      4.0f
+float maxColor = pow(2.0f,8.0f) - 1.0f;
+float maxDist = pow(2.0f,8.0f*4.0f)-1.0f;
 float getColorDist(float color, float channel);
+vec4 scaleDown(float scale, float dist);
 
 
 void main(){
@@ -58,5 +61,5 @@ vec4 getDistColor(vec4 textureColor, int theCase, float borderDistScale){
 }
 
 float getColorDist(float color, float channel){
-   return color*(maxColor/maxDist)*pow(2,(nrChannels-channel-1)*8); 
+   return color*(maxColor/maxDist)*pow(2.0f,(nrChannels-channel-1.0f)*8.0f); 
 }

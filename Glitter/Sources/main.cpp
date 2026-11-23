@@ -22,7 +22,7 @@
 
 int main(int argc, char * argv[]) {
     if (DO_TEST) {
-        return mainStencilTesting(argc, argv);
+        return mainDrawRectangle(argc, argv);
     }
     else {
         return mainCoordsBasic2D(argc, argv);

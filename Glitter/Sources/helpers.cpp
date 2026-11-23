@@ -78,6 +78,7 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
 GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen){
     // Load GLFW and Create a Window
     glfwInit();
+    glfwWindowHint(GLFW_STENCIL_BITS, 8);
     if(!ON_PI)
     {
 	    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -106,6 +107,82 @@ GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen){
     }
 }
 
+OpenGLWindow* loadGLFWCreateWindow(int width, int height, bool fullscreen,  int renderWidth, int renderHeight){
+    // Load GLFW and Create a Window
+    glfwInit();
+    glfwWindowHint(GLFW_STENCIL_BITS, 8);
+    auto mWindow = new OpenGLWindow();
+
+    if(!ON_PI)
+    {
+	    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    }
+
+    else
+    {
+	    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API); 
+	    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+        
+    }
+    if(fullscreen){
+        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+        mWindow->screenWidth = mode->width;
+        mWindow->screenHeight = mode->height;
+        mWindow->window = glfwCreateWindow(mode->width, mode->height, "Glitter", monitor, NULL);
+    }
+    else{
+        mWindow->screenWidth = width;
+        mWindow->screenHeight = height;
+        mWindow->window = glfwCreateWindow(width, height, "OpenGL", nullptr, nullptr);
+    }
+    mWindow->renderWidth = renderWidth;
+    mWindow->renderHeight = renderHeight;
+    return mWindow;
+
+}
+bool initOpenGL(OpenGLWindow*& mWindow, int& return_status, int width, int height, bool fullscreen, int renderWidth, int renderHeight){
+    // Load GLFW and Create a Window
+    mWindow = loadGLFWCreateWindow(width, height, fullscreen, renderWidth, renderHeight);
+
+    // Check for Valid Context
+    if (mWindow == nullptr) {
+        fprintf(stderr, "Failed to Create OpenGL Context");
+        return_status = EXIT_FAILURE;
+        return false;
+    }
+
+    // Create Context and Load OpenGL Functions
+    glfwMakeContextCurrent(mWindow->window);
+    gladLoadGL();
+    fprintf(stderr, "OpenGL %s\n", glGetString(GL_VERSION));
+    // Source - https://stackoverflow.com/a/1617379
+    // Posted by Goz
+    // Retrieved 2026-09-26, License - CC BY-SA 2.5
+    
+    glEnable( GL_BLEND );
+    glEnable(GL_DEPTH_TEST);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+
+    
+    glEnable(GL_DEPTH_TEST);
+    return_status = EXIT_SUCCESS;
+    return true;
+}
+
+int initOpenGL(OpenGLWindow *&mWindow, int width, int height, bool fullscreen, int renderWidth, int renderHeight)
+{
+    int return_status;
+    initOpenGL(mWindow, return_status, width, height, fullscreen, renderWidth, renderHeight);
+    return return_status;
+}
+
 bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height){
     // Load GLFW and Create a Window
     mWindow = loadGLFWCreateWindow(width, height);
@@ -128,6 +205,7 @@ bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height)
     glEnable( GL_BLEND );
     glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 
     unsigned int VBO_O, VAO_O, EBO_O;
     
@@ -801,10 +879,8 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
     return slf;
 }
 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, OpenGLShape& openGLShape,  std::vector<OpenGLTexture>& openGLTextures, int shapeCount){
-    glDepthMask(false);
-    openGLShape.drawBatch(lightingEnvironment.object_shader, openGLTextures, shapeCount); // TAG
-    glDepthMask(true);
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, OpenGLShape& openGLShape,  std::vector<OpenGLTexture>& openGLTextures, int shapeCount, FrameBuffer& fB){
+    openGLShape.drawBatch(lightingEnvironment.object_shader, openGLTextures, shapeCount, fB); // TAG
 }
 void processInputView2D(GLFWwindow* mWindow, float deltatime, glm::vec2& position, float& zoom){
     static const float maxZoom = 500.0f;
@@ -1172,7 +1248,7 @@ void minimumStartRenderLoop(DeltaTimer& deltaTimer, glm::vec4 backgroundColor){
     deltaTimer.updateDeltaTime();
     // Background Fill Color
     glClearColor(backgroundColor.x,backgroundColor.y,backgroundColor.z,backgroundColor.a);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 void startDummyMPVLoop(DeltaTimer& deltaTimer, LightingEnvironment& lightingEnvironment, glm::vec4 backgroundColor){
     minimumStartRenderLoop(deltaTimer, backgroundColor);
@@ -1305,13 +1381,38 @@ void OpenGLShape::drawBatch(Shader& shader, unsigned int count)
     drawMultipleTexturedShapeBatch(VAO, EBO, shader, ind_cnt, textures, count);
 }
 
+//void drawMultipleTexturedShapeBatch(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures, unsigned int count, FrameBuffer& fB);
+//void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
+void OpenGLShape::drawBatch(Shader &shader, const std::vector<OpenGLTexture> &textures, unsigned int count, FrameBuffer &fB)
+{
+    shader.use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, fB.textureColorBuffer);
+    for(int texturesIndex = 0; texturesIndex < textures.size(); texturesIndex++){
+        static const unsigned int textureColorBufferOffset = 1;
+        unsigned int GL_TEXTUREX = getGL_TextureX(texturesIndex + textureColorBufferOffset);
+        glActiveTexture(GL_TEXTUREX);
+        glBindTexture(GL_TEXTURE_2D, textures[texturesIndex].address);
+        if (textures[texturesIndex].name != "")
+            shader.setUniformI(textures[texturesIndex].name, texturesIndex + textureColorBufferOffset);
+    }
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glDrawElementsInstanced(GL_TRIANGLES, ind_cnt, GL_UNSIGNED_INT, 0, count);
+    glBindVertexArray(0);
+}
+
 // #Main Programs -------------------------------------------------------------
 
 int mainCoordsBasic2D(int argc, char * argv[]){
     // Initialize OpenGL
     int return_status;
-    GLFWwindow*  mWindow; 
-    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+    OpenGLWindow*  mWindow; 
+    if((return_status = initOpenGL(mWindow, mWidth, mHeight, FULL_SCREEN, mRWidth, mRHeight)) != EXIT_SUCCESS) return return_status;
+
+
+    LightingEnvironment lE = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
+    // ====================================================================================================
     DeltaTimer deltaTimer{};
     Alarm creationAlarm(SHAPE_INITIAL_SPAWN_TIME);
     float currentDestructionTime = creationAlarm.getWaitTime();
@@ -1339,14 +1440,13 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
     OpenGLShape square(shapes::rectT);
     
-    LightingEnvironment lightingEnvironment = initDummyMPV("Glitter/Shaders/texture-mvp-color.vs", "Glitter/Shaders/texture-mvp-color.fs");
 
-    lightingEnvironment.view = glm::scale(lightingEnvironment.view, glm::vec3(1.2f,1.2f,0.0f));
+    lE.view = glm::scale(lE.view, glm::vec3(1.2f,1.2f,0.0f));
     glm::mat4 model(1.0f);
-    lightingEnvironment.object_shader.use();
-    lightingEnvironment.object_shader.setUniformI("ourTexture", 0);
-    lightingEnvironment.object_shader.setUniformI("borderTexture", 1);
-    lightingEnvironment.object_shader.setUniformI("borderCase", 2);
+    lE.object_shader.use();
+    lE.object_shader.setUniformI("ourTexture", 0);
+    lE.object_shader.setUniformI("borderTexture", 1);
+    lE.object_shader.setUniformI("borderCase", 2);
     float destructionTime = DESTRUCTION_TIME;
     float totalLayers = TOTAL_LAYERS;
     float midLayer = MID_LAYER;
@@ -1356,20 +1456,20 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     auto const [slopeAT, interceptAT] = lineAbove;
     std::tuple<float,float> lineBelow = linearTransformation(0.0f, destructionTime*(midLayer + 1), shapeMinFade, shapeMaxFade);
     auto const [slopeBT, interceptBT] = lineBelow;
-    lightingEnvironment.object_shader.setUniformF("destructionTime", destructionTime);
-    lightingEnvironment.object_shader.setUniformI("MID_LAYER", midLayer);
-    lightingEnvironment.object_shader.setUniformF("ABOVE_SLOPE", slopeAT);
-    lightingEnvironment.object_shader.setUniformF("ABOVE_INTERCEPT", interceptAT);
-    lightingEnvironment.object_shader.setUniformF("BELOW_SLOPE", slopeBT);
-    lightingEnvironment.object_shader.setUniformF("BELOW_INTERCEPT", interceptBT);
-    lightingEnvironment.object_shader.setUniformF("DISABLE_ALMOST_EVERYTHING", false);
-    lightingEnvironment.object_shader.setUniformF("USE_MODEL_ARRAY", true);
-    lightingEnvironment.object_shader.setUniformI("BATCHES_CNT", TOTAL_LAYERS*TOTAL_EMOTION_LAYERS);
+    lE.object_shader.setUniformF("destructionTime", destructionTime);
+    lE.object_shader.setUniformI("MID_LAYER", midLayer);
+    lE.object_shader.setUniformF("ABOVE_SLOPE", slopeAT);
+    lE.object_shader.setUniformF("ABOVE_INTERCEPT", interceptAT);
+    lE.object_shader.setUniformF("BELOW_SLOPE", slopeBT);
+    lE.object_shader.setUniformF("BELOW_INTERCEPT", interceptBT);
+    lE.object_shader.setUniformF("DISABLE_ALMOST_EVERYTHING", false);
+    lE.object_shader.setUniformF("USE_MODEL_ARRAY", true);
+    lE.object_shader.setUniformI("BATCHES_CNT", TOTAL_LAYERS*TOTAL_EMOTION_LAYERS);
 
     std::deque<ShapeLayer> shapeLayersBuffer{};
     ShapeLayerStorage shapeLayersStorage{};
     ShapeLayerStorage shapeLayersTransfer{};
-    glm::vec4 backgroundColor(0.5f,0.6f,0.7f,1.0f);
+    glm::vec4 backgroundColor(0.0f);
     std::mutex shapeLock{};
     std::mutex timeLock{};
     std::counting_semaphore<TOTAL_LAYERS> shapesSemaphore{0};
@@ -1403,154 +1503,162 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     runawayPrinter.pause(3.0f);
     std::deque<OpenGLTexture> shapeTextures;
     PseudoVector<glm::vec4> shapeVec4s(TOTAL_SHAPES/SHAPES_DIVIDER,VEC4S_PER_SHAPE,glm::vec4(0.0f));
+
     
+    // ====================================================================================================
+    FrameBuffer fB = initFrameBuffer(mWindow->renderWidth, mWindow->renderHeight, mWindow->screenWidth, mWindow->screenHeight);
+    // ====================================================================================================
     // #Render 2D Loop
-    while (!glfwWindowShouldClose(mWindow)) {
+    while (!glfwWindowShouldClose(mWindow->window)) {
 
-        startDummyMPVLoop(deltaTimer, lightingEnvironment, backgroundColor);
-        requiredLayersFloat += deltaTimer.getDeltaTime()/currentDestructionTime;
-        unsigned int requiredLayers = (unsigned int) floorWrap(requiredLayersFloat);
-        std::tuple<unsigned int, unsigned int, unsigned int> transfers;
-        std::deque<PngData> pngDataDeque;
+        startDummyMPVLoop(deltaTimer, lE, backgroundColor);
+        startFrameBuffer(fB);
+    // ====================================================================================================
+        //{
+            requiredLayersFloat += deltaTimer.getDeltaTime()/currentDestructionTime;
+            unsigned int requiredLayers = (unsigned int) floorWrap(requiredLayersFloat);
+            std::tuple<unsigned int, unsigned int, unsigned int> transfers;
+            std::deque<PngData> pngDataDeque;
 
-        if(requiredLayers > 0)
-        {
-            requiredLayersFloat -= (float) requiredLayers;
-            transfers = transferShapeLayers(shapesSemaphore, shapeLock, requiredLayers, shapeLayersBuffer, shapeLayersTransfer, currentDestructionTime, currentPulseMaxTime,pngDataDeque);
-        }
-        
-
-        for(const auto& layer : shapeLayersTransfer)
-        {
-            for(const auto& batch : layer.batches){
-                textureAtlas.replaceTexture(batch.pngData.getData());
-                tagAtlas.replaceTexture(&batch.tag);
+            if(requiredLayers > 0)
+            {
+                requiredLayersFloat -= (float) requiredLayers;
+                transfers = transferShapeLayers(shapesSemaphore, shapeLock, requiredLayers, shapeLayersBuffer, shapeLayersTransfer, currentDestructionTime, currentPulseMaxTime,pngDataDeque);
             }
-        }
-        if (std::get<0>(transfers) > 0){
-            auto isf = loadShapes2D(shapeLayersTransfer);
-            for( int shapeIndex = 0; shapeIndex < isf.rotationMatrices.size(); shapeIndex++){
-                assert(shapeVec4s.getSize() % VEC4S_PER_SHAPE == 0);
-                shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.layerTags[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.batchTags[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][0],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][1],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][2],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                if (shapeVec4s.isFull()){
-                    if(shapeTextures.size() >= SHAPES_DIVIDER)
-                        shapeTextures.pop_back();
-                    shapeTextures.push_front({"", useTextureDataToCreateTexture(shapeVec4s.getVector(), shapeVec4s.getSize(), 1)});
-                    int i = 0;
-                    for(auto& texture : shapeTextures){
-                        texture.name = "SHAPES_TEXTURES[" + std::to_string(i) + "]";
-                        i++;
+            
+
+            for(const auto& layer : shapeLayersTransfer)
+            {
+                for(const auto& batch : layer.batches){
+                    textureAtlas.replaceTexture(batch.pngData.getData());
+                    tagAtlas.replaceTexture(&batch.tag);
+                }
+            }
+            if (std::get<0>(transfers) > 0){
+                auto isf = loadShapes2D(shapeLayersTransfer);
+                for( int shapeIndex = 0; shapeIndex < isf.rotationMatrices.size(); shapeIndex++){
+                    assert(shapeVec4s.getSize() % VEC4S_PER_SHAPE == 0);
+                    shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                    shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.layerTags[shapeIndex])));
+                    shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.batchTags[shapeIndex])));
+                    shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                    shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                    shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                    shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][0],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                    shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][1],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                    shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][2],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                    if (shapeVec4s.isFull()){
+                        if(shapeTextures.size() >= SHAPES_DIVIDER)
+                            shapeTextures.pop_back();
+                        shapeTextures.push_front({"", useTextureDataToCreateTexture(shapeVec4s.getVector(), shapeVec4s.getSize(), 1)});
+                        int i = 0;
+                        for(auto& texture : shapeTextures){
+                            texture.name = "SHAPES_TEXTURES[" + std::to_string(i) + "]";
+                            i++;
+                        }
                     }
                 }
             }
-        }
 
-        while(!shapeLayersTransfer.empty()){
-            shapeLayersStorage.push_front(shapeLayersTransfer.back());
-            shapeLayersTransfer.pop_back();
-        }
-
-        bool shapeDeleted = false;
-        // Delete cubes
-        while (shapeLayersStorage.size() > TOTAL_LAYERS){
-            auto const shapeLayer = shapeLayersStorage.back();
-            shapeDeleted = true;
-            shapeLayersStorage.pop_back();
-        }
-        if(shapeLayersStorage.size() >= (MID_LAYER - 0) && !midLayerMet){
-            midLayerMet = true;
-            std::cout << "The middle layer was met!!!" << std::endl;
-
-        }
-        if(shapeDeleted && !shapesFull){
-            std::lock_guard guard(timeLock);
-            creationAlarm.setWaitTime(DESTRUCTION_TIME);
-            otherDestructionAlarm.setWaitTime(DESTRUCTION_TIME);
-            simAlarm.setWaitTime(SIM_READ_PERIOD);
-            if(SIM_START){
-                killCommand(simPID);
-                simPID = startMineBensEmotionSimulator(SIM_PERIOD, true, false);
+            while(!shapeLayersTransfer.empty()){
+                shapeLayersStorage.push_front(shapeLayersTransfer.back());
+                shapeLayersTransfer.pop_back();
             }
-            currentDestructionTime = creationAlarm.getWaitTime();
-            currentPulseMaxTime = PULSE_TIME;
-            shapesFull = true;
-            unsigned layerCount = 0;
-            for(auto& shapeLayer : shapeLayersStorage){
-                int layer = TOTAL_LAYERS - 1 - layerCount;
-                shapeLayer.destructionTimer.setWaitTime(currentDestructionTime);
-                shapeLayer.pulseTimer.setWaitTime(currentPulseMaxTime);
-                shapeLayer.previousLayer = -1;
-                layerCount++;
+
+            bool shapeDeleted = false;
+            // Delete cubes
+            while (shapeLayersStorage.size() > TOTAL_LAYERS){
+                auto const shapeLayer = shapeLayersStorage.back();
+                shapeDeleted = true;
+                shapeLayersStorage.pop_back();
             }
-            std::cout << "Shapes loaded!" << std::endl;
-        }
-        // Draw cubes
-        glDisable(GL_DEPTH_TEST);
-        auto slf = loadShapeLayer2Ds(shapeLayersStorage, lineAbove, lineBelow, deltaTimer);
-        auto bf = loadBatches2D(shapeLayersStorage);
-        std::vector<OpenGLTexture> openGLTextures{
-            {"ourTexture",blankTexture},
-            {"SQUARE_BORDER_TEXTURE",squareBorderTexture},
-            {"CIRCLE_BORDER_TEXTURE",circleBorderTexture},
-            {"TRIANGLE_BORDER_TEXTURE",triangleBorderTexture},
-            {"TRANS_L_TEXTURE",useTextureDataToCreateTexture(slf.translationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
-            {"ROTATE_L_TEXTURE",useTextureDataToCreateTexture(slf.rotationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
-            {"SCALE_L_TEXTURE",useTextureDataToCreateTexture(slf.scaleMatrices, shapeLayersStorage.getLayerCnt(), 1)},
-            {"INNER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.innerColors, shapeLayersStorage.getLayerCnt(), 1)},
-            {"OUTER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.outerColors, shapeLayersStorage.getLayerCnt(), 1)},
-            {"SL_SCALES_TEXTURE",useTextureDataToCreateTexture(slf.sLSCALEs, shapeLayersStorage.getLayerCnt(), 1)},
-            {"LAYER_TAGS_TEXTURE",useTextureDataToCreateTexture(slf.tags, shapeLayersStorage.getLayerCnt(), 1)},
-            {"BATCH_TAGS_TEXTURE",useTextureDataToCreateTexture(bf.tags, shapeLayersStorage.getBatchCnt(), 1)}
-        };
-        for(const auto& texture : textureAtlas.getTextures())
-            openGLTextures.push_back(texture);
-        for(const auto& texture : tagAtlas.getTextures())
-            openGLTextures.push_back(texture);
-        for(const auto& texture : shapeTextures)
-            openGLTextures.push_back(texture);
+            if(shapeLayersStorage.size() >= (MID_LAYER - 0) && !midLayerMet){
+                midLayerMet = true;
+                std::cout << "The middle layer was met!!!" << std::endl;
 
-
-        lightingEnvironment.object_shader.setUniformI("maxLayer", TOTAL_LAYERS); // TAG
-        lightingEnvironment.object_shader.setUniformB("DO_FADE", false); // TAG
-        lightingEnvironment.object_shader.setUniformI("borderCase", 2); // TAG
-        lightingEnvironment.object_shader.setUniformI("ATLAS_SHIFT_LEFT", textureAtlas.getShiftLeft()); // TAG
-        lightingEnvironment.object_shader.setUniformI("BATCHES_PER_ATLAS_TEXTURE", textureAtlas.getTexturesPerAtlas()); // TAG
-        lightingEnvironment.object_shader.setUniformI("SHAPES_PER_LAYER", SHAPES_PER_LAYER); // TAG
-        lightingEnvironment.object_shader.setUniformI("SHAPES_PER_BATCH", SHAPES_IN_BATCH); // TAG
-        lightingEnvironment.object_shader.setUniformI("BATCHES_PER_LAYER", BATCHES_PER_LAYER); // TAG
-        lightingEnvironment.object_shader.setUniformI("TOTAL_LAYERS", TOTAL_LAYERS); // TAG
-        lightingEnvironment.object_shader.setUniformI("TOTAL_BATCHES", TOTAL_BATCHES); // TAG
-        
-        glDisable(GL_DEPTH_TEST);
-        if(!shapeLayersStorage.empty())
-            drawShapeLayers2D(lightingEnvironment, square, openGLTextures, shapeLayersStorage.getShapeCnt());
-        glEnable(GL_DEPTH_TEST);
-        
-
-        if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
-            runawayPrinter.pushMessage(emotionLayersToString(shapeLayersStorage.back().emotionLayers));
-            runawayPrinter.pushMessage(emotionArrayToString(shapeLayersStorage.back().emotionArray));
-            runawayPrinter.pushMessage("FPS: " + std::to_string(getFPS(deltaTimer)));
-        }
-        for(auto& texture : openGLTextures){
-            if(!contains(texture.name, std::string("SHAPES_TEXTURES")) && !contains(texture.name, std::string("BORDER")) &&!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
-                glDeleteTextures(1, &texture.address);
             }
-        }
-        float zoom = 1.0f;
+            if(shapeDeleted && !shapesFull){
+                std::lock_guard guard(timeLock);
+                creationAlarm.setWaitTime(DESTRUCTION_TIME);
+                otherDestructionAlarm.setWaitTime(DESTRUCTION_TIME);
+                simAlarm.setWaitTime(SIM_READ_PERIOD);
+                if(SIM_START){
+                    killCommand(simPID);
+                    simPID = startMineBensEmotionSimulator(SIM_PERIOD, true, false);
+                }
+                currentDestructionTime = creationAlarm.getWaitTime();
+                currentPulseMaxTime = PULSE_TIME;
+                shapesFull = true;
+                unsigned layerCount = 0;
+                for(auto& shapeLayer : shapeLayersStorage){
+                    int layer = TOTAL_LAYERS - 1 - layerCount;
+                    shapeLayer.destructionTimer.setWaitTime(currentDestructionTime);
+                    shapeLayer.pulseTimer.setWaitTime(currentPulseMaxTime);
+                    shapeLayer.previousLayer = -1;
+                    layerCount++;
+                }
+                std::cout << "Shapes loaded!" << std::endl;
+            }
+            // Draw cubes
+            glDisable(GL_DEPTH_TEST);
+            auto slf = loadShapeLayer2Ds(shapeLayersStorage, lineAbove, lineBelow, deltaTimer);
+            auto bf = loadBatches2D(shapeLayersStorage);
+            std::vector<OpenGLTexture> openGLTextures{
+                {"ourTexture",blankTexture},
+                {"SQUARE_BORDER_TEXTURE",squareBorderTexture},
+                {"CIRCLE_BORDER_TEXTURE",circleBorderTexture},
+                {"TRIANGLE_BORDER_TEXTURE",triangleBorderTexture},
+                {"TRANS_L_TEXTURE",useTextureDataToCreateTexture(slf.translationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
+                {"ROTATE_L_TEXTURE",useTextureDataToCreateTexture(slf.rotationMatrices, shapeLayersStorage.getLayerCnt(), 1)},
+                {"SCALE_L_TEXTURE",useTextureDataToCreateTexture(slf.scaleMatrices, shapeLayersStorage.getLayerCnt(), 1)},
+                {"INNER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.innerColors, shapeLayersStorage.getLayerCnt(), 1)},
+                {"OUTER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.outerColors, shapeLayersStorage.getLayerCnt(), 1)},
+                {"SL_SCALES_TEXTURE",useTextureDataToCreateTexture(slf.sLSCALEs, shapeLayersStorage.getLayerCnt(), 1)},
+                {"LAYER_TAGS_TEXTURE",useTextureDataToCreateTexture(slf.tags, shapeLayersStorage.getLayerCnt(), 1)},
+                {"BATCH_TAGS_TEXTURE",useTextureDataToCreateTexture(bf.tags, shapeLayersStorage.getBatchCnt(), 1)}
+            };
+            for(const auto& texture : textureAtlas.getTextures())
+                openGLTextures.push_back(texture);
+            for(const auto& texture : tagAtlas.getTextures())
+                openGLTextures.push_back(texture);
+            for(const auto& texture : shapeTextures)
+                openGLTextures.push_back(texture);
 
-        glm::vec2 pos;
+
+            lE.object_shader.setUniformI("maxLayer", TOTAL_LAYERS); // TAG
+            lE.object_shader.setUniformB("DO_FADE", false); // TAG
+            lE.object_shader.setUniformI("borderCase", 2); // TAG
+            lE.object_shader.setUniformI("ATLAS_SHIFT_LEFT", textureAtlas.getShiftLeft()); // TAG
+            lE.object_shader.setUniformI("BATCHES_PER_ATLAS_TEXTURE", textureAtlas.getTexturesPerAtlas()); // TAG
+            lE.object_shader.setUniformI("SHAPES_PER_LAYER", SHAPES_PER_LAYER); // TAG
+            lE.object_shader.setUniformI("SHAPES_PER_BATCH", SHAPES_IN_BATCH); // TAG
+            lE.object_shader.setUniformI("BATCHES_PER_LAYER", BATCHES_PER_LAYER); // TAG
+            lE.object_shader.setUniformI("TOTAL_LAYERS", TOTAL_LAYERS); // TAG
+            lE.object_shader.setUniformI("TOTAL_BATCHES", TOTAL_BATCHES); // TAG
+            
+    // ====================================================================================================
+            glDisable(GL_DEPTH_TEST);
+            if(!shapeLayersStorage.empty())
+                drawShapeLayers2D(lE, square, openGLTextures, shapeLayersStorage.getShapeCnt(), fB);
+            
+
+            if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
+                runawayPrinter.pushMessage(emotionLayersToString(shapeLayersStorage.back().emotionLayers));
+                runawayPrinter.pushMessage(emotionArrayToString(shapeLayersStorage.back().emotionArray));
+                runawayPrinter.pushMessage("FPS: " + std::to_string(getFPS(deltaTimer)));
+            }
+            for(auto& texture : openGLTextures){
+                if(!contains(texture.name, std::string("SHAPES_TEXTURES")) && !contains(texture.name, std::string("BORDER")) &&!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
+                    glDeleteTextures(1, &texture.address);
+                }
+            }
+        //}
         
-        endRenderLoopView2D(mWindow,deltaTimer, pos, zoom);
-        
+    // ====================================================================================================
+        endFrameBuffer(fB);
+    // ====================================================================================================
+        endRenderLoopStatic(mWindow->window);
+    // ====================================================================================================
     }   
 
     {
@@ -1582,15 +1690,12 @@ float getFPS(DeltaTimer deltaTimer){
 
 int mainDrawRectangle(int argc, char* argv[]){
     int return_status;
-    GLFWwindow*  mWindow; 
-    if((return_status = initOpenGL(mWindow, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
-    Shader colorShader("Glitter/Shaders/texture-color.vs", "Glitter/Shaders/texture-color.fs");
-    colorShader.use();
-    colorShader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
-    colorShader.setUniformI("borderCase", 3);
-    colorShader.setUniformI("ourTexture", 0);
-    colorShader.setUniformI("borderTexture", 1);
-    DeltaTimer deltaTimer{};
+    GLFWwindow*  window; 
+    if((return_status = initOpenGL(window, mWidth, mHeight)) != EXIT_SUCCESS) return return_status;
+
+    LightingEnvironment lE = initDummyMPV(SHADER_PATH + "texture-color.vs", SHADER_PATH + "texture-color.fs");
+
+
     PngData blankPngData(16,16);
     PngData borderPngData(16,16);
     std::vector<float> distances;
@@ -1598,13 +1703,35 @@ int mainDrawRectangle(int argc, char* argv[]){
     unsigned int borderTexture = useTextureDataToCreateTexture(distances.data(), ttm::map2D(distances, 256, 256));
     unsigned int blankTexture = obtainPNGBlank(blankPngData);
     OpenGLShape rectangle(shapes::rectT, {blankTexture, borderTexture}, true);
+    Shader colorShader("Glitter/Shaders/texture-color");
     pngDataSavePng("testSSR.png", borderPngData);
+
+
+    lE.object_shader.use();
+    lE.object_shader.setUniformV4("aColor", glm::vec4(1.0f,1.0f,1.0f,1.0f));
+    lE.object_shader.setUniformI("ourTexture", 0);
+    lE.object_shader.setUniformI("borderTexture", 1);
+
     
-    while(!glfwWindowShouldClose(mWindow)){
-        minimumStartRenderLoop(deltaTimer, glm::vec4(0.0f,0.1f,0.0f,1.0f));
-        rectangle.draw(colorShader);
-        endRenderLoopViewStatic(mWindow, deltaTimer);
-    } glfwTerminate();
+    OpenGLShape square(shapes::rectT);
+    FrameBuffer fB = initFrameBuffer(mRWidth, mRHeight, mWidth, mHeight);
+    DeltaTimer deltaTimer;
+    // render loop
+    // -----------
+    while (!glfwWindowShouldClose(window))
+    {
+        startDummyMPVLoop(deltaTimer, lE, glm::vec4(0.0f));
+        startFrameBuffer(fB);
+        //lE.object_shader.use();
+        square.drawBatch(lE.object_shader, {{"ourTexture", blankTexture}, {"borderTexture",borderTexture}}, 1, fB);
+        endFrameBuffer(fB);
+        endRenderLoopStatic(window);
+    }
+
+    // optional: de-allocate all resources once they've outlived their purpose:
+    // ------------------------------------------------------------------------
+    deleteFrameBuffer(fB);
+    
     
     return EXIT_SUCCESS;
     
@@ -2404,117 +2531,189 @@ std::vector<glm::vec2> borderVerticesFromShape(const float shape[], const unsign
     return borderVertices;
 }
 
-int mainStencilTesting(int argc, char* argv[])
+
+
+int mainFrameBufferTesting(int argc, char *argv[])
 {
-    // glfw: initialize and configure
-    // ------------------------------
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
-    // glfw window creation
-    // --------------------
-    GLFWwindow* window = glfwCreateWindow(mWidth, mHeight, "LearnOpenGL", NULL, NULL);
-    if (window == NULL)
-    {
-        std::cout << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-    glfwMakeContextCurrent(window);
+    int returnStatus;
+    GLFWwindow* window;
+    if ((returnStatus = initOpenGL(window, mWidth, mHeight)) == EXIT_FAILURE) return returnStatus;
+    LightingEnvironment lE = initDummyMPV(SHADER_PATH + "framebuffers.vs", SHADER_PATH + "framebuffers.fs");
 
 
-    // glad: load all OpenGL function pointers
-    // ---------------------------------------
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
-        std::cout << "Failed to initialize GLAD" << std::endl;
-        return -1;
-    }
 
-    // configure global opengl state
-    // -----------------------------
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glEnable(GL_STENCIL_TEST);
-    glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-
-    // build and compile shaders
-    // -------------------------
-    Shader shader("Glitter/Shaders/stencil_testing");
-    Shader shaderSingleColor("Glitter/Shaders/stencil_testing.vs","Glitter/Shaders/stencil_single_color.fs", false);
-
-    // set up vertex data (and buffer(s)) and configure vertex attributes
-    // ------------------------------------------------------------------
     // load textures
     // -------------
-    OpenGLShape rectangle(shapes::rectT);
-    auto [texture, options] = loadTexture("Glitter/Textures/container2.png", "texture1");
-    glm::mat4 view(1.0f);
-    glm::mat4 model(1.0f);
+    auto [ cubeTexture, cOptions] = loadTexture("Glitter/Textures/container2.png", "texture1");
+
+    lE.object_shader.setUniformI("texture1", 0);
+
     
-    shader.use();
-    shader.setUniformM4("view",view);
-    shader.setUniformM4("model",model);
-    
-    shaderSingleColor.use();
-    model = glm::scale(model, glm::vec3(1.1f, 1.1f, 1.0f));
-
-    shaderSingleColor.setUniformM4("view",view);
-    shaderSingleColor.setUniformM4("model",model);
-
-
+    OpenGLShape square(shapes::rectT);
+    FrameBuffer fB = initFrameBuffer(mRWidth, mRHeight, mWidth, mHeight);
+    DeltaTimer deltaTimer;
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
     {
-        // per-frame time logic
-        // --------------------
+        startDummyMPVLoop(deltaTimer, lE, glm::vec4(0.0f));
+        startFrameBuffer(fB);
+        //lE.object_shader.use();
+        square.drawBatch(lE.object_shader, {cubeTexture}, 1);
+        endFrameBuffer(fB);
+        endRenderLoopStatic(window);
+    }
 
-        // input
-        // -----
-        processInput(window);
+    // optional: de-allocate all resources once they've outlived their purpose:
+    // ------------------------------------------------------------------------
+    deleteFrameBuffer(fB);
+
+    glfwTerminate();
+    return 0;
+}
+
+void deleteFrameBuffer(FrameBuffer& fB){
+    glDeleteVertexArrays(1, &fB.quadVAO);
+    glDeleteBuffers(1, &fB.quadVBO);
+    glDeleteRenderbuffers(1, &fB.rbo);
+    glDeleteFramebuffers(1, &fB.framebuffer);
+}
+
+int mainStencilTesting(int argc, char* argv[]){
+    GLFWwindow* window;
+    int returnStatus;
+    if((returnStatus = initOpenGL(window, mWidth, mHeight)) == EXIT_FAILURE) return EXIT_FAILURE;
+
+
+
+    // build and compile shaders
+    // -------------------------
+    LightingEnvironment lE = initDummyMPV("Glitter/Shaders/stencil_testing.vs","Glitter/Shaders/stencil_single_color.fs", false);
+    DeltaTimer deltaTimer{};
+    OpenGLShape rectangle(shapes::rectT);
+
+    while (!glfwWindowShouldClose(window)){
 
         // render
         // ------
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // don't forget to clear the stencil buffer!
-
-        // 1st. render pass, draw objects as normal, writing to the stencil buffer
-        // --------------------------------------------------------------------
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);
-        glStencilMask(0xFF);
-        // cubes
-        rectangle.drawBatch(shader, {texture}, 1);
+        //glClearColor(0.0f,0.0f,0.0f,0.0f);
+        startDummyMPVLoop(deltaTimer, lE, glm::vec4(0.0f));
 
 
-        // 2nd. render pass: now draw slightly scaled versions of the objects, this time disabling stencil writing.
-        // Because the stencil buffer is now filled with several 1s. The parts of the buffer that are 1 are not drawn, thus only drawing 
-        // the objects' size differences, making it look like borders.
-        // -----------------------------------------------------------------------------------------------------------------------------
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glStencilMask(0x00);
+
+
+        static const int MAX_OVERLAPPING_FRAGMENTS = 3;
+        static const int N = 5;
+        lE.object_shader.setUniformI("N", N);
+        lE.object_shader.setUniformI("MAX_OVERLAPPING_FRAGMENTS", MAX_OVERLAPPING_FRAGMENTS);
+
+        // Clear stencil to zero
         glDisable(GL_DEPTH_TEST);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindVertexArray(0);
         glStencilMask(0xFF);
-        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        glEnable(GL_DEPTH_TEST);
-        rectangle.drawBatch(shaderSingleColor,  1);
+        glClear(GL_STENCIL_BUFFER_BIT);
+        glEnable(GL_STENCIL_TEST);
+        glClearStencil(0);
 
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+        // Only allow stencil values less than 255
+        glStencilFunc(GL_GEQUAL, MAX_OVERLAPPING_FRAGMENTS - 1, 0xFF);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+
+
+        rectangle.drawBatch(lE.object_shader,  N);
+        glm::vec2 pos;
+        float zoom;
+        std::cout << "FPS: " << std::to_string(1.0f/deltaTimer.getDeltaTime()) << std::endl;
+
+        endRenderLoopView2D(window, deltaTimer, pos, zoom);
     }
 
 
     glfwTerminate();
-    return 0;
+    return returnStatus;
+}
+
+void endFrameBuffer(FrameBuffer& fB){
+    // now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
+
+    // clear all relevant buffers
+    glClearColor(0.0f,0.0f,0.0f,0.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    
+
+    glViewport(0,0, fB.SCR_WIDTH, fB.SCR_HEIGHT);
+    fB.screenShader.use();
+    glBindVertexArray(fB.quadVAO);
+    glBindTexture(GL_TEXTURE_2D, fB.textureColorBuffer);	// use the color attachment texture as the texture of the quad plane
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+void startFrameBuffer(FrameBuffer& fB){
+    glViewport(0,0, fB.RND_WIDTH, fB.RND_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, fB.framebuffer);
+}
+
+
+FrameBuffer initFrameBuffer(unsigned int RND_WIDTH, unsigned int RND_HEIGHT, unsigned int SCR_WIDTH, unsigned int SCR_HEIGHT){
+    FrameBuffer fB{};
+    Shader screenShader(SHADER_PATH + "framebuffers.vs",SHADER_PATH +  "screen.fs", false);
+    screenShader.use();
+    screenShader.setUniformI("screenTexture", 0);
+    float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f
+    };
+    unsigned int quadVAO, quadVBO;
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    
+
+    // framebuffer configuration
+    // -------------------------
+    unsigned int framebuffer;
+    glGenFramebuffers(1, &framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    // create a color attachment texture
+    unsigned int textureColorbuffer;
+    glGenTextures(1, &textureColorbuffer);
+    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, RND_WIDTH, RND_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
+    // create a renderbuffer object for depth and stencil attachment (we won't be sampling these)
+    unsigned int rbo;
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, RND_WIDTH, RND_HEIGHT); // use a single renderbuffer object for both a depth AND stencil buffer.
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
+    // now that we actually created the framebuffer and added all attachments we want to check if it is actually complete now
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    fB.quadVAO = quadVAO;
+    fB.quadVBO = quadVBO;
+    fB.framebuffer = framebuffer;
+    fB.rbo = rbo;
+    fB.RND_HEIGHT = RND_HEIGHT;
+    fB.RND_WIDTH = RND_WIDTH;
+    fB.textureColorBuffer = textureColorbuffer;
+    fB.screenShader = screenShader;
+    fB.SCR_HEIGHT = SCR_HEIGHT;
+    fB.SCR_WIDTH = SCR_WIDTH;
+    return fB;
+
 }

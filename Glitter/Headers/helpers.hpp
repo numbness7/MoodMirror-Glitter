@@ -48,13 +48,19 @@
 #include <geometry.hpp>
 #include <textures.hpp>
 
+// #Header Constants
+const int mWidth = 800;
+const int mHeight = 800;
+const int mRWidth = 200;
+const int mRHeight = 200;
+
 // #Header Macros -------------------------------------------------------------
 
 // Do Test
-#define DO_TEST true
+#define DO_TEST false
 
 // Window Configuration
-#define FULL_SCREEN false
+#define FULL_SCREEN true
 
 // Hardware Specific Configuration
 #define ON_PI true
@@ -70,9 +76,9 @@
 
 #define MAXIMUM_IMAGE_POWER 32
 #define TOTAL_LAYERS 32
-#define SHAPES_IN_BATCH 2
+#define SHAPES_IN_BATCH 8
 #define MID_LAYER 16
-#define TOTAL_EMOTION_LAYERS 8
+#define TOTAL_EMOTION_LAYERS 7
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
 #define TOTAL_SHAPES (TOTAL_BATCHES*SHAPES_IN_BATCH)
 #define SHAPES_DIVIDER 16
@@ -91,7 +97,7 @@
 // Spawn Times
 
 #define SHAPE_INITIAL_SPAWN_TIME 0.15f
-#define DESTRUCTION_TIME         0.5f
+#define DESTRUCTION_TIME         0.25f
 #define UPDATE_ITERATIONS 10.0f
 
 // Pulse
@@ -184,7 +190,7 @@
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 0.5f
+#define SCALE_MULTIPLIER 2.0f
 #define MAX_SCALE 1.10f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.10f*SCALE_MULTIPLIER
@@ -239,6 +245,21 @@
 /// @brief Get time elapsed since the glfw context was created.
 /// @return time elapsed.
 float getElapsedTime();
+// #Structs -------------------------------------------------------------
+struct FrameBuffer{
+    unsigned int RND_WIDTH, RND_HEIGHT, quadVAO, quadVBO, framebuffer, textureColorBuffer, rbo, SCR_WIDTH, SCR_HEIGHT;
+    Shader screenShader;
+};
+struct OpenGLWindow{
+    GLFWwindow* window;
+    GLsizei screenWidth;
+    GLsizei screenHeight;
+    GLsizei renderWidth;
+    GLsizei renderHeight;
+};
+void drawMultipleTexturedShapeBatch(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures, unsigned int count, FrameBuffer& fB);
+void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
+void drawMultipleTexturedShapeBatch(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures, unsigned int count);
 
 /// @brief Returns the time passed since the last time it has been updated. Useful for making sure the speed of objects aren't dependent on the frame rate.
 class DeltaTimer{
@@ -289,6 +310,7 @@ class OpenGLShape {
     public:
         void draw(Shader& shader);
         void drawBatch(Shader& shader, unsigned int count);
+        void drawBatch(Shader& shader, const std::vector<OpenGLTexture>& textures, unsigned int count, FrameBuffer& fB);
         void drawBatch(Shader& shader, const std::vector<OpenGLTexture>& textures, unsigned int count);
         OpenGLShape(const shapes::Shape& shape);
 
@@ -338,7 +360,6 @@ enum PULSES {SCALE_P, FADE_P, RUMBLE_P, SPINR_P, SPINL_P};
 
 
 
-// #Structs -------------------------------------------------------------
 
 struct EmotionIntensities{
     float happiness;
@@ -505,6 +526,7 @@ int mainRecursion(int argc, char * argv[]);
 int mainDrawSubTextures(int argc, char* argv[]);
 // learnopengl.com
 int mainStencilTesting(int argc, char* argv[]);
+int mainFrameBufferTesting(int argc, char* argv[]);
 
 // #Draw -------------------------------------------------------------
 
@@ -517,8 +539,7 @@ int mainStencilTesting(int argc, char* argv[]);
 /// @param lock 
 /// @param lineAbove 
 /// @param lineBelow 
-void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, OpenGLShape& openGLShape,  std::vector<OpenGLTexture>& openGLTextures, int shapeCount);
-void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);
+void drawShapeLayers2D(LightingEnvironment& lightingEnvironment, OpenGLShape& openGLShape,  std::vector<OpenGLTexture>& openGLTextures, int shapeCount, FrameBuffer& fB);
 void drawShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt);
 void drawTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, unsigned int texture);
 
@@ -529,6 +550,9 @@ void create_a_shape(unsigned int &VAO, unsigned int &VBO, unsigned int& EBO, con
 
 LightingEnvironment initDummyMPV(std::string vertexShaderPath, std::string fragmentShaderPath, bool replaceVersion = false, std::string version = "330 core");
 GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen=FULL_SCREEN);
+OpenGLWindow* loadGLFWCreateWindow(int width, int height, bool fullscreen,  int renderWidth=-1, int renderHeight=-10);
+int initOpenGL(OpenGLWindow *&mWindow, int width, int height, bool fullscreen, int renderWidth, int renderHeight);
+bool initOpenGL(OpenGLWindow*& mWindow, int& return_status, int width, int height, bool fullscreen, int renderWidth, int renderHeight);
 bool initOpenGL(GLFWwindow*& mWindow, int& return_status, int width, int height);
 int initOpenGL(GLFWwindow*& mWindow, int width, int height);
 void initMouse(GLFWwindow* mWindow);
@@ -702,4 +726,8 @@ inline void PseudoVector<T>::reset()
     index = 0;
 }
 
+void deleteFrameBuffer(FrameBuffer& fB);
+void endFrameBuffer(FrameBuffer& fB);
+void startFrameBuffer(FrameBuffer& fB);
+FrameBuffer initFrameBuffer(unsigned int RND_WIDTH, unsigned int RND_HEIGHT, unsigned int SCR_WIDTH, unsigned int SCR_HEIGHT);
 #endif
