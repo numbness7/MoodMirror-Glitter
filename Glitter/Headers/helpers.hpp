@@ -53,7 +53,7 @@ const int mWidth = 800;
 const int mHeight = 800;
 const int mRWidth = 16*120;
 const int mRHeight = 9*120;
-const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f, 32.0f},{0.30, 16.0f, 16.0f}, {0.15, 4.0f, 4.0f}, {0.15f, 1.0f, 1.0f}, {0.05f, 16.0f, 16.0f}};
+const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f, 32.0f},{0.30, 16.0f, 16.0f}, {0.25, 4.0f, 4.0f}, {0.10f, 1.0f, 1.0f}};
 
 // #Header Macros -------------------------------------------------------------
 
@@ -61,7 +61,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 #define DO_TEST false
 
 // Window Configuration
-#define FULL_SCREEN false
+#define FULL_SCREEN true
 
 // Hardware Specific Configuration
 #define ON_PI true
@@ -76,10 +76,10 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 // Layer info
 
 #define MAXIMUM_IMAGE_POWER 32
-#define TOTAL_LAYERS 32
-#define SHAPES_IN_BATCH 32
-#define MID_LAYER 4
-#define TOTAL_EMOTION_LAYERS 16
+#define TOTAL_LAYERS 64
+#define SHAPES_IN_BATCH 16
+#define MID_LAYER 8
+#define TOTAL_EMOTION_LAYERS 4
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
 #define TOTAL_SHAPES (TOTAL_BATCHES*SHAPES_IN_BATCH)
 #define SHAPES_DIVIDER 16
@@ -191,7 +191,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 1.0f
+#define SCALE_MULTIPLIER 1.5f
 #define MAX_SCALE 1.10f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.10f*SCALE_MULTIPLIER
