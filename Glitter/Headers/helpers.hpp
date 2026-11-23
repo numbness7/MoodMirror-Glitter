@@ -51,8 +51,8 @@
 // #Header Constants
 const int mWidth = 800;
 const int mHeight = 800;
-const int mRWidth = 200;
-const int mRHeight = 200;
+const int mRWidth = 16*20;
+const int mRHeight = 9*20;
 
 // #Header Macros -------------------------------------------------------------
 
@@ -76,7 +76,7 @@ const int mRHeight = 200;
 
 #define MAXIMUM_IMAGE_POWER 32
 #define TOTAL_LAYERS 32
-#define SHAPES_IN_BATCH 8
+#define SHAPES_IN_BATCH 32
 #define MID_LAYER 16
 #define TOTAL_EMOTION_LAYERS 7
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
@@ -190,7 +190,7 @@ const int mRHeight = 200;
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 2.0f
+#define SCALE_MULTIPLIER 1.0f
 #define MAX_SCALE 1.10f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.10f*SCALE_MULTIPLIER

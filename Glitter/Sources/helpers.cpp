@@ -1503,10 +1503,16 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     runawayPrinter.pause(3.0f);
     std::deque<OpenGLTexture> shapeTextures;
     PseudoVector<glm::vec4> shapeVec4s(TOTAL_SHAPES/SHAPES_DIVIDER,VEC4S_PER_SHAPE,glm::vec4(0.0f));
+    std::vector<float> fpsVector = getFilledVector<float>(100, 0.0f);
+    unsigned int fpsCounter = 0;
 
     
     // ====================================================================================================
     FrameBuffer fB = initFrameBuffer(mWindow->renderWidth, mWindow->renderHeight, mWindow->screenWidth, mWindow->screenHeight);
+    std::cout << "ScreenWidth: " << mWindow->screenWidth << std::endl;
+    std::cout << "ScreenHeight: " << mWindow->screenHeight << std::endl;
+    std::cout << "RenderWidth: " << mWindow->renderWidth << std::endl;
+    std::cout << "RenderHeight: " << mWindow->renderHeight << std::endl;
     // ====================================================================================================
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow->window)) {
@@ -1640,12 +1646,22 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             glDisable(GL_DEPTH_TEST);
             if(!shapeLayersStorage.empty())
                 drawShapeLayers2D(lE, square, openGLTextures, shapeLayersStorage.getShapeCnt(), fB);
+
+	    fpsVector[fpsCounter] = getFPS(deltaTimer);
+	    fpsCounter++;
+	    if(fpsCounter > 100)
+		    fpsCounter = 100;
+	    float fpsSum = 0.0f;
+	    for(auto const fps : fpsVector){
+		    fpsSum += fps;
+	    }
+	    float meanFPS = fpsSum/fpsVector.size();
             
 
             if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
                 runawayPrinter.pushMessage(emotionLayersToString(shapeLayersStorage.back().emotionLayers));
                 runawayPrinter.pushMessage(emotionArrayToString(shapeLayersStorage.back().emotionArray));
-                runawayPrinter.pushMessage("FPS: " + std::to_string(getFPS(deltaTimer)));
+                runawayPrinter.pushMessage("FPS: " + std::to_string(meanFPS));
             }
             for(auto& texture : openGLTextures){
                 if(!contains(texture.name, std::string("SHAPES_TEXTURES")) && !contains(texture.name, std::string("BORDER")) &&!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
@@ -2691,8 +2707,8 @@ FrameBuffer initFrameBuffer(unsigned int RND_WIDTH, unsigned int RND_HEIGHT, uns
     glGenTextures(1, &textureColorbuffer);
     glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, RND_WIDTH, RND_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
     // create a renderbuffer object for depth and stencil attachment (we won't be sampling these)
     unsigned int rbo;
