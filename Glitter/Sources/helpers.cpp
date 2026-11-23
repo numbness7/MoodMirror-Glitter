@@ -1503,12 +1503,14 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     runawayPrinter.pause(3.0f);
     std::deque<OpenGLTexture> shapeTextures;
     PseudoVector<glm::vec4> shapeVec4s(TOTAL_SHAPES/SHAPES_DIVIDER,VEC4S_PER_SHAPE,glm::vec4(0.0f));
-    std::vector<float> fpsVector = getFilledVector<float>(100, 0.0f);
-    unsigned int fpsCounter = 0;
+    unsigned int framesCounter = 0;
+    float fpsTimeStamp = getElapsedTime();
 
     
     // ====================================================================================================
-    FrameBuffer fB = initFrameBuffer(mWindow->renderWidth, mWindow->renderHeight, mWindow->screenWidth, mWindow->screenHeight);
+    std::vector<FrameBuffer> fBs = {};
+    for(const auto& distribution : distributions)
+        fBs.push_back(initFrameBuffer(mWindow->renderWidth/std::get<1>(distribution), mWindow->renderHeight/std::get<2>(distribution), mWindow->screenWidth, mWindow->screenHeight));
     std::cout << "ScreenWidth: " << mWindow->screenWidth << std::endl;
     std::cout << "ScreenHeight: " << mWindow->screenHeight << std::endl;
     std::cout << "RenderWidth: " << mWindow->renderWidth << std::endl;
@@ -1516,9 +1518,19 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     // ====================================================================================================
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow->window)) {
+        framesCounter++;
 
         startDummyMPVLoop(deltaTimer, lE, backgroundColor);
-        startFrameBuffer(fB);
+        
+
+        glEnable(GL_BLEND);
+
+        glBlendFuncSeparate(
+            GL_SRC_ALPHA,
+            GL_ONE_MINUS_SRC_ALPHA,
+            GL_ONE,
+            GL_ONE_MINUS_SRC_ALPHA
+        );
     // ====================================================================================================
         //{
             requiredLayersFloat += deltaTimer.getDeltaTime()/currentDestructionTime;
@@ -1644,34 +1656,59 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             
     // ====================================================================================================
             glDisable(GL_DEPTH_TEST);
-            if(!shapeLayersStorage.empty())
-                drawShapeLayers2D(lE, square, openGLTextures, shapeLayersStorage.getShapeCnt(), fB);
+        if(!shapeLayersStorage.empty()){
+            int offset = 0;
+            for(int i = 0; i < fBs.size(); i++){ // Render Frame buffers
+                auto& fB = fBs[i];
+                int shapeBatchCount = (int) ceilWrap(std::get<0>(distributions[i])*((float)shapeLayersStorage.getShapeCnt()));
+                beginFramebuffer(fB);
+                lE.object_shader.setUniformI("INSTANCE_ID_OFFSET", offset);
+                if(i == fBs.size() - 1){
+                    int leftOver = shapeLayersStorage.getShapeCnt() - offset;
+                    square.drawBatch(lE.object_shader, openGLTextures, leftOver, fBs[i]);
+                }
+                else{
+                    square.drawBatch(lE.object_shader, openGLTextures, shapeBatchCount, fBs[i]);
+                }
+                offset += shapeBatchCount;
+            }
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glClearColor(0, 0, 0, 0);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            fBs[0].screenShader.use();
+            for(int i = 0; i < fBs.size(); i++){
+                auto& fB = fBs[i];
+                glViewport(0,0, fB.SCR_WIDTH, fB.SCR_HEIGHT);
+                glBindVertexArray(fB.quadVAO);
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, fB.textureColorBuffer);	// use the color attachment texture as the texture of the quad plane
+                glDrawArrays(GL_TRIANGLES, 0, 6);
+            }
+        }
 
-	    fpsVector[fpsCounter] = getFPS(deltaTimer);
-	    fpsCounter++;
-	    if(fpsCounter > 100)
-		    fpsCounter = 100;
-	    float fpsSum = 0.0f;
-	    for(auto const fps : fpsVector){
-		    fpsSum += fps;
-	    }
-	    float meanFPS = fpsSum/fpsVector.size();
+
+
+
             
 
-            if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
-                runawayPrinter.pushMessage(emotionLayersToString(shapeLayersStorage.back().emotionLayers));
-                runawayPrinter.pushMessage(emotionArrayToString(shapeLayersStorage.back().emotionArray));
-                runawayPrinter.pushMessage("FPS: " + std::to_string(meanFPS));
+        if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
+
+            float timePassedFPS = getElapsedTime() - fpsTimeStamp;
+            runawayPrinter.pushMessage(emotionLayersToString(shapeLayersStorage.back().emotionLayers));
+            runawayPrinter.pushMessage(emotionArrayToString(shapeLayersStorage.back().emotionArray));
+            runawayPrinter.pushMessage("FPS: " + std::to_string(((float)framesCounter)/timePassedFPS));
+            framesCounter = 0;
+            fpsTimeStamp = getElapsedTime();
+        }
+        for(auto& texture : openGLTextures){
+            if(!contains(texture.name, std::string("SHAPES_TEXTURES")) && !contains(texture.name, std::string("BORDER")) &&!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
+                glDeleteTextures(1, &texture.address);
             }
-            for(auto& texture : openGLTextures){
-                if(!contains(texture.name, std::string("SHAPES_TEXTURES")) && !contains(texture.name, std::string("BORDER")) &&!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   
-                    glDeleteTextures(1, &texture.address);
-                }
-            }
+        }
         //}
         
-    // ====================================================================================================
-        endFrameBuffer(fB);
     // ====================================================================================================
         endRenderLoopStatic(mWindow->window);
     // ====================================================================================================
@@ -2648,23 +2685,41 @@ int mainStencilTesting(int argc, char* argv[]){
     return returnStatus;
 }
 
-void endFrameBuffer(FrameBuffer& fB){
-    // now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
+void drawFrameBuffers(std::vector<FrameBuffer>& fBs){
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
-
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
     // clear all relevant buffers
-    glClearColor(0.0f,0.0f,0.0f,0.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    
+    for(auto& fB : fBs){
+        glViewport(0,0, fB.SCR_WIDTH, fB.SCR_HEIGHT);
+        fB.screenShader.use();
+        glBindVertexArray(fB.quadVAO);
+        glBindTexture(GL_TEXTURE_2D, fB.textureColorBuffer);	// use the color attachment texture as the texture of the quad plane
+    }
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+}
 
+void drawFrameBuffer(FrameBuffer& fB){
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
+    // clear all relevant buffers
     glViewport(0,0, fB.SCR_WIDTH, fB.SCR_HEIGHT);
     fB.screenShader.use();
     glBindVertexArray(fB.quadVAO);
     glBindTexture(GL_TEXTURE_2D, fB.textureColorBuffer);	// use the color attachment texture as the texture of the quad plane
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
-void startFrameBuffer(FrameBuffer& fB){
+
+void endFrameBuffer(FrameBuffer& fB){
+    // now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
+
+}
+void renderToFrameBuffer(FrameBuffer& fB){
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0,0, fB.RND_WIDTH, fB.RND_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, fB.framebuffer);
 }
@@ -2706,9 +2761,11 @@ FrameBuffer initFrameBuffer(unsigned int RND_WIDTH, unsigned int RND_HEIGHT, uns
     unsigned int textureColorbuffer;
     glGenTextures(1, &textureColorbuffer);
     glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, RND_WIDTH, RND_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, RND_WIDTH, RND_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
     // create a renderbuffer object for depth and stencil attachment (we won't be sampling these)
     unsigned int rbo;
@@ -2732,4 +2789,27 @@ FrameBuffer initFrameBuffer(unsigned int RND_WIDTH, unsigned int RND_HEIGHT, uns
     fB.SCR_WIDTH = SCR_WIDTH;
     return fB;
 
+}
+
+void beginFramebuffer(FrameBuffer& fB)
+{
+    glViewport(0,0, fB.RND_WIDTH, fB.RND_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, fB.framebuffer);
+
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glEnable(GL_BLEND);
+
+    // Straight alpha input, premultiplied alpha output.
+    glBlendFuncSeparate(
+        GL_SRC_ALPHA,
+        GL_ONE_MINUS_SRC_ALPHA,
+        GL_ONE,
+        GL_ONE_MINUS_SRC_ALPHA
+    );
+}
+void startFrameBuffer(FrameBuffer& fB){
+    glClearColor(0.0f,0.0f,0.0f,0.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }

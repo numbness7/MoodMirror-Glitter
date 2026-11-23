@@ -21,7 +21,7 @@ uniform float ABOVE_INTERCEPT;
 uniform float BELOW_INTERCEPT;
 uniform int MID_LAYER;
 uniform bool DO_FADE;
-const float BORDER_THICKNESS = 0.5f;
+const float BORDER_THICKNESS = 1.0f;
 uniform bool DISABLE_ALMOST_EVERYTHING;
 uniform int  ATLAS_SHIFT_LEFT;
 in mat3 matrixOut;

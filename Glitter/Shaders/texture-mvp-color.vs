@@ -30,6 +30,7 @@ uniform int SHAPES_PER_BATCH;
 uniform int TOTAL_BATCHES;
 uniform int TOTAL_LAYERS;
 uniform int BATCHES_PER_LAYER;
+uniform int INSTANCE_ID_OFFSET;
 
 
 mat4 scaleMatrix(mat4 matrix, vec4 scale);
@@ -60,7 +61,7 @@ flat out int SHAPE_TEXTURE_INDEX;
 flat out int ATLAS_TAG_OUT;
 
 void main(){
-    InstanceID = gl_InstanceID;
+    InstanceID = gl_InstanceID + INSTANCE_ID_OFFSET;
     int id = InstanceID;
     ourTexCoord = aTexCoord;
     SHAPE_PROPS props = getShapeProps();

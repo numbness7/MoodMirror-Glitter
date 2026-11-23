@@ -51,8 +51,9 @@
 // #Header Constants
 const int mWidth = 800;
 const int mHeight = 800;
-const int mRWidth = 16*20;
-const int mRHeight = 9*20;
+const int mRWidth = 16*120;
+const int mRHeight = 9*120;
+const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f, 32.0f},{0.30, 16.0f, 16.0f}, {0.15, 4.0f, 4.0f}, {0.15f, 1.0f, 1.0f}, {0.05f, 16.0f, 16.0f}};
 
 // #Header Macros -------------------------------------------------------------
 
@@ -60,7 +61,7 @@ const int mRHeight = 9*20;
 #define DO_TEST false
 
 // Window Configuration
-#define FULL_SCREEN true
+#define FULL_SCREEN false
 
 // Hardware Specific Configuration
 #define ON_PI true
@@ -77,8 +78,8 @@ const int mRHeight = 9*20;
 #define MAXIMUM_IMAGE_POWER 32
 #define TOTAL_LAYERS 32
 #define SHAPES_IN_BATCH 32
-#define MID_LAYER 16
-#define TOTAL_EMOTION_LAYERS 7
+#define MID_LAYER 4
+#define TOTAL_EMOTION_LAYERS 16
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
 #define TOTAL_SHAPES (TOTAL_BATCHES*SHAPES_IN_BATCH)
 #define SHAPES_DIVIDER 16
@@ -730,4 +731,8 @@ void deleteFrameBuffer(FrameBuffer& fB);
 void endFrameBuffer(FrameBuffer& fB);
 void startFrameBuffer(FrameBuffer& fB);
 FrameBuffer initFrameBuffer(unsigned int RND_WIDTH, unsigned int RND_HEIGHT, unsigned int SCR_WIDTH, unsigned int SCR_HEIGHT);
+void drawFrameBuffer(FrameBuffer& fB);
+void renderToFrameBuffer(FrameBuffer& fB);
+void drawFrameBuffers(std::vector<FrameBuffer>& fBs);
+void beginFramebuffer(FrameBuffer& fb);
 #endif
