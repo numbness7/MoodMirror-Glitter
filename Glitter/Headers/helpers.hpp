@@ -62,6 +62,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 
 // Window Configuration
 #define FULL_SCREEN true
+#define USE_PRIMARY_MONITOR false
 
 // Hardware Specific Configuration
 #define ON_PI true
@@ -257,6 +258,9 @@ struct OpenGLWindow{
     GLsizei screenHeight;
     GLsizei renderWidth;
     GLsizei renderHeight;
+    GLFWmonitor** monitors;
+    int monitorIndex;
+    int monitorCount;
 };
 void drawMultipleTexturedShapeBatch(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures, unsigned int count, FrameBuffer& fB);
 void drawMultipleTexturedShape(unsigned int &VAO, unsigned int &EBO, Shader shader, unsigned int ind_cnt, const std::vector<unsigned int>& textures);

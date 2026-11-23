@@ -95,16 +95,31 @@ GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen){
 	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
         
     }
-    if(fullscreen){
-        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-        GLFWwindow* mWindow = glfwCreateWindow(mode->width, mode->height, "Glitter", monitor, NULL);
-        return mWindow;
+    int count;
+    GLFWmonitor** monitors = glfwGetMonitors(&count);
+    GLFWmonitor* monitor;
+    if (count < 1){
+        throw std::runtime_error("No monitors exist!\n");
+    }
+    else if(!USE_PRIMARY_MONITOR && count > 1){
+        monitor = monitors[1];
     }
     else{
-        auto mWindow = glfwCreateWindow(width, height, "OpenGL", nullptr, nullptr);
-        return mWindow;
+        monitor = monitors[0];
+
     }
+    if(count <= 1 && !USE_PRIMARY_MONITOR){
+        std::cout << "Only primary monitor exists" << std::endl;
+    }
+
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    GLFWwindow* mWindow;
+    if(fullscreen)
+        mWindow = glfwCreateWindow(mode->width, mode->height, "Glitter", monitor, NULL);
+    else
+        mWindow = glfwCreateWindow(width, height, "Glitter", monitor, NULL);
+
+    return mWindow;
 }
 
 OpenGLWindow* loadGLFWCreateWindow(int width, int height, bool fullscreen,  int renderWidth, int renderHeight){
@@ -129,22 +144,42 @@ OpenGLWindow* loadGLFWCreateWindow(int width, int height, bool fullscreen,  int 
 	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
         
     }
-    if(fullscreen){
-        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-        mWindow->screenWidth = mode->width;
-        mWindow->screenHeight = mode->height;
-        mWindow->window = glfwCreateWindow(mode->width, mode->height, "Glitter", monitor, NULL);
+    int count;
+    GLFWmonitor** monitors = glfwGetMonitors(&count);
+    GLFWmonitor* monitor;
+    if (count < 1){
+        throw std::runtime_error("No monitors exist!\n");
+    }
+    else if(!USE_PRIMARY_MONITOR && count > 1){
+        monitor = monitors[1];
+        mWindow->monitorIndex = 1;
     }
     else{
-        mWindow->screenWidth = width;
-        mWindow->screenHeight = height;
-        mWindow->window = glfwCreateWindow(width, height, "OpenGL", nullptr, nullptr);
+        monitor = monitors[0];
+        mWindow->monitorIndex = 0;
+
     }
+    if(count <= 1 && !USE_PRIMARY_MONITOR){
+        std::cout << "Only primary monitor exists" << std::endl;
+    }
+
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    if(fullscreen){
+        glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
+        mWindow->window = glfwCreateWindow(mode->width, mode->height, "Glitter", monitor, NULL);
+        width = mode->width;
+        height = mode->width;
+    }
+    else{
+        mWindow->window = glfwCreateWindow(width, height, "Glitter", monitor, NULL);
+    }
+    mWindow->screenWidth = width;
+    mWindow->screenHeight = height;
     mWindow->renderWidth = renderWidth;
     mWindow->renderHeight = renderHeight;
+    mWindow->monitorCount = count;
+    mWindow->monitors = monitors;
     return mWindow;
-
 }
 bool initOpenGL(OpenGLWindow*& mWindow, int& return_status, int width, int height, bool fullscreen, int renderWidth, int renderHeight){
     // Load GLFW and Create a Window
