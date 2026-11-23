@@ -1386,8 +1386,6 @@ void OpenGLShape::drawBatch(Shader& shader, unsigned int count)
 void OpenGLShape::drawBatch(Shader &shader, const std::vector<OpenGLTexture> &textures, unsigned int count, FrameBuffer &fB)
 {
     shader.use();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, fB.textureColorBuffer);
     for(int texturesIndex = 0; texturesIndex < textures.size(); texturesIndex++){
         static const unsigned int textureColorBufferOffset = 1;
         unsigned int GL_TEXTUREX = getGL_TextureX(texturesIndex + textureColorBufferOffset);
@@ -1659,9 +1657,33 @@ int mainCoordsBasic2D(int argc, char * argv[]){
         if(!shapeLayersStorage.empty()){
             int offset = 0;
             for(int i = 0; i < fBs.size(); i++){ // Render Frame buffers
-                auto& fB = fBs[i];
                 int shapeBatchCount = (int) ceilWrap(std::get<0>(distributions[i])*((float)shapeLayersStorage.getShapeCnt()));
-                beginFramebuffer(fB);
+                auto& fBCur = fBs[i];
+                glBindFramebuffer(GL_FRAMEBUFFER, fBCur.framebuffer);
+                glClearColor(0, 0, 0, 0);
+                glClear(GL_COLOR_BUFFER_BIT);
+
+                glViewport(0,0, fBCur.RND_WIDTH, fBCur.RND_HEIGHT);
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+                fBCur.screenShader.use();
+                fBCur.screenShader.setUniformI("screenTexture", 1);
+                if(i > 0){
+                    auto& fBPrev = fBs[i-1];
+                    glBindVertexArray(fBPrev.quadVAO);
+                    glActiveTexture(GL_TEXTURE1);
+                    glBindTexture(GL_TEXTURE_2D, fBPrev.textureColorBuffer);	// use the color attachment texture as the texture of the quad plane
+                    glDrawArrays(GL_TRIANGLES, 0, 6);
+                }
+
+                // Straight alpha input, premultiplied alpha output.
+                glBlendFuncSeparate(
+                    GL_SRC_ALPHA,
+                    GL_ONE_MINUS_SRC_ALPHA,
+                    GL_ONE,
+                    GL_ONE_MINUS_SRC_ALPHA
+                );
+                lE.object_shader.use();
                 lE.object_shader.setUniformI("INSTANCE_ID_OFFSET", offset);
                 if(i == fBs.size() - 1){
                     int leftOver = shapeLayersStorage.getShapeCnt() - offset;
@@ -1674,24 +1696,15 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             }
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glClearColor(0, 0, 0, 0);
-            glClear(GL_COLOR_BUFFER_BIT);
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-            fBs[0].screenShader.use();
-            for(int i = 0; i < fBs.size(); i++){
-                auto& fB = fBs[i];
-                glViewport(0,0, fB.SCR_WIDTH, fB.SCR_HEIGHT);
-                glBindVertexArray(fB.quadVAO);
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, fB.textureColorBuffer);	// use the color attachment texture as the texture of the quad plane
-                glDrawArrays(GL_TRIANGLES, 0, 6);
-            }
+            auto& fBFinal = fBs[fBs.size() - 1];
+            fBFinal.screenShader.use();
+            fBFinal.screenShader.setUniformI("screenTexture", 1);
+            glViewport(0,0, fBFinal.SCR_WIDTH, fBFinal.SCR_HEIGHT);
+            glBindVertexArray(fBFinal.quadVAO);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, fBFinal.textureColorBuffer);	// use the color attachment texture as the texture of the quad plane
+            glDrawArrays(GL_TRIANGLES, 0, 6);
         }
-
-
-
-
-            
 
         if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
 
