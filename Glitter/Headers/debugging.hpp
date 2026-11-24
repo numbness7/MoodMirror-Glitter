@@ -6,6 +6,7 @@
 #include <thread>
 #include <queue>
 #include <string>
+#include <limits>
 // #Debug -------------------------------------------------------------
 
 namespace debug{
@@ -14,10 +15,25 @@ namespace debug{
         public:
             StopWatch();
             void start();
-            uint64_t time();
+            uint64_t time() const;
+            float timeFloat() const;
         private:
             simple_time_point start_time;
     };        
+    
+    class FrequencyWatch{
+        public:
+            FrequencyWatch(unsigned int maxCount=std::numeric_limits<unsigned int>::max());
+            bool step();
+            float getCurrentFrequency() const;
+            float getFrequency() const;
+        private:
+            StopWatch stopWatch;
+            unsigned int count;
+            unsigned int maxCount;
+            float lastFrequency;
+            bool hasLastFrequency;
+    };
 
     enum class OUTPUT {
         FILE,

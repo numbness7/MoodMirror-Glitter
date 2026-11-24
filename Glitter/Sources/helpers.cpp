@@ -1072,8 +1072,6 @@ void shapeLayerGenerator(std::deque<ShapeLayer>* shapeLayersBuffer, Alarm* creat
             for(auto const& emotionLayer : emotionLayers){
                 auto const& emotionArray = emotionLayer.emotionArray;
                 emotionArrays.push_back(emotionArray);
-
-
                 glm::vec3 emotionRGB;
 
                 emotionRGB = emotionArrayToColor(emotionArray);
@@ -1512,8 +1510,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     std::deque<OpenGLTexture> shapeTextures;
     PseudoVector<glm::vec4> shapeVec4s(TOTAL_SHAPES/SHAPES_DIVIDER,VEC4S_PER_SHAPE,glm::vec4(0.0f));
     PseudoVector<glm::vec4> layerVec4s(TOTAL_LAYERS,VEC4S_PER_SHAPE,glm::vec4(0.0f));
-    unsigned int framesCounter = 0;
-    float fpsTimeStamp = getElapsedTime();
+    debug::FrequencyWatch fpsWatch{60};
 
     
     // ====================================================================================================
@@ -1527,7 +1524,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     // ====================================================================================================
     // #Render 2D Loop
     while (!glfwWindowShouldClose(mWindow->window)) {
-        framesCounter++;
+        fpsWatch.step();
 
         startDummyMPVLoop(deltaTimer, lE, backgroundColor);
         
@@ -1708,12 +1705,9 @@ int mainCoordsBasic2D(int argc, char * argv[]){
 
         if(printAlarm.checkAndUpdate() && !shapeLayersStorage.empty()){
 
-            float timePassedFPS = getElapsedTime() - fpsTimeStamp;
             runawayPrinter.pushMessage(emotionLayersToString(shapeLayersStorage.back().emotionLayers));
             runawayPrinter.pushMessage(emotionArrayToString(shapeLayersStorage.back().emotionArray));
-            runawayPrinter.pushMessage("FPS: " + std::to_string(((float)framesCounter)/timePassedFPS));
-            framesCounter = 0;
-            fpsTimeStamp = getElapsedTime();
+            runawayPrinter.pushMessage("FPS: " + std::to_string(fpsWatch.getFrequency()));
         }
         for(auto& texture : openGLTextures){
             if(!contains(texture.name, std::string("SHAPES_TEXTURES")) && !contains(texture.name, std::string("BORDER")) &&!contains(texture.name, std::string("ATLAS")) && !contains(texture.name, std::string("borderTexture")) && !contains(texture.name, std::string("ourTexture"))){   

@@ -143,10 +143,48 @@ namespace debug{
         start_time = getNow();
     }
 
-    uint64_t StopWatch::time()
+    uint64_t StopWatch::time() const
     {
         auto end_time = getNow();
         return duration(start_time, end_time);
     }
 
+    float StopWatch::timeFloat() const
+    {
+        auto end_time = getNow();
+        return durationFloat(start_time, end_time);
+    }
+
+    FrequencyWatch::FrequencyWatch(unsigned int maxCount) : count(0), maxCount(maxCount), hasLastFrequency(false)
+    {
+        stopWatch.start();
+    }
+
+    bool FrequencyWatch::step()
+    {
+        count++;
+        if (count > maxCount){
+            hasLastFrequency = true;
+            lastFrequency = getCurrentFrequency();
+            count = 0;
+            stopWatch.start();
+        }
+        return hasLastFrequency;
+    }
+    float FrequencyWatch::getCurrentFrequency() const
+    {
+        if(count == 0)
+            return 0.0f;
+        else
+            return count/stopWatch.timeFloat();
+    }
+    float FrequencyWatch::getFrequency() const
+    {
+        if(hasLastFrequency){
+            float ratio = ((float)count/(float)maxCount);
+            return ratio*getCurrentFrequency() + (1.0f - ratio)*lastFrequency;
+        }
+        else
+            return getCurrentFrequency();
+    }
 }

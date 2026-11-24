@@ -18,6 +18,7 @@
 typedef std::chrono::_V2::system_clock::time_point simple_time_point;
 
 int64_t duration(std::chrono::_V2::system_clock::time_point start,std::chrono::_V2::system_clock::time_point end);
+float durationFloat(std::chrono::_V2::system_clock::time_point start,std::chrono::_V2::system_clock::time_point end);
 std::chrono::_V2::system_clock::time_point getNow();
 std::string unixTimeStamp();
 std::string getWorldTime();

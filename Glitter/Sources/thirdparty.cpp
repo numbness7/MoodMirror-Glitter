@@ -9,6 +9,9 @@ int64_t duration(std::chrono::_V2::system_clock::time_point start,std::chrono::_
     auto seconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
     return seconds;
 }
+float durationFloat(std::chrono::_V2::system_clock::time_point start,std::chrono::_V2::system_clock::time_point end){
+    return ((float)duration(start, end) / 1000000000.0f);
+}
 
 std::chrono::_V2::system_clock::time_point getNow(){
     auto now = std::chrono::system_clock::now();
