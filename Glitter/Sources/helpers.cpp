@@ -1553,26 +1553,22 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             }
             
 
-            for(const auto& layer : shapeLayersTransfer)
-            {
-                for(const auto& batch : layer.batches){
-                    textureAtlas.replaceTexture(batch.pngData.getData());
-                    tagAtlas.replaceTexture(&batch.tag);
-                }
+            for(const auto batch : shapeLayersTransfer.getBatches()){
+                textureAtlas.replaceTexture(batch->pngData.getData());
+                tagAtlas.replaceTexture(&batch->tag);
             }
             if (std::get<0>(transfers) > 0){
-                auto isf = loadShapes2D(shapeLayersTransfer);
-                for( int shapeIndex = 0; shapeIndex < isf.rotationMatrices.size(); shapeIndex++){
+                for(const auto shape : shapeLayersTransfer.getShapes()){
                     assert(shapeVec4s.getSize() % VEC4S_PER_SHAPE == 0);
-                    shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                    shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][1], *reinterpret_cast<float*>(&isf.layerTags[shapeIndex])));
-                    shapeVec4s.push_back( glm::vec4(isf.translationMatrices [shapeIndex][2], *reinterpret_cast<float*>(&isf.batchTags[shapeIndex])));
-                    shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][0], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                    shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][1], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                    shapeVec4s.push_back( glm::vec4(isf.rotationMatrices    [shapeIndex][2], *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                    shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][0],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                    shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][1],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
-                    shapeVec4s.push_back( glm::vec4(isf.scaleMatrices [shapeIndex][2],       *reinterpret_cast<float*>(&isf.types[shapeIndex])));
+                    shapeVec4s.push_back( glm::vec4(shape->transition[0],        *reinterpret_cast<const float*>(&shape->type    )));
+                    shapeVec4s.push_back( glm::vec4(shape->transition[1],        *reinterpret_cast<const float*>(&shape->layerTag)));
+                    shapeVec4s.push_back( glm::vec4(shape->transition[2],        *reinterpret_cast<const float*>(&shape->batchTag)));
+                    shapeVec4s.push_back( glm::vec4(shape->rotationMatrix[0],    *reinterpret_cast<const float*>(&shape->type)));
+                    shapeVec4s.push_back( glm::vec4(shape->rotationMatrix[1],    *reinterpret_cast<const float*>(&shape->type)));
+                    shapeVec4s.push_back( glm::vec4(shape->rotationMatrix[2],    *reinterpret_cast<const float*>(&shape->type)));
+                    shapeVec4s.push_back( glm::vec4(shape->scaleMatrix[0],       *reinterpret_cast<const float*>(&shape->type)));
+                    shapeVec4s.push_back( glm::vec4(shape->scaleMatrix[1],       *reinterpret_cast<const float*>(&shape->type)));
+                    shapeVec4s.push_back( glm::vec4(shape->scaleMatrix[2],       *reinterpret_cast<const float*>(&shape->type)));
                     if (shapeVec4s.isFull()){
                         if(shapeTextures.size() >= SHAPES_DIVIDER)
                             shapeTextures.pop_back();
@@ -2413,26 +2409,24 @@ ShapeLayerStorage::ShapeLayerStorage()
 
 void ShapeLayerStorage::push_front(ShapeLayer shapeLayer)
 {
-    for(const auto& shapeBatch : shapeLayer.batches){
-        for(const auto& shape : shapeBatch.shapes){
-            shapeCnt++;
-        }
-        batchCnt++;
-    }
     shapeLayers.push_front(shapeLayer);
-    layerCnt++;
+    for(auto& shapeBatch : this->shapeLayers.front().batches){
+        this->batches.push_front(&shapeBatch);
+        for(auto& shape : shapeBatch.shapes){
+            this->shapes.push_back(&shape);
+        }
+    }
 }
 
 void ShapeLayerStorage::pop_back()
 {
-    auto shapeLayer = shapeLayers.back();
+    auto& shapeLayer = shapeLayers.back();
     for(const auto& shapeBatch : shapeLayer.batches){
         for(const auto& shape : shapeBatch.shapes){
-            shapeCnt--;
+            shapes.pop_back();
         }
-        batchCnt--;
+        batches.pop_back();
     }
-    layerCnt--;
     shapeLayers.pop_back();
 }
 

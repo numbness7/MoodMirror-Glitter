@@ -213,10 +213,10 @@ namespace ttm = textureTypeMappings;
         
 unsigned int useTextureDataToCreateTexture(const void* data, GLsizei width, GLsizei height, GLenum target = GL_TEXTURE_2D, GLint level = 0, GLint internalFormat = GL_RGBA,  GLenum format = GL_RGBA, GLenum type = GL_UNSIGNED_BYTE);
 unsigned int useTextureDataToCreateTexture(const void* data, OpenGLTextureOptions options);
-template <typename T> unsigned int useTextureDataToCreateTexture(T* data, GLsizei width, GLsizei height){
+template <typename T> unsigned int useTextureDataToCreateTexture(const T* data, GLsizei width, GLsizei height){
     return useTextureDataToCreateTexture(data, ttm::map2D(data, width, height));
 }
-template <typename T> unsigned int useTextureDataToCreateTexture(std::vector<T> data, GLsizei width, GLsizei height){
+template <typename T> unsigned int useTextureDataToCreateTexture(const std::vector<T> data, GLsizei width, GLsizei height){
     return useTextureDataToCreateTexture(data.data(), ttm::map2D(data, width, height));
 }
 // #Classes -------------------------------------------------------------

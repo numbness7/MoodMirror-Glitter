@@ -472,16 +472,19 @@ class ShapeLayerStorage{
        ShapeLayer& front() { return shapeLayers.front(); }
        VisualLayer::iterator begin() { return shapeLayers.begin(); }
        VisualLayer::iterator end()   { return shapeLayers.end(); }
-       unsigned int getShapeCnt() { return shapeCnt; }
-       unsigned int getBatchCnt() { return batchCnt; }
-       unsigned int getLayerCnt() { return layerCnt; }
+       unsigned int getShapeCnt() { return shapes.size(); }
+       unsigned int getBatchCnt() { return batches.size(); }
+       unsigned int getLayerCnt() { return shapeLayers.size(); }
        unsigned int size() { return getLayerCnt(); }
        bool empty() { return size() == 0; }
+       const std::deque<ShapeBatch*> getBatches() const { return batches; }
+       const std::deque<ShapeProperties2D*> getShapes() const { return shapes; }
+       const VisualLayer& getLayers() const { return shapeLayers; }
     private:
        VisualLayer shapeLayers;
-       unsigned int shapeCnt = 0;
-       unsigned int batchCnt = 0;
-       unsigned int layerCnt = 0;
+       std::deque<ShapeBatch*> batches;
+       std::deque<ShapeProperties2D*> shapes;
+
 };
 
 template <typename T> class PseudoVector{

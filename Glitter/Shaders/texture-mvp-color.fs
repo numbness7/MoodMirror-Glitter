@@ -39,8 +39,6 @@ uniform highp sampler2D ATLAS_TEXTURES[ATLAS_TEXTURES_CNT];
 uniform highp sampler2D INNER_COLORS_TEXTURE;
 uniform highp sampler2D OUTER_COLORS_TEXTURE;
 uniform highp sampler2D SL_SCALES_TEXTURE;
-uniform highp sampler2D DESTRUCTION_TIMES_TEXTURE;
-uniform highp sampler2D DESTRUCTION_TIME_PASSEDS_TEXTURE;
 
 uniform int BATCHES_CNT;
 uniform int BATCHES_PER_ATLAS_TEXTURE;
@@ -79,8 +77,6 @@ void main(){
         vec4 INNER_COLOR = getTexel(INNER_COLORS_TEXTURE, layer);
         vec4 OUTER_COLOR = getTexel(OUTER_COLORS_TEXTURE, layer);
         vec2 SL_SCALE = getTexel(SL_SCALES_TEXTURE, layer).rg;
-        float destructionTime = getTexel(DESTRUCTION_TIMES_TEXTURE, layer).r;
-        float destructionTimePassed = getTexel(DESTRUCTION_TIME_PASSEDS_TEXTURE, layer).r;
         
         float dist;
         switch(TYPE_OUT){
