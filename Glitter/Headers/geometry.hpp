@@ -67,6 +67,7 @@ bool isInSquare(float x, float y, float centerX, float centerY, float length);
 bool isOnLine(std::tuple<float,float,float> line, glm::vec2 point);
 glm::vec2 rotate(const glm::vec2& vec2, const float& radians);
 namespace glm{
+    inline float angle(const glm::vec2& vec2) { return glm::atan(vec2.y, vec2.x); }
     glm::mat3 rotate(glm::mat3 mat3, float angle);
     glm::mat3 scale(glm::mat3 mat3, glm::vec2 vec2);
     glm::mat3 translate(glm::mat3 mat3, glm::vec2 vec2);

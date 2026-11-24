@@ -11,8 +11,6 @@ flat out int InstanceID;
 
 
 uniform bool USE_MODEL_ARRAY;
-uniform mat4 model;
-uniform mat4 view;
 uniform int COLS;
 uniform int SIZE;
 uniform highp sampler2D TRANS_L_TEXTURE;
@@ -23,7 +21,7 @@ const int ATLAS_TEXTURES_CNT = 16;
 uniform highp usampler2D BATCH_TAGS_TEXTURE;
 uniform highp usampler2D ATLAS_TAGS_TEXTURE;
 const int SHAPE_TEXTURES_CNT = 16;
-const int STRIDE = 9;
+const int STRIDE = 2;
 uniform highp sampler2D SHAPES_TEXTURES[16];
 uniform int SHAPES_PER_LAYER;
 uniform int SHAPES_PER_BATCH;
@@ -33,25 +31,25 @@ uniform int BATCHES_PER_LAYER;
 uniform int INSTANCE_ID_OFFSET;
 
 
-mat4 scaleMatrix(mat4 matrix, vec4 scale);
-mat4 translateMatrix(mat4 matrix, vec4 translation);
+mat3 getRotateMatrix( float angle);
+mat3 getScaleMatrix( vec2 v2);
+mat3 getTranslateMatrix( vec2 v2);
+mat3 rotateMatrix(mat3 m3, float angle);
+mat3 scaleMatrix(mat3  m3, vec2 v2);
+mat3 translateMatrix(mat3 m3, vec2 v2);
 vec2 boundTransformation(vec2 pos, vec2 mini, vec2 maxi, vec2 miniT, vec2 maxiT);
 float boundTransformation(float x, float mini, float maxi, float miniT, float maxiT);
-mat4 getModel();
 vec2 matrixMultiply(mat3 matrix, vec2 pos);
-mat4 mat3ToMat4(mat3 matrix3);
 uint getLayer(uint layerTag);
 uint getBatch(uint batchTag);
 uint getCatch(uint catchTag, highp usampler2D CATCH_TAGS_TEXTURE, uint TOTAL_CATCHES);
 ivec2 getTexelCoord(int index);
-float getFloatInterpolatedFromTexture   (highp sampler2D floatTexture, vec2 coords);
-float getDistFromTexture                (highp sampler2D distTexture, vec2 coords);
 mat3 getMat3Model                       (highp sampler2D mat3ModelTexture, int iD);
 vec4 getTexel                           (highp sampler2D texture, int index);
 ivec4 getTexel                          (highp isampler2D texture, int index);
 uvec4 getTexel                          (highp usampler2D texture, int index);
 
-struct SHAPE_PROPS { mat3 translation; mat3 rotation; mat3 scale; uint type; uint layerTag; uint batchTag; };
+struct SHAPE_PROPS { vec2 translation; float rotation; float scale; uint type; uint layerTag; uint batchTag; };
 SHAPE_PROPS getShapeProps();
 
 flat out int LAYER_OUT;
@@ -70,22 +68,17 @@ void main(){
     BATCH_OUT = int(getBatch(props.batchTag));
     TYPE_OUT = props.type;
     ATLAS_TAG_OUT = int(getCatch(props.batchTag, ATLAS_TAGS_TEXTURE, uint(TOTAL_BATCHES)));
-    if(USE_MODEL_ARRAY){
-        mat3  transS = props.translation;
-        mat3  scaleS = props.scale;
-        mat3 rotateS= props.rotation;
+    vec2  transS = props.translation;
+    float  scaleS = props.scale;
+    float rotateS= props.rotation;
 
-        mat3  transL = getMat3Model(TRANS_L_TEXTURE, layer);
-        mat3  scaleL = getMat3Model(SCALE_L_TEXTURE, layer);
-        mat3 rotateL= getMat3Model(ROTATE_L_TEXTURE, layer);
-        mat3 matrix =  (transS+(rotateS*transL))*(rotateS+rotateL)*matrixCompMult(scaleS,scaleL);
-        matrixOut = matrix;
-        vec2 newPos = matrixMultiply(matrix, aPos.xy);
-        gl_Position = vec4(newPos, 0.0f, 1.0f);
-    }
-    else{
-        gl_Position = view * model * vec4(aPos,1.0f);
-    }
+    mat3  transL = getMat3Model(TRANS_L_TEXTURE, layer);
+    mat3  scaleL = getMat3Model(SCALE_L_TEXTURE, layer);
+    mat3 rotateL= getMat3Model(ROTATE_L_TEXTURE, layer);
+    mat3 matrix =  translateMatrix(rotateMatrix(transL, rotateS), transS)*rotateMatrix(rotateL, rotateS)*scaleMatrix(scaleL,vec2(scaleS));
+    matrixOut = matrix;
+    vec2 newPos = matrixMultiply(matrix, aPos.xy);
+    gl_Position = vec4(newPos, 0.0f, 1.0f);
     
 }
 
@@ -113,33 +106,7 @@ mat3 getMat3Model(highp sampler2D mat3ModelTexture, int iD){
     return model;
 }
 
-mat4 getMat4Model(highp sampler2D mat4ModelTexture, int iD){
-    // CHATGPT START
-    vec4 col0 = texelFetch( mat4ModelTexture, ivec2(4*iD,0), 0);
-    vec4 col1 = texelFetch( mat4ModelTexture, ivec2(4*iD+1,0), 0);
-    vec4 col2 = texelFetch( mat4ModelTexture, ivec2(4*iD+2,0), 0);
-    vec4 col3 = texelFetch( mat4ModelTexture, ivec2(4*iD+3,0), 0);
-    mat4 model = mat4(1.0f);
-    model[0] = col0;
-    model[1] = col1;
-    model[2] = col2;
-    model[3] = col3;
-    // CHATGPT END
-    return model;
-}
 
-mat4 scaleMatrix(mat4 matrix, vec4 scale){
-    for(int i = 0; i < 4; i++){
-        matrix[i][i] *= scale[i];
-    }
-    return matrix;
-}
-mat4 translateMatrix(mat4 matrix, vec4 translation){
-    for(int i = 0; i < 4; i++){
-        matrix[3][i] += translation[i];
-    }
-    return matrix;
-}
 
 vec2 boundTransformation(vec2 pos, vec2 mini, vec2 maxi, vec2 miniT, vec2 maxiT){
     float xT = boundTransformation(pos.x, mini.x, maxi.x, miniT.x, maxiT.x);
@@ -150,16 +117,6 @@ float boundTransformation(float x, float mini, float maxi, float miniT, float ma
     float slope = (maxiT - miniT)/(maxi - mini);
     float intercept = miniT - slope*mini;
     return slope*x + intercept;
-}
-mat4 mat3ToMat4(mat3 matrix3){
-    mat4 matrix4 = mat4(1.0f);
-    for(int row = 0; row < 3; row++){
-        for(int col = 0; col < 3; col++){
-            matrix4[col][row] = matrix3[col][row];
-        }
-    }
-    return matrix4;
-
 }
 uint getLayer(uint layerTag){
     return getCatch(layerTag, LAYER_TAGS_TEXTURE, uint(TOTAL_LAYERS));
@@ -191,13 +148,6 @@ uvec4 getTexel(highp usampler2D texture, int index){
     return texelFetch(texture, texelCoord, 0);
 }
 
-float getFloatInterpolatedFromTexture(highp sampler2D floatTexture, vec2 coords){
-    float f = texture(floatTexture, coords).r;
-    return f;
-}
-float getDistFromTexture(highp sampler2D distTexture, vec2 coords){
-    return getFloatInterpolatedFromTexture(distTexture, coords);
-}
 
 SHAPE_PROPS getShapeProps(){
     vec4 shapeVec4s[STRIDE];
@@ -256,22 +206,68 @@ SHAPE_PROPS getShapeProps(){
                 break;
         }
     }
-    mat3 translation;
-    mat3 rotation;
-    mat3 scale;
-    uint type;
-    translation[0] = vec3(shapeVec4s[0]); 
-    translation[1] = vec3(shapeVec4s[1]);
-    translation[2] = vec3(shapeVec4s[2]);
-    rotation[0]    = vec3(shapeVec4s[3]);
-    rotation[1]    = vec3(shapeVec4s[4]);
-    rotation[2]    = vec3(shapeVec4s[5]);
-    scale[0]       = vec3(shapeVec4s[6]);
-    scale[1]       = vec3(shapeVec4s[7]);
-    scale[2]       = vec3(shapeVec4s[8]);
-    type           = uint(floatBitsToInt(shapeVec4s[0].a));
-    uint layerTag = floatBitsToUint(shapeVec4s[1].a);
-    uint batchTag = floatBitsToUint(shapeVec4s[2].a);
+    vec2 translation = shapeVec4s[0].xy;
+    float rotation   = shapeVec4s[0].z;
+    float scale      = shapeVec4s[0].w;
+    uint type        = uint(floatBitsToInt(shapeVec4s[1].x));
+    uint layerTag    = floatBitsToUint(shapeVec4s[1].y);
+    uint batchTag    = floatBitsToUint(shapeVec4s[1].z);
     return SHAPE_PROPS(translation, rotation, scale, type, layerTag, batchTag);
 }
-// struct SHAPE_PROPS { mat3 translation; mat3 rotation; mat3 scale; uint type; uint layerTag; };
+// struct SHAPE_PROPS { vec2 translation; float rotation; float scale; uint type; uint layerTag; uint batchTag; };
+
+mat3 rotateMatrix(mat3 m3, float angle)
+{
+    mat3 rotm3 = mat3(0.0f);
+    rotm3[0][0] = cos(angle);
+    rotm3[1][0] = -sin(angle);
+    rotm3[0][1] = sin(angle);
+    rotm3[1][1] = cos(angle);
+    rotm3[2][2] = 1.0f;
+    return rotm3 * m3;
+}
+
+mat3 scaleMatrix(mat3 m3, vec2 v2)
+{
+    for(int i = 0; i < 2; i++){
+        m3[i][i] *= v2[i];
+    }
+    return m3;
+}
+
+mat3 translateMatrix(mat3 m3, vec2 v2)
+{
+    for(int i = 0; i < 2; i++){
+        m3[2][i] += v2[i];
+    }
+    return m3;
+}
+
+mat3 getRotateMatrix(float angle)
+{
+    mat3 rotm3 = mat3(0.0f);
+    rotm3[0][0] = cos(angle);
+    rotm3[1][0] = -sin(angle);
+    rotm3[0][1] = sin(angle);
+    rotm3[1][1] = cos(angle);
+    rotm3[2][2] = 1.0f;
+    return rotm3;
+}
+
+mat3 getScaleMatrix(vec2 v2)
+{
+    mat3 m3 = mat3(1.0f);
+    for(int i = 0; i < 2; i++){
+        m3[i][i] = v2[i];
+    }
+    return m3;
+}
+
+mat3 getTranslateMatrix(vec2 v2)
+{
+    mat3 m3 = mat3(1.0f);
+    for(int i = 0; i < 2; i++){
+        m3[2][i] = v2[i];
+    }
+    return m3;
+}

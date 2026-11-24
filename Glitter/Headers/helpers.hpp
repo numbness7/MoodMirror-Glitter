@@ -85,9 +85,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 #define SHAPES_PER_LAYER (TOTAL_SHAPES/TOTAL_LAYERS)
 #define BATCHES_PER_LAYER (TOTAL_SHAPES/(TOTAL_BATCHES))
 #define BATCHES_SHARE_EMOTION 1 
-#define VEC4PERMAT3 3
-#define MAT3PERSHAPE 3
-#define VEC4S_PER_SHAPE ((VEC4PERMAT3)*(MAT3PERSHAPE))
+#define VEC4S_PER_SHAPE (2)
 #define TOTAL_VEC4_FOR_SHAPES ((VEC4S_PER_SHAPE) * (TOTAL_SHAPES))
 
 // Emotion Data File

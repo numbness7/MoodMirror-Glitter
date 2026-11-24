@@ -1560,15 +1560,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             if (std::get<0>(transfers) > 0){
                 for(const auto shape : shapeLayersTransfer.getShapes()){
                     assert(shapeVec4s.getSize() % VEC4S_PER_SHAPE == 0);
-                    shapeVec4s.push_back( glm::vec4(shape->transition[0],        *reinterpret_cast<const float*>(&shape->type    )));
-                    shapeVec4s.push_back( glm::vec4(shape->transition[1],        *reinterpret_cast<const float*>(&shape->layerTag)));
-                    shapeVec4s.push_back( glm::vec4(shape->transition[2],        *reinterpret_cast<const float*>(&shape->batchTag)));
-                    shapeVec4s.push_back( glm::vec4(shape->rotationMatrix[0],    *reinterpret_cast<const float*>(&shape->type)));
-                    shapeVec4s.push_back( glm::vec4(shape->rotationMatrix[1],    *reinterpret_cast<const float*>(&shape->type)));
-                    shapeVec4s.push_back( glm::vec4(shape->rotationMatrix[2],    *reinterpret_cast<const float*>(&shape->type)));
-                    shapeVec4s.push_back( glm::vec4(shape->scaleMatrix[0],       *reinterpret_cast<const float*>(&shape->type)));
-                    shapeVec4s.push_back( glm::vec4(shape->scaleMatrix[1],       *reinterpret_cast<const float*>(&shape->type)));
-                    shapeVec4s.push_back( glm::vec4(shape->scaleMatrix[2],       *reinterpret_cast<const float*>(&shape->type)));
+                    shapeVec4s.push_back( glm::vec4(glm::vec2(shape->coords), glm::angle(shape->direction) , shape->scaleMatrix[0][0]));
+                    shapeVec4s.push_back( glm::vec4(*reinterpret_cast<const float*>(&shape->type    ),*reinterpret_cast<const float*>(&shape->layerTag    ),*reinterpret_cast<const float*>(&shape->batchTag    ), 0.0f));
                     if (shapeVec4s.isFull()){
                         if(shapeTextures.size() >= SHAPES_DIVIDER)
                             shapeTextures.pop_back();
