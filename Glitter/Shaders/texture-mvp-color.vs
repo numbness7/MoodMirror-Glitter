@@ -35,6 +35,7 @@ mat3 getRotateMatrix( float angle);
 mat3 getScaleMatrix( vec2 v2);
 mat3 getTranslateMatrix( vec2 v2);
 mat3 rotateMatrix(mat3 m3, float angle);
+vec2 rotate(vec2 v2, float rads);
 mat3 scaleMatrix(mat3  m3, vec2 v2);
 mat3 translateMatrix(mat3 m3, vec2 v2);
 vec2 boundTransformation(vec2 pos, vec2 mini, vec2 maxi, vec2 miniT, vec2 maxiT);
@@ -72,10 +73,13 @@ void main(){
     float  scaleS = props.scale;
     float rotateS= props.rotation;
 
-    mat3  transL = getMat3Model(TRANS_L_TEXTURE, layer);
-    mat3  scaleL = getMat3Model(SCALE_L_TEXTURE, layer);
-    mat3 rotateL= getMat3Model(ROTATE_L_TEXTURE, layer);
-    mat3 matrix =  translateMatrix(rotateMatrix(transL, rotateS), transS)*rotateMatrix(rotateL, rotateS)*scaleMatrix(scaleL,vec2(scaleS));
+    mat3 matrix = mat3(1.0f);
+    vec2  transL = getTexel(TRANS_L_TEXTURE, layer).xy;
+    float  scaleL = getTexel(SCALE_L_TEXTURE, layer).x;
+    float rotateL=  getTexel(ROTATE_L_TEXTURE, layer).x;
+    matrix = scaleMatrix(matrix, vec2(scaleL*scaleS));
+    matrix = rotateMatrix(matrix, rotateS + rotateL);
+    matrix = translateMatrix(matrix, rotate(transL, rotateS) + transS);
     matrixOut = matrix;
     vec2 newPos = matrixMultiply(matrix, aPos.xy);
     gl_Position = vec4(newPos, 0.0f, 1.0f);
@@ -270,4 +274,9 @@ mat3 getTranslateMatrix(vec2 v2)
         m3[2][i] = v2[i];
     }
     return m3;
+}
+vec2 rotate(vec2 v2, float rads){
+    float originalAngle = atan(v2.y,v2.x);
+    vec2 rotatedN = vec2(cos(originalAngle +  rads), sin( originalAngle + rads));
+    return length(v2) * rotatedN;
 }

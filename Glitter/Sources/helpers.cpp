@@ -804,9 +804,9 @@ BatchFeatures2D loadBatches2D(ShapeLayerStorage& shapeLayers){
 }
 ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tuple<float, float> lineAbove, std::tuple<float, float> lineBelow, DeltaTimer deltaTimer){
     unsigned layerCount = 0;
-    auto translationMatrices = getFilledVector<glm::mat3>(shapeLayers.getLayerCnt(), glm::mat3());
-    auto rotationMatrices = getFilledVector<glm::mat3>(shapeLayers.getLayerCnt(), glm::mat3());
-    auto scaleMatrices = getFilledVector<glm::mat3>(shapeLayers.getLayerCnt(), glm::mat3());
+    auto translations = getFilledVector<glm::vec2>(shapeLayers.getLayerCnt(), glm::vec2());
+    auto rotations = getFilledVector<float>(shapeLayers.getLayerCnt(), 0.0f);
+    auto scales = getFilledVector<float>(shapeLayers.getLayerCnt(), 0.0f);
     auto innerColors = getFilledVector<glm::vec4>(shapeLayers.getLayerCnt(), glm::vec4());
     auto outerColors = getFilledVector<glm::vec4>(shapeLayers.getLayerCnt(), glm::vec4());
     auto destructionTimes = getFilledVector<float>(shapeLayers.getLayerCnt(), 0.0f);
@@ -864,9 +864,9 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
             static const float speed = 1.0f;
             shapeLayer.rumbleCoords += speed * randCoords2D() * deltaTimer.getDeltaTime() / PULSE_TIME_RATIO;
         }
-        translationMatrices[layer] = glm::translate(glm::mat3(1.0f), dX *dir2D::RIGHT + shapeLayer.rumbleCoords);
-        rotationMatrices[layer] = glm::rotate(glm::mat3(1.0f), shapeLayer.spin);
-        scaleMatrices[layer] = glm::scale(glm::mat3(1.0f),glm::vec2((1.0f - scaleDown)*(1.0f - scaleDownPulse)));
+        translations[layer] = dX *dir2D::RIGHT + shapeLayer.rumbleCoords;
+        rotations[layer] = shapeLayer.spin;
+        scales[layer] = (1.0f - scaleDown)*(1.0f - scaleDownPulse);
         assert(scaleDown  <= 1.0f && scaleDown >= 0.0f);
         innerColors[layer] = innerColor;
         outerColors[layer] = outerColor;
@@ -881,9 +881,9 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
     slf.destructionTimes  = destructionTimes;
     slf.innerColors = innerColors;
     slf.outerColors = outerColors;
-    slf.rotationMatrices = rotationMatrices;
-    slf.translationMatrices = translationMatrices;
-    slf.scaleMatrices = scaleMatrices;
+    slf.rotationMatrices = rotations;
+    slf.translationMatrices = translations;
+    slf.scaleMatrices = scales;
     slf.sLSCALEs = SL_SCALEs;
     slf.tags = tags;
     return slf;
@@ -1511,6 +1511,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     runawayPrinter.pause(3.0f);
     std::deque<OpenGLTexture> shapeTextures;
     PseudoVector<glm::vec4> shapeVec4s(TOTAL_SHAPES/SHAPES_DIVIDER,VEC4S_PER_SHAPE,glm::vec4(0.0f));
+    PseudoVector<glm::vec4> layerVec4s(TOTAL_LAYERS,VEC4S_PER_SHAPE,glm::vec4(0.0f));
     unsigned int framesCounter = 0;
     float fpsTimeStamp = getElapsedTime();
 

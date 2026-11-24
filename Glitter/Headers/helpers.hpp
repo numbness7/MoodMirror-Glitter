@@ -86,6 +86,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 #define BATCHES_PER_LAYER (TOTAL_SHAPES/(TOTAL_BATCHES))
 #define BATCHES_SHARE_EMOTION 1 
 #define VEC4S_PER_SHAPE (2)
+#define VEC4S_PER_LAYER (2)
 #define TOTAL_VEC4_FOR_SHAPES ((VEC4S_PER_SHAPE) * (TOTAL_SHAPES))
 
 // Emotion Data File
@@ -406,9 +407,9 @@ struct InitialShapeFeatures2D {
 };
 
 struct ShapeLayerFeatures2D {
-    std::vector<glm::mat3> translationMatrices;
-    std::vector<glm::mat3> rotationMatrices;
-    std::vector<glm::mat3> scaleMatrices;
+    std::vector<glm::vec2> translationMatrices;
+    std::vector<float> rotationMatrices;
+    std::vector<float> scaleMatrices;
     std::vector<glm::vec2> sLSCALEs;
     std::vector<glm::vec4> innerColors;
     std::vector<glm::vec4> outerColors;
