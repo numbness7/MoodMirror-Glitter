@@ -189,7 +189,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 1.5f
+#define SCALE_MULTIPLIER 2.0f
 #define MAX_SCALE 1.10f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.10f*SCALE_MULTIPLIER
