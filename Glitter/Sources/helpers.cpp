@@ -79,22 +79,10 @@ GLFWwindow* loadGLFWCreateWindow(int width, int height, bool fullscreen){
     // Load GLFW and Create a Window
     glfwInit();
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
-    if(!ON_PI)
-    {
-	    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-	    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-    }
-
-    else
-    {
-	    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API); 
-	    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-        
-    }
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API); 
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    
     int count;
     GLFWmonitor** monitors = glfwGetMonitors(&count);
     GLFWmonitor* monitor;
@@ -127,23 +115,10 @@ OpenGLWindow* loadGLFWCreateWindow(int width, int height, bool fullscreen,  int 
     glfwInit();
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
     auto mWindow = new OpenGLWindow();
-
-    if(!ON_PI)
-    {
-	    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-	    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-    }
-
-    else
-    {
-	    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API); 
-	    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API); 
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
         
-    }
     int count;
     GLFWmonitor** monitors = glfwGetMonitors(&count);
     GLFWmonitor* monitor;

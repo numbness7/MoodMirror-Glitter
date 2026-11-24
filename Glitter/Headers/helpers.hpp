@@ -64,8 +64,6 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 #define FULL_SCREEN true
 #define USE_PRIMARY_MONITOR false
 
-// Hardware Specific Configuration
-#define ON_PI true
 
 // Default paths
 #define SHADER_PATH (std::string("Glitter/Shaders/"))
