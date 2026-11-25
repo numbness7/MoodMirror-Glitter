@@ -58,7 +58,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 // #Header Macros -------------------------------------------------------------
 
 // Do Test
-#define DO_TEST true
+#define DO_TEST false
 
 // Window Configuration
 #define FULL_SCREEN false
@@ -76,7 +76,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 
 #define MAXIMUM_IMAGE_POWER 32
 #define TOTAL_LAYERS 32
-#define SHAPES_IN_BATCH 32
+#define SHAPES_IN_BATCH 16
 #define MID_LAYER 10
 #define TOTAL_EMOTION_LAYERS 8
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
@@ -189,7 +189,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 3.5f
+#define SCALE_MULTIPLIER 4.5f
 #define MAX_SCALE 1.10f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.10f*SCALE_MULTIPLIER

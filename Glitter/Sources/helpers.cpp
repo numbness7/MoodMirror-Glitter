@@ -1558,7 +1558,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                 for(const auto shape : shapeLayersTransfer.getShapes()){
                     assert(shapeVec4s.getSize() % VEC4S_PER_SHAPE == 0);
                     shapeVec4s.push_back( glm::vec4(glm::vec2(shape->coords), glm::angle(shape->direction) , shape->scaleMatrix[0][0]));
-                    shapeVec4s.push_back( glm::vec4(*reinterpret_cast<const float*>(&shape->type    ),*reinterpret_cast<const float*>(&shape->layerTag    ),*reinterpret_cast<const float*>(&shape->batchTag    ), 0.0f));
+                    shapeVec4s.push_back( glm::vec4(*reinterpret_cast<const float*>(&shape->type    ),*reinterpret_cast<const float*>(&shape->layerTag    ),*reinterpret_cast<const float*>(&shape->batchTag    ), rand_range_uniform(0.0f,1000.0f)));
                     if (shapeVec4s.isFull()){
                         if(shapeTextures.size() >= SHAPES_DIVIDER)
                             shapeTextures.pop_back();
@@ -1648,7 +1648,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             lE.object_shader.setUniformI("BATCHES_PER_LAYER", BATCHES_PER_LAYER); // TAG
             lE.object_shader.setUniformI("TOTAL_LAYERS", TOTAL_LAYERS); // TAG
             lE.object_shader.setUniformI("TOTAL_BATCHES", TOTAL_BATCHES); // TAG
-            lE.object_shader.setUniformF("TIME_PASSED", getElapsedTime()); // TAG
+            lE.object_shader.setUniformF("TIME_ELAPSED", getElapsedTime()); // TAG
             
     // ====================================================================================================
             glDisable(GL_DEPTH_TEST);
