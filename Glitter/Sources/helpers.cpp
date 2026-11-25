@@ -146,7 +146,7 @@ OpenGLWindow* loadGLFWCreateWindow(int width, int height, bool fullscreen,  int 
         height = mode->width;
     }
     else{
-        mWindow->window = glfwCreateWindow(width, height, "Glitter", monitor, NULL);
+        mWindow->window = glfwCreateWindow(width, height, "Glitter", NULL, NULL);
     }
     mWindow->screenWidth = width;
     mWindow->screenHeight = height;
@@ -813,6 +813,7 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
     auto destructionTimePasseds = getFilledVector<float>(shapeLayers.getLayerCnt(), 0.0f);
     auto SL_SCALEs = getFilledVector<glm::vec2>(shapeLayers.getLayerCnt(), glm::vec2());
     auto tags = getFilledVector<unsigned int>(shapeLayers.getLayerCnt(), 0u);
+    auto pulsesL = getFilledVector<int>(shapeLayers.getLayerCnt(), 0u);
     
     for(auto& shapeLayer : shapeLayers){
         int layer = shapeLayers.getLayerCnt() - 1 - layerCount;
@@ -860,11 +861,7 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
             static const float speed = 15.0f;
             shapeLayer.spin += speed*deltaTimer.getDeltaTime() / PULSE_TIME_RATIO;
         }
-        if(pulses[RUMBLE_P]){
-            static const float speed = 1.0f;
-            shapeLayer.rumbleCoords += speed * randCoords2D() * deltaTimer.getDeltaTime() / PULSE_TIME_RATIO;
-        }
-        translations[layer] = dX *dir2D::RIGHT + shapeLayer.rumbleCoords;
+        translations[layer] = dX *dir2D::RIGHT;
         rotations[layer] = shapeLayer.spin;
         scales[layer] = (1.0f - scaleDown)*(1.0f - scaleDownPulse);
         assert(scaleDown  <= 1.0f && scaleDown >= 0.0f);
@@ -874,6 +871,7 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
         destructionTimePasseds[layer] = passedTime;
         SL_SCALEs[layer] = shapeLayer.SL_SCALE;
         tags[layer] = shapeLayer.layerTag; // HORRIBLE AWFUL HACK
+        pulsesL[layer] = (pulses[RUMBLE_P]) ? 1 : 0;
         layerCount++;
     }
     ShapeLayerFeatures2D slf;
@@ -886,6 +884,7 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
     slf.scaleMatrices = scales;
     slf.sLSCALEs = SL_SCALEs;
     slf.tags = tags;
+    slf.pulses = pulsesL;
     return slf;
 }
 
@@ -1628,7 +1627,8 @@ int mainCoordsBasic2D(int argc, char * argv[]){
                 {"OUTER_COLORS_TEXTURE",useTextureDataToCreateTexture(slf.outerColors, shapeLayersStorage.getLayerCnt(), 1)},
                 {"SL_SCALES_TEXTURE",useTextureDataToCreateTexture(slf.sLSCALEs, shapeLayersStorage.getLayerCnt(), 1)},
                 {"LAYER_TAGS_TEXTURE",useTextureDataToCreateTexture(slf.tags, shapeLayersStorage.getLayerCnt(), 1)},
-                {"BATCH_TAGS_TEXTURE",useTextureDataToCreateTexture(bf.tags, shapeLayersStorage.getBatchCnt(), 1)}
+                {"BATCH_TAGS_TEXTURE",useTextureDataToCreateTexture(bf.tags, shapeLayersStorage.getBatchCnt(), 1)},
+                {"LAYER_PULSES_TEXTURE",useTextureDataToCreateTexture(slf.pulses, shapeLayersStorage.getLayerCnt(), 1)}
             };
             for(const auto& texture : textureAtlas.getTextures())
                 openGLTextures.push_back(texture);
@@ -1648,6 +1648,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
             lE.object_shader.setUniformI("BATCHES_PER_LAYER", BATCHES_PER_LAYER); // TAG
             lE.object_shader.setUniformI("TOTAL_LAYERS", TOTAL_LAYERS); // TAG
             lE.object_shader.setUniformI("TOTAL_BATCHES", TOTAL_BATCHES); // TAG
+            lE.object_shader.setUniformF("TIME_PASSED", getElapsedTime()); // TAG
             
     // ====================================================================================================
             glDisable(GL_DEPTH_TEST);
@@ -2817,4 +2818,24 @@ void beginFramebuffer(FrameBuffer& fB)
 void startFrameBuffer(FrameBuffer& fB){
     glClearColor(0.0f,0.0f,0.0f,0.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+}
+
+int mainRandom(int argc, char* argv[]){
+    int returnStatus;
+    OpenGLWindow* window;
+    if((returnStatus = initOpenGL(window, mWidth, mHeight, false, -1, -1)) == EXIT_FAILURE)
+        return EXIT_FAILURE;
+    DeltaTimer timer;
+    OpenGLShape square(shapes::rectT);
+    Shader randomShader(SHADER_PATH + "random");
+    
+    while(!glfwWindowShouldClose(window->window)){
+        minimumStartRenderLoop(timer);
+        randomShader.use();
+        float elapsedTime = getElapsedTime();
+        randomShader.setUniformF("TIME_ELAPSED", elapsedTime);
+        square.draw(randomShader);
+        endRenderLoopStatic(window->window);
+    }
+    return returnStatus;
 }

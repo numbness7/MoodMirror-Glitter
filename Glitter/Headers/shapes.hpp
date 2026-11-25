@@ -75,6 +75,21 @@ namespace shapes {
         0, 2, 3,
 
     };
+    const unsigned int square_ind[] = {
+        0, 1, 2,
+        0, 2, 3,
+
+    };
+    const float square_t[] = {
+        // position           texture coor
+        -1.0,  1.0f, 0.0f,  0.0f, 1.0f,//top-left
+         1.0,  1.0f, 0.0f,  1.0f, 1.0f, //top-right
+         1.0, -1.0f, 0.0f,  1.0f, 0.0f, //bottom-right
+        -1.0, -1.0f, 0.0f,  0.0f, 0.0f, //bottom-left
+    };
+    
+    const Shape squareT(square_t, sizeof(square_t)/sizeof(float), {3,2}, square_ind, sizeof(square_ind)/sizeof(unsigned int));
+
     
     const Shape rectT(rect_t,  sizeof(rect_t)/sizeof(float), rect_t_attribute_sizes,      rect_ind, sizeof(rect_ind)/sizeof(unsigned int));
     const Shape eTriT(e_tri_t, sizeof(e_tri_t)/sizeof(float),std::vector<unsigned>{3,2}, e_tri_ind, 3);

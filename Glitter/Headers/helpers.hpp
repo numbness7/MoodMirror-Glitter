@@ -53,16 +53,16 @@ const int mWidth = 800;
 const int mHeight = 800;
 const int mRWidth = 16*120;
 const int mRHeight = 9*120;
-const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f, 32.0f},{0.30, 16.0f, 16.0f}, {0.25, 4.0f, 4.0f}, {0.10f, 1.0f, 1.0f}};
+const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f, 32.0f},{0.25, 8.0f, 8.0f}, {0.25, 4.0f, 4.0f}, {0.25f, 1.0f, 1.0f}};
 
 // #Header Macros -------------------------------------------------------------
 
 // Do Test
-#define DO_TEST false
+#define DO_TEST true
 
 // Window Configuration
-#define FULL_SCREEN true
-#define USE_PRIMARY_MONITOR false
+#define FULL_SCREEN false
+#define USE_PRIMARY_MONITOR true
 
 
 // Default paths
@@ -75,10 +75,10 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 // Layer info
 
 #define MAXIMUM_IMAGE_POWER 32
-#define TOTAL_LAYERS 64
-#define SHAPES_IN_BATCH 16
-#define MID_LAYER 8
-#define TOTAL_EMOTION_LAYERS 4
+#define TOTAL_LAYERS 32
+#define SHAPES_IN_BATCH 32
+#define MID_LAYER 10
+#define TOTAL_EMOTION_LAYERS 8
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
 #define TOTAL_SHAPES (TOTAL_BATCHES*SHAPES_IN_BATCH)
 #define SHAPES_DIVIDER 16
@@ -109,7 +109,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 #define PULSE_FADE_MAX 1.0f
 #define PULSE_FADE_SCALE_MIN 0.0f
 #define PULSE_FADE_SCALE_MAX 1.0f
-#define PULSE_NUMBER 1
+#define PULSE_NUMBER 3
 
 // Ben's Color Image Generator parameters
 
@@ -117,8 +117,8 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 #define COLOR_PROGRAM "python Gener3.py"
 #define COLOR_START false
 #define COLOR_FREQUENCY 0.015f
-#define COLOR_WIDTH 256
-#define COLOR_HEIGHT 256
+#define COLOR_WIDTH 128
+#define COLOR_HEIGHT 128
 #define COLOR_DISPLAY false
 
 #define USE_BEN_CHANCE 1.0f
@@ -128,8 +128,8 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 #define SIM_PATH "../Emotion_Gen_Sim/"
 #define SIM_PROGRAM "python emotion_generator_mine.py"
 #define SIM_START false
-#define SIM_READ_PERIOD 0.001f
-#define SIM_INITIAL_READ_PERIOD 0.001f
+#define SIM_READ_PERIOD 0.f
+#define SIM_INITIAL_READ_PERIOD 0.1f
 #define SIM_PERIOD 0.01f
 #define SIM_INITIAL_PERIOD 0.01f
 #define SIM_CYCLE true
@@ -189,7 +189,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 2.0f
+#define SCALE_MULTIPLIER 3.5f
 #define MAX_SCALE 1.10f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.10f*SCALE_MULTIPLIER
@@ -416,6 +416,7 @@ struct ShapeLayerFeatures2D {
     std::vector<float> destructionTimes;
     std::vector<float> destructionTimePasseds;
     std::vector<unsigned int> tags;
+    std::vector<int> pulses;
 };
 struct BatchFeatures2D {
     std::vector<unsigned int> tags;
@@ -524,6 +525,7 @@ int mainCoordsBasic2D(int argc, char * argv[]);
 int mainDrawFloats(int argc, char* argv[]);
 int mainDrawRectangle(int argc, char* argv[]);
 int mainDrawCircle(int argc, char* argv[]);
+int mainRandom(int argc, char* argv[]);
 int mainDrawDistances(int argc, char* argv[]);
 int mainDrawBatch(int argc, char* argv[]);
 int mainSolve(int argc, char * argv[]);

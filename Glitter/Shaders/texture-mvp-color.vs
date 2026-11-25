@@ -16,12 +16,15 @@ uniform int SIZE;
 uniform highp sampler2D TRANS_L_TEXTURE;
 uniform highp sampler2D ROTATE_L_TEXTURE;
 uniform highp sampler2D SCALE_L_TEXTURE;
+uniform highp isampler2D LAYER_PULSES_TEXTURE;
 uniform highp usampler2D LAYER_TAGS_TEXTURE;
+uniform float TIME_PASSED;
 const int ATLAS_TEXTURES_CNT = 16;
 uniform highp usampler2D BATCH_TAGS_TEXTURE;
 uniform highp usampler2D ATLAS_TAGS_TEXTURE;
 const int SHAPE_TEXTURES_CNT = 16;
 const int STRIDE = 2;
+const float RUMBLE_DIST_CONST = 0.1f;
 uniform highp sampler2D SHAPES_TEXTURES[16];
 uniform int SHAPES_PER_LAYER;
 uniform int SHAPES_PER_BATCH;
@@ -29,6 +32,11 @@ uniform int TOTAL_BATCHES;
 uniform int TOTAL_LAYERS;
 uniform int BATCHES_PER_LAYER;
 uniform int INSTANCE_ID_OFFSET;
+#define PI (3.14159265358979323f)
+#define RUMBLE_HORIZONTAL_OFFSET (PI/2.0f)
+#define RUMBLE_VERTICAL_OFFSET (0.0f)
+#define RUMBLE_HORIZONTAL_FREQUENCY (5.994f)
+#define RUMBLE_VERTICAL_FREQUENCY (5.288f)
 
 
 mat3 getRotateMatrix( float angle);
@@ -77,6 +85,7 @@ void main(){
     vec2  transL = getTexel(TRANS_L_TEXTURE, layer).xy;
     float  scaleL = getTexel(SCALE_L_TEXTURE, layer).x;
     float rotateL=  getTexel(ROTATE_L_TEXTURE, layer).x;
+    int pulsesL = getTexel(LAYER_PULSES_TEXTURE, layer).x;
     matrix = scaleMatrix(matrix, vec2(scaleL*scaleS));
     matrix = rotateMatrix(matrix, rotateS + rotateL);
     matrix = translateMatrix(matrix, rotate(transL, rotateS) + transS);
