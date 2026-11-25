@@ -53,7 +53,7 @@ const int mWidth = 800;
 const int mHeight = 800;
 const int mRWidth = 16*120;
 const int mRHeight = 9*120;
-const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f, 32.0f},{0.25, 8.0f, 8.0f}, {0.25, 4.0f, 4.0f}, {0.25f, 1.0f, 1.0f}};
+const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f, 32.0f},{0.25f, 16.0f, 16.0f},{0.25f, 2.0f, 2.0f},{0.25f, 1.0f, 1.0f}};
 
 // #Header Macros -------------------------------------------------------------
 
@@ -61,8 +61,8 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 #define DO_TEST false
 
 // Window Configuration
-#define FULL_SCREEN false
-#define USE_PRIMARY_MONITOR true
+#define FULL_SCREEN true
+#define USE_PRIMARY_MONITOR false
 
 
 // Default paths
@@ -75,10 +75,10 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 // Layer info
 
 #define MAXIMUM_IMAGE_POWER 32
-#define TOTAL_LAYERS 32
-#define SHAPES_IN_BATCH 16
-#define MID_LAYER 10
-#define TOTAL_EMOTION_LAYERS 8
+#define TOTAL_LAYERS 48
+#define SHAPES_IN_BATCH 8
+#define MID_LAYER 16
+#define TOTAL_EMOTION_LAYERS 12
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
 #define TOTAL_SHAPES (TOTAL_BATCHES*SHAPES_IN_BATCH)
 #define SHAPES_DIVIDER 16
@@ -109,7 +109,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 #define PULSE_FADE_MAX 1.0f
 #define PULSE_FADE_SCALE_MIN 0.0f
 #define PULSE_FADE_SCALE_MAX 1.0f
-#define PULSE_NUMBER 3
+#define PULSE_NUMBER 2
 
 // Ben's Color Image Generator parameters
 
@@ -189,11 +189,11 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 4.5f
+#define SCALE_MULTIPLIER 2.5f
 #define MAX_SCALE 1.10f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
-#define AVE_SCALE 0.10f*SCALE_MULTIPLIER
-#define DEV_SCALE 0.10f*SCALE_MULTIPLIER
+#define AVE_SCALE 0.25f*SCALE_MULTIPLIER
+#define DEV_SCALE 0.25f*SCALE_MULTIPLIER
 
 // Random Alpha Differences Between Shapes in Same Batch
 

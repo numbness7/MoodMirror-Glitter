@@ -323,7 +323,7 @@ std::string emotionArrayToString(std::vector<float> emotionArray){
     std::ostringstream ss;
     ss << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
     ss << "----------------------------------------------------------------------------------------------------" << std::endl;
-    float max = std::numeric_limits<float>::min();
+    float max = -std::numeric_limits<float>::max();
     int maxEmotion = -1;
     for(int col=0; col < emotionArray.size(); col++){
         float current = emotionArray[col];
@@ -341,7 +341,7 @@ std::string emotionArrayToString(std::vector<float> emotionArray){
 void printEmotionArray(std::vector<float> emotionArray){
     std::cout << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
     std::cout << "----------------------------------------------------------------------------------------------------" << std::endl;
-    float max = std::numeric_limits<float>::min();
+    float max = -std::numeric_limits<float>::max();
     int maxEmotion = -1;
     for(int col=0; col < emotionArray.size(); col++){
         float current = emotionArray[col];
@@ -410,7 +410,7 @@ std::vector<std::vector<float>> readEmotionArray(std::string filepath, bool prin
         std::cout << "HAPPY\t\tSAD\t\tANGER\t\tFEAR\t\tSURPRISE\tDISGUST\t\tMAX\n";
         std::cout << "----------------------------------------------------------------------------------------------------" << std::endl;
         for(int row=0; row < emotionArray.size(); row++){
-            float max = std::numeric_limits<float>::min();
+            float max = -std::numeric_limits<float>::max();
             int maxEmotion = -1;
             for(int col=0; col < emotionArray[0].size(); col++){
                 float current = emotionArray[row][col];
@@ -871,7 +871,12 @@ ShapeLayerFeatures2D loadShapeLayer2Ds(ShapeLayerStorage& shapeLayers,  std::tup
         destructionTimePasseds[layer] = passedTime;
         SL_SCALEs[layer] = shapeLayer.SL_SCALE;
         tags[layer] = shapeLayer.layerTag; // HORRIBLE AWFUL HACK
-        pulsesL[layer] = (pulses[RUMBLE_P]) ? 1 : 0;
+        pulsesL[layer] = 0;
+        pulsesL[layer] |= (pulses[RUMBLE_P])? (1 << 0) : 0;
+        pulsesL[layer] |= (pulses[SPINL_P]) ? (1 << 1) : 0;
+        pulsesL[layer] |= (pulses[SPINR_P]) ? (1 << 2) : 0;
+        pulsesL[layer] |= (pulses[SCALE_P]) ? (1 << 3) : 0;
+        pulsesL[layer] |= (pulses[FADE_P])  ? (1 << 4) : 0;
         layerCount++;
     }
     ShapeLayerFeatures2D slf;

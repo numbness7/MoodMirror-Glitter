@@ -58,6 +58,7 @@ uvec4 getTexel                          (highp usampler2D texture, int index);
 
 
 float snoise(vec2 v);
+float cnoise(vec2 P);
 
 struct SHAPE_PROPS { vec2 translation; float rotation; float scale; uint type; uint layerTag; uint batchTag; float seed; };
 SHAPE_PROPS getShapeProps();
@@ -67,6 +68,13 @@ flat out int BATCH_OUT;
 flat out uint TYPE_OUT;
 flat out int SHAPE_TEXTURE_INDEX;
 flat out int ATLAS_TAG_OUT;
+/*
+    pulsesL[layer] |= (pulses[RUMBLE_P])? (1 << 0) : 0;
+    pulsesL[layer] |= (pulses[SPINL_P]) ? (1 << 1) : 0;
+    pulsesL[layer] |= (pulses[SPINR_P]) ? (1 << 2) : 0;
+    pulsesL[layer] |= (pulses[SCALE_P]) ? (1 << 3) : 0;
+    pulsesL[layer] |= (pulses[FADE_P])  ? (1 << 4) : 0;
+*/
 
 void main(){
     InstanceID = gl_InstanceID + INSTANCE_ID_OFFSET;
@@ -85,19 +93,40 @@ void main(){
     mat3 matrix = mat3(1.0f);
     vec2  transL = getTexel(TRANS_L_TEXTURE, layer).xy;
     float  scaleL = getTexel(SCALE_L_TEXTURE, layer).x;
-    float rotateL=  getTexel(ROTATE_L_TEXTURE, layer).x;
+    //float rotateL=  getTexel(ROTATE_L_TEXTURE, layer).x;
     int pulsesL = getTexel(LAYER_PULSES_TEXTURE, layer).x;
     vec2 rumbleOffset = vec2(0.0f);
+    vec2 surpriseOffset = vec2(0.0f);
+    float spinR = 0.0f;
+    float spinL = 0.0f;
     
-    if((pulsesL & 1) == 1){
+/*
+    pulsesL[layer] |= (pulses[RUMBLE_P])? (1 << 0) : 0;
+    pulsesL[layer] |= (pulses[SPINL_P]) ? (1 << 1) : 0;
+    pulsesL[layer] |= (pulses[SPINR_P]) ? (1 << 2) : 0;
+    pulsesL[layer] |= (pulses[SCALE_P]) ? (1 << 3) : 0;
+    pulsesL[layer] |= (pulses[FADE_P])  ? (1 << 4) : 0;
+*/
+    if((pulsesL & (1 << 0)) > 0){
         float o_x = snoise(vec2(10.0f*TIME_ELAPSED,props.seed*2.0f));
         float o_y = snoise(vec2(10.0f*TIME_ELAPSED,props.seed));
         rumbleOffset = 0.05f*vec2(o_x, o_y);
     }
+    if((pulsesL & (1 << 1)) > 0){
+        //float o_x = abs(sin(cnoise(vec2(0.1f*1.0f*TIME_ELAPSED,props.seed*4.0f))));
+        //float o_x = cnoise(vec2(0.1f*1.0f*TIME_ELAPSED,props.seed*4.0f));
+        //float o_y = cnoise(vec2(1.0f*TIME_ELAPSED,props.seed*3.0f));
+        //surpriseOffset = 2.0f*vec2(o_x, o_y);
+        spinL = 2.0f*PI*TIME_ELAPSED*0.1f;
+    }
+    if((pulsesL & (1 << 2)) > 0){
+        spinR = -2.0f*PI*TIME_ELAPSED*0.1f;
+    }
         
     matrix = scaleMatrix(matrix, vec2(scaleL*scaleS));
-    matrix = rotateMatrix(matrix, rotateS + rotateL);
-    matrix = translateMatrix(matrix, rotate(transL, rotateS) + transS + rumbleOffset);
+    matrix = rotateMatrix(matrix, rotateS);
+    matrix = translateMatrix(matrix, rotate(transL, rotateS) + transS + rumbleOffset + surpriseOffset);
+    //matrix = rotateMatrix(matrix, spinL);
     matrixOut = matrix;
     vec2 newPos = matrixMultiply(matrix, aPos.xy);
     gl_Position = vec4(newPos, 0.0f, 1.0f);
