@@ -53,7 +53,7 @@ const int mWidth = 800;
 const int mHeight = 800;
 const int mRWidth = 16*120;
 const int mRHeight = 9*120;
-const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f, 32.0f},{0.30f, 16.0f, 16.0f},{0.20f, 4.0f, 4.0f},{0.15f, 1.0f, 1.0f}};
+const std::vector<std::tuple<float, float, float>> distributions {{0.45f, 32.0f, 32.0f},{0.30f, 16.0f, 16.0f},{0.20f, 8.0f, 8.0f},{0.10f, 2.0f, 2.0f}};
 
 // #Header Macros -------------------------------------------------------------
 
@@ -75,9 +75,9 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 // Layer info
 
 #define MAXIMUM_IMAGE_POWER 32
-#define TOTAL_LAYERS 64
-#define SHAPES_IN_BATCH 16
-#define MID_LAYER 16
+#define TOTAL_LAYERS 32
+#define SHAPES_IN_BATCH 12
+#define MID_LAYER 12
 #define TOTAL_EMOTION_LAYERS 12
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
 #define TOTAL_SHAPES (TOTAL_BATCHES*SHAPES_IN_BATCH)
@@ -189,7 +189,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f,
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 1.0f
+#define SCALE_MULTIPLIER 2.0f
 #define MAX_SCALE 3.00f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.25f*SCALE_MULTIPLIER
