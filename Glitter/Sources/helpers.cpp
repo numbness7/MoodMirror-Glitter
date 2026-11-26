@@ -1479,7 +1479,7 @@ int mainCoordsBasic2D(int argc, char * argv[]){
     std::deque<ShapeLayer> shapeLayersBuffer{};
     ShapeLayerStorage shapeLayersStorage{};
     ShapeLayerStorage shapeLayersTransfer{};
-    glm::vec4 backgroundColor(0.0f);
+    glm::vec4 backgroundColor(1.0f,1.0f,1.0f,0.0f);
     std::mutex shapeLock{};
     std::mutex timeLock{};
     std::counting_semaphore<TOTAL_LAYERS> shapesSemaphore{0};

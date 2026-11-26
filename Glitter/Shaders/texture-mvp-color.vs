@@ -108,8 +108,8 @@ void main(){
     pulsesL[layer] |= (pulses[FADE_P])  ? (1 << 4) : 0;
 */
     if((pulsesL & (1 << 0)) > 0){
-        float o_x = snoise(vec2(10.0f*TIME_ELAPSED,props.seed*2.0f));
-        float o_y = snoise(vec2(10.0f*TIME_ELAPSED,props.seed));
+        float o_x = snoise(vec2(20.0f*TIME_ELAPSED,props.seed*2.0f));
+        float o_y = snoise(vec2(20.0f*TIME_ELAPSED,props.seed));
         rumbleOffset = 0.05f*vec2(o_x, o_y);
     }
     if((pulsesL & (1 << 1)) > 0){
@@ -124,7 +124,7 @@ void main(){
     }
         
     matrix = scaleMatrix(matrix, vec2(scaleL*scaleS));
-    matrix = rotateMatrix(matrix, rotateS);
+    matrix = rotateMatrix(matrix, rotateS + spinR + spinL);
     matrix = translateMatrix(matrix, rotate(transL, rotateS) + transS + rumbleOffset + surpriseOffset);
     //matrix = rotateMatrix(matrix, spinL);
     matrixOut = matrix;

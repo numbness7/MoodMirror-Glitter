@@ -53,7 +53,7 @@ const int mWidth = 800;
 const int mHeight = 800;
 const int mRWidth = 16*120;
 const int mRHeight = 9*120;
-const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f, 32.0f},{0.25f, 16.0f, 16.0f},{0.25f, 2.0f, 2.0f},{0.25f, 1.0f, 1.0f}};
+const std::vector<std::tuple<float, float, float>> distributions {{0.35f, 32.0f, 32.0f},{0.30f, 16.0f, 16.0f},{0.20f, 4.0f, 4.0f},{0.15f, 1.0f, 1.0f}};
 
 // #Header Macros -------------------------------------------------------------
 
@@ -75,8 +75,8 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 // Layer info
 
 #define MAXIMUM_IMAGE_POWER 32
-#define TOTAL_LAYERS 48
-#define SHAPES_IN_BATCH 8
+#define TOTAL_LAYERS 64
+#define SHAPES_IN_BATCH 16
 #define MID_LAYER 16
 #define TOTAL_EMOTION_LAYERS 12
 #define TOTAL_BATCHES (TOTAL_LAYERS*TOTAL_EMOTION_LAYERS)
@@ -96,12 +96,12 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 // Spawn Times
 
 #define SHAPE_INITIAL_SPAWN_TIME 0.15f
-#define DESTRUCTION_TIME         0.25f
+#define DESTRUCTION_TIME         0.20f
 #define UPDATE_ITERATIONS 10.0f
 
 // Pulse
 
-#define PULSE_TIME_RATIO 12.0f
+#define PULSE_TIME_RATIO 6.0f
 #define PULSE_TIME (DESTRUCTION_TIME*PULSE_TIME_RATIO)
 #define PULSE_TIME_INITAL (SHAPE_INITIAL_SPAWN_TIME*PULSE_TIME_RATIO)
 
@@ -121,17 +121,17 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 #define COLOR_HEIGHT 128
 #define COLOR_DISPLAY false
 
-#define USE_BEN_CHANCE 1.0f
+#define USE_BEN_CHANCE 0.0f
 
 // Ben's Simulator Parameters
 
 #define SIM_PATH "../Emotion_Gen_Sim/"
 #define SIM_PROGRAM "python emotion_generator_mine.py"
 #define SIM_START false
-#define SIM_READ_PERIOD 0.f
-#define SIM_INITIAL_READ_PERIOD 0.1f
-#define SIM_PERIOD 0.01f
-#define SIM_INITIAL_PERIOD 0.01f
+#define SIM_READ_PERIOD 2.0f
+#define SIM_INITIAL_READ_PERIOD 0.2f
+#define SIM_PERIOD 2.0f
+#define SIM_INITIAL_PERIOD 0.2f
 #define SIM_CYCLE true
 #define SIM_RANDOM false
 
@@ -189,11 +189,11 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 
 // Random Scale Differences Between Shapes in Same Batch
 
-#define SCALE_MULTIPLIER 2.5f
-#define MAX_SCALE 1.10f*SCALE_MULTIPLIER
+#define SCALE_MULTIPLIER 1.0f
+#define MAX_SCALE 3.00f*SCALE_MULTIPLIER
 #define MIN_SCALE 0.100f*SCALE_MULTIPLIER
 #define AVE_SCALE 0.25f*SCALE_MULTIPLIER
-#define DEV_SCALE 0.25f*SCALE_MULTIPLIER
+#define DEV_SCALE 0.5f*SCALE_MULTIPLIER
 
 // Random Alpha Differences Between Shapes in Same Batch
 
@@ -208,7 +208,7 @@ const std::vector<std::tuple<float, float, float>> distributions {{0.25f, 32.0f,
 
 // Sets the amount a shape is scattered
 
-#define SCATTER_COORD_SCALE 1.00f
+#define SCATTER_COORD_SCALE 1.25f
 
 // Sets the amount a shape is positioned based on emotion data
 
